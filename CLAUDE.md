@@ -1,4 +1,4 @@
-# Invisible Journeys Studio: map (WORK IN PROGRESS, paused)
+# Invisible Journeys Studio: map (video engine WIP and paused; War Room active)
 
 Phase 0 is partly built. Nothing below has been checked end to end with a full render yet.
 - `engine/src/`: three.js r169 engine. `engine.js` (studio, deterministic `frame(t)`, sub-frame motion blur), `post.js` (bloom/ACES/grain),
@@ -10,3 +10,4 @@ Phase 0 is partly built. Nothing below has been checked end to end with a full r
 - Not done: `tools/audio.js` + `engine/src/audio_core.js`, `tools/cloud/`, PLAYBOOK.md, the setup script, and the 3 s proof render.
 - Shots import `@engine/<module>.js` and `three`. Page time t = shot time + 4. Use `?scale=0.5&mb=1` for fast iteration.
 - `.war-room/roster.yaml`: TikTok officers for `/war-room` (pick "Saved roster"). `channel/results.csv` is the post-stats log.
+- `warroom/`: **War Room + Mission Control**, a separate Node app (Claude Agent SDK). It has 6 agents (`warroom/agents/*.md`), auto-assigns tasks, keeps a hive mind, gates edits and commands behind approvals, and runs War Room councils that save dossiers to `channel/war-room/`. `cd warroom && npm i && npm run demo` (free) or add `ANTHROPIC_API_KEY` to `warroom/.env` and run `npm start`. See `warroom/README.md`.

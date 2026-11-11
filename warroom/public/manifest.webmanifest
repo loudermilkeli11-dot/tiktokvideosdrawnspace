@@ -1,0 +1,3 @@
+{ "name": "War Room · Invisible Journeys", "short_name": "War Room", "start_url": "/", "display": "standalone",
+  "background_color": "#07090d", "theme_color": "#07090d",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }] }

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>War Room · Invisible Journeys</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23ffb347' stroke-width='10'/><circle cx='50' cy='50' r='12' fill='%23ffb347'/></svg>">
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#07090d">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span><b>INVISIBLE JOURNEYS</b><span class="sep">//</span><span>WAR ROOM</span></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="mission" class="on">Mission Control</button>
+    <button data-tab="war">War Room</button>
+    <button data-tab="hive">Hive Mind</button>
+    <button data-tab="memory">Memory</button>
+  </nav>
+  <div class="meta"><span id="mode" class="badge">…</span><span id="spend" class="mono">$0.00</span><span id="clock" class="mono">--:--:-- UTC</span><span id="conn" class="conn" title="live link"></span></div>
+</header>
+
+<main>
+  <!-- MISSION CONTROL -->
+  <section id="mission" class="view on">
+    <aside class="roster" id="roster"></aside>
+    <div class="center">
+      <form class="command" id="cmd">
+        <textarea id="cmdText" rows="2" placeholder="Give an order… e.g. “Pitch 3 ideas for next week's video” or “@writer board the Moon idea”"></textarea>
+        <div class="cmdrow">
+          <select id="cmdAgent"><option value="">⚡ Auto-assign</option></select>
+          <button class="primary" type="submit">Dispatch ⏎</button>
+        </div>
+      </form>
+      <div class="board">
+        <div class="col"><h3>Queued <i id="nQ"></i></h3><div id="colQ"></div></div>
+        <div class="col"><h3>Running <i id="nR"></i></h3><div id="colR"></div></div>
+        <div class="col"><h3>Done <i id="nD"></i></h3><div id="colD"></div></div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="panel" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"><p class="muted">Nothing waiting. Agents ask here before they edit outside their area or run commands.</p></div></div>
+      <div class="panel grow"><h3>Hive mind</h3><div id="hiveMini" class="feed"></div></div>
+    </aside>
+  </section>
+
+  <!-- WAR ROOM -->
+  <section id="war" class="view">
+    <div class="warTop">
+      <form id="wrForm" class="wrForm">
+        <textarea id="wrQ" rows="2" placeholder="Put a hard call to the council… e.g. “Which of the 3 pitches do we make next, and what is its frame 1?”"></textarea>
+        <div class="cmdrow"><div id="wrOfficers" class="chips"></div><button class="primary" type="submit">Convene ⚔</button></div>
+        <p class="muted small">Officers answer blind to each other through their own lens. The Marshal synthesizes from their reads. The Tenth Man attacks the consensus last. You make the call.</p>
+      </form>
+      <div class="wrHistory"><h3>Past councils</h3><div id="wrList"></div></div>
+    </div>
+    <div id="wrStage" class="wrStage empty"><p class="muted">No council in session.</p></div>
+  </section>
+
+  <!-- HIVE -->
+  <section id="hive" class="view"><div class="panel full"><h3>Hive mind: everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
+
+  <!-- MEMORY -->
+  <section id="memory" class="view">
+    <div class="panel full">
+      <h3>Pinned memory</h3>
+      <p class="muted small">Every agent reads this before every task. Put the channel's standing orders here: goals, taste, what worked, what never to do again.</p>
+      <textarea id="pinned" rows="16"></textarea>
+      <div class="cmdrow"><span class="muted small" id="pinnedSaved"></span><button class="primary" id="savePinned">Save</button></div>
+      <p class="muted small">Agents also keep their own memory: any line they write as <code>REMEMBER: …</code> is saved to <code>warroom/data/memory/&lt;agent&gt;.md</code>.</p>
+    </div>
+  </section>
+</main>
+
+<div id="drawer" class="drawer"><div class="drawerIn"><button class="x" id="drawerX">✕</button><div id="drawerBody"></div></div></div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+CHECK /home/user/tiktokvideosdrawnspace/projects/gravity-flip/out/final.mp4
+frames: 1140 (expected 1140)   duration 38.000s   size 84.47 MB
+loudness: I=-14.3 LUFS  TP=-1.7 dBTP (target -14 / <= -1)
+white-flash check: 0 frames — OK
+hard cuts: 13 (confirm each lands on a sound hit; onset = dB rise after vs before, measured above 200 Hz)
+  cut @ f90 00:03.00  diff 0.15  onset +11.4 dB  (level -13.2 dBFS, peak -4.5)
+  cut @ f180 00:06.00  diff 0.25  onset +21.7 dB  (level -14.5 dBFS, peak -5.8)
+  cut @ f255 00:08.50  diff 0.18  onset +10.6 dB  (level -16.7 dBFS, peak -6.9)
+  cut @ f315 00:10.50  diff 0.16  onset +29.1 dB  (level -24.1 dBFS, peak -14.5)
+  cut @ f405 00:13.50  diff 0.42  onset +9.7 dB  (level -13.3 dBFS, peak -4.6)
+  cut @ f410 00:13.67  diff 0.11  onset -7.0 dB  (level -22.5 dBFS, peak -10.4)   <- weak/no onset
+  cut @ f411 00:13.70  diff 0.14  onset -3.5 dB  (level -21.6 dBFS, peak -10.4)   <- weak/no onset
+  cut @ f450 00:15.00  diff 0.24  onset +9.6 dB  (level -12.6 dBFS, peak -4.3)
+  cut @ f600 00:20.00  diff 0.22  onset +16.2 dB  (level -12.9 dBFS, peak -4.3)
+  cut @ f720 00:24.00  diff 0.33  onset +9.0 dB  (level -12.2 dBFS, peak -4.2)
+  cut @ f825 00:27.50  diff 0.08  onset +28.1 dB  (level -12.0 dBFS, peak -4.3)
+  cut @ f826 00:27.53  diff 0.29  onset +6.8 dB  (level -12.6 dBFS, peak -4.3)
+  cut @ f915 00:30.50  diff 0.45  onset +30.7 dB  (level -11.9 dBFS, peak -3.9)
+jump report: 0 sharp fast-motion frame pairs (> 40 px/frame, not motion-blurred)
+motion summary: median 1.7 px/f, p95 8.5, max 148.6
+silence 35.000-37.800s: peak -240.0 dBFS OK
+text contrast (A4, after yuv420p; every 0.50 s, 76 sampled frames with text):  worst white 3.54:1 white text at design (38,472) @ f180 00:06.00;  worst accent 3.18:1 accent text at design (422,592) @ f795 00:26.50;  0 frames below 3:1 — OK
+loop: first vs last frame mean abs diff 0.517 (visible jump)
+contact sheets: final.contact_01.jpg, final.contact_02.jpg
+
+RESULT: PASS  (29.2s)

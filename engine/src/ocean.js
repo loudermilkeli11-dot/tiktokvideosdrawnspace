@@ -58,7 +58,7 @@ const SLAB_FS = `
         }
         if (churn > 0.) {                           // the impact: the bay smashed into white water
           float c1 = fbm2(vWP.xz*0.035 + vec2(time*0.35, time*0.2)), c2 = fbm2(vWP.xz*0.16 - vec2(time*0.8, -time*0.5)), c3 = fbm2(vWP.xz*0.6 + time*1.3);
-          float wc = churn*smoothstep(0.56, 0.72, c1*0.6 + c2*0.45 + 0.18*c3);
+          float wc = churn*smoothstep(0.42, 0.6, c1*0.6 + c2*0.45 + 0.18*c3);
           float streak = churn*smoothstep(0.62, 0.7, fbm2(vWP.xz*vec2(0.05, 0.3) + c1*2.))*0.7;
           vec3 wfc = vec3(0.93, 0.96, 0.98)*(0.38 + 0.62*sunI*max(sunDir.y, 0.1))*(0.85 + 0.25*c3);
           col = mix(col*vec3(0.7, 1.05, 1.1) + shallow*0.18*churn, wfc, clamp(wc + streak, 0., 1.)*0.95);

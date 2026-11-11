@@ -3,9 +3,12 @@
 // texture generated once on the GPU at load (cauliflower domes at three scales inside fbm clusters, + rare towers).
 // Shaded live by the sun: wrapped diffuse, soft self-shadow (march toward the sun), crevice occlusion, blue sky-fill in
 // the shadows, cast shadows on the sea seen through the gaps, and aerial perspective into the horizon haze.
-//   const CL = createClouds(S, { base: 1400, thick: 1900, cover: 0.75 });
-//   each frame: CL.update(S, { alt: camera altitude above sea level (m), sunDir: Vector3 });  CL.dip = horizon dip (rad)
-// World frame: the camera's world y = 0 is at altitude `alt`; the Earth's centre is straight below at (0, -(R + alt), 0).
+//   const CL = createClouds(S, { base: 2400, thick: 1450, cover: 0.8 });     // after createSky (draws over the sky, under everything)
+//   each frame: CL.update(S, { alt: altitude of world y = 0 (m), sunDir: Vector3 }); sky.U.dip.value = CL.dip (the deck's horizon dip, rad)
+// World frame: world y = 0 is at altitude `alt`; the Earth's centre is at (0, -(R + alt), 0). Only for cameras ABOVE the deck.
+// opts: base / thick (m: cloud base, typical top relief; towers reach ~2x) | cover 0..1 | towers 0..1 | period (m, texture tile, 26 km)
+//   res (texture, 2048) | seed | sunI, sunCol, skyI, skyCol (fill), seaCol (gaps) | hazeCol, hazeL (m, aerial perspective) | regional 0..1
+//   (large-scale thinning that breaks the tiling) | steps (march, 20). Cost: ~3-4 s of a full-size frame at 2 samples when it fills the frame.
 import * as THREE from 'three';
 import { NOISE } from './glsl.js';
 export const R_EARTH = 6371e3;

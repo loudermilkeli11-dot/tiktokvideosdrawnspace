@@ -19,8 +19,8 @@ const { scene, camera } = S;
 S.hdri('hdri_day_1k.hdr', 0.55);
 const T = SHOT.s05_crash.T, TAU0 = SHOT.s05_crash.tau0, LAND = landsAt(T), T_IMP = LAND - TAU0;   // impact at shot time ~1.09 s
 const dirB = (b) => new THREE.Vector3(Math.sin(b * D2R), 0, -Math.cos(b * D2R));
-const CAM = new THREE.Vector3(qn('cx', 92), 0, qn('cz', 62)); const G0 = groundH(CAM.x, CAM.z); CAM.y = G0 + qn('cy', 14);
-const BEAR = qn('b', -30), PITCH = qn('pd', 5), MM = qn('mm', 24);
+const CAM = new THREE.Vector3(qn('cx', 92), 0, qn('cz', 62)); const G0 = groundH(CAM.x, CAM.z); CAM.y = G0 + qn('cy', 17);
+const BEAR = qn('b', -30), PITCH = qn('pd', 0), MM = qn('mm', 24);
 const sunB = BEAR + qn('sb', 70), sunE = qn('se', 48);
 const SUN = dirB(sunB).multiplyScalar(Math.cos(sunE * D2R)).setY(Math.sin(sunE * D2R)).normalize();
 const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(0x2f6fd0); sky.U.dayHor.value.set(0xa6cdee);
@@ -59,7 +59,7 @@ const shore = []; for (let a = -168; a <= 168; a += 0.9) { const c = onContour(8
 const camD = (x, z) => Math.hypot(x - CAM.x, z - CAM.z);
 const lump = (a) => 0.55 + 0.45 * Math.sin(a * 0.11 + 1.3) * Math.sin(a * 0.037 + 0.4) + 0.25 * Math.sin(a * 0.53);   // the wall is ragged: some sections shoot higher
 for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 420 ? 1 : 0, L = lump(Math.atan2(sp.x, sp.z + 800) / D2R * 3);   // the wall along every shore:
-  const vk = nearK ? 0.8 + 0.2 * sstep(60, 400, d) : 1, J = nearK ? 5 : 2, per = nearK ? 26 : 7;                                   // coherent jets + a dense low base
+  const vk = nearK ? 0.55 + 0.35 * sstep(60, 400, d) : 1, J = nearK ? 3 : 1, per = nearK ? 18 : 8;                                   // coherent jets + a dense low base
   for (let jn = 0; jn < J; jn++) { const vv = vk * (20 + Math.pow(SR(), 0.6) * 46) * (0.55 + 0.6 * L), vh = 4 + SR() * 22, side = (SR() - 0.5) * 8, j0 = (SR() - 0.5) * (nearK ? 7 : 12);
     for (let k = 0; k < per; k++) { const u = 0.55 + 0.5 * SR(), kind = SR() < 0.55 ? 1 : 0, j = j0 + (SR() - 0.5) * 3;
       parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 4 - 6), 0.5 + SR() * 2, sp.z - sp.nx * j + sp.nz * (SR() * 4 - 6)], v: [(sp.nx * vh + sp.nz * side) * u + (SR() - 0.5) * 1.5, vv * u, (sp.nz * vh - sp.nx * side) * u + (SR() - 0.5) * 1.5],
@@ -67,14 +67,20 @@ for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 420 ? 1 : 0, L
   for (let k = 0; k < (nearK ? 8 : 6); k++) { const j = (SR() - 0.5) * (nearK ? 8 : 12), vv = 3 + SR() * 12;
     parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 6 - 6), 0.5, sp.z - sp.nx * j + sp.nz * (SR() * 6 - 6)], v: [sp.nx * (6 + SR() * 14), vv, sp.nz * (6 + SR() * 14)],
       t0: T_IMP + 4 + SR() * 0.25, size: nearK ? 2.5 + SR() * 3 : 6 + SR() * 9, drag: 0.5, life: 8, kind: 1 }); }
-  if (!nearK && SR() < 0.5) parts.push({ p: [sp.x, 1, sp.z], v: [sp.nx * 8, 25 + SR() * 25, sp.nz * 8], t0: T_IMP + 4 + SR() * 0.2, size: 14 + SR() * 12, drag: 0.9, life: 8, kind: 2 }); }
-for (let i = 0, np = 0; i < 4000 && np < 70; i++) { const c = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 160 + Math.pow(SR(), 0.9) * 1500); if (sField(c.x, c.z) > -25) continue; np++;   // plumes across the bay
-  const tall = 0.5 + SR(), m = 70 + Math.floor(SR() * 60);
-  const far = camD(c.x, c.z) > 600;
-  for (let k = 0; k < m; k++) { const a = SR() * 6.283, rr = Math.sqrt(SR()) * (6 + 10 * tall), cone = 0.08 + 0.3 * SR(), vv = (14 + Math.pow(SR(), 0.5) * 36) * tall, r = SR(), kind = r < 0.55 ? 1 : (r < 0.97 || !far ? 0 : 2);
-    parts.push({ p: [c.x + Math.cos(a) * rr, 0.5, c.z + Math.sin(a) * rr], v: [Math.cos(a) * vv * cone, vv, Math.sin(a) * vv * cone], t0: T_IMP + 4 + SR() * 0.15,
-      size: kind === 2 ? 14 + SR() * 14 : kind === 1 ? 5 + SR() * 8 : 1.4 + SR() * 2, drag: kind === 2 ? 1.0 : 0.28, life: 8, kind }); } }
-for (let i = 0; i < 2500; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 140 + Math.pow(SR(), 0.8) * 1500); if (sField(p.x, p.z) > -15) continue;   // and low white water between them
+}
+// THE ERUPTION: the deep bay held the most water (up to 28 m), so it rebounds hardest: ~160 coherent jets across the bay, 60-150 m
+// up by the end of the shot (top speed 60-110 m/s scaled by the depth), crowned with droplets; side-lit by the sun
+const sunH = new THREE.Vector2(SUN.x, SUN.z).normalize();
+const ridge = (x, z) => 0.72 + 0.28 * Math.sin(x * 0.011 + 0.7) * Math.sin(z * 0.009 + 1.9) + 0.18 * Math.sin(x * 0.037 - z * 0.029);   // towers and dips along the wall
+for (let i = 0, nj = 0; i < 20000 && nj < 165; i++) { const c = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 70), 230 + Math.pow(SR(), 0.75) * 1400);
+  const sf = sField(c.x, c.z); if (sf > -110) continue; nj++;
+  const df = clamp(-groundH(c.x, c.z) / 28, 0.3, 1), d = camD(c.x, c.z), vmax = (62 + 48 * SR()) * (0.45 + 0.55 * Math.pow(df, 0.7)) * ridge(c.x, c.z);
+  const tx = (SR() - 0.5) * 0.24, tz = (SR() - 0.5) * 0.24, m = 110 + Math.floor(SR() * 70), rad = 5 + SR() * 9;
+  for (let k = 0; k < m; k++) { const u = 0.18 + 0.82 * Math.sqrt(SR()), a2 = SR() * 6.283, rr = Math.sqrt(SR()) * rad, ox = Math.cos(a2), oz = Math.sin(a2), kind = SR() < (u > 0.85 ? 0.35 : 0.7) ? 1 : 0;
+    const jx = tx + (SR() - 0.5) * 0.07 + ox * 0.05, jz = tz + (SR() - 0.5) * 0.07 + oz * 0.05;
+    parts.push({ p: [c.x + ox * rr, 0.5 + SR() * 2, c.z + oz * rr], v: [jx * vmax * u, vmax * u, jz * vmax * u], shade: 0.6 + 0.4 * Math.max(0, ox * sunH.x + oz * sunH.y) + 0.12 * (u - 0.5),
+      t0: T_IMP + 4 + SR() * 0.12, size: kind === 1 ? (3 + SR() * 6) * (0.55 + d / 1100) : (0.8 + SR() * 1.6) * (0.6 + d / 1200), drag: kind === 1 ? 0.12 : 0.05, life: 8, kind }); } }
+for (let i = 0; i < 3500; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 140 + Math.pow(SR(), 0.8) * 1500); if (sField(p.x, p.z) > -15) continue;   // and low white water between them
   parts.push({ p: [p.x, 0.3, p.z], v: [(SR() - 0.5) * 8, 4 + SR() * 12, (SR() - 0.5) * 8], t0: T_IMP + 4 + SR() * 0.2, size: 5 + SR() * 8, drag: 0.4, life: 8, kind: 1 }); }
 // spray off the surge front as it runs inland (our shore only)
 for (let k = 0; k < 40; k++) { const ts = 0.05 + k * 0.05, front = OU.surgeR.value * (1 - Math.exp(-ts * OU.surgeV.value / OU.surgeR.value)), fv = OU.surgeV.value * Math.exp(-ts * OU.surgeV.value / OU.surgeR.value);

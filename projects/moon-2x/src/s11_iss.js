@@ -21,7 +21,7 @@ const fwd = new THREE.Vector3(0, 0, -1);
 const EYE = new THREE.Vector3(8, W.bay.ground(8, 46) + 1.6, 46);
 // camera: steady look out and up, then the crane-up (rise 9 m, tilt to 62 deg) from 3.2 s into s12
 const camRig = (tt) => { const c = ease.inCubic(clamp((tt - 3.0) / 2.0)), k = clamp(tt / 5);
-  const pitch = lerp(17, 23, k) + 39 * c; const d = new THREE.Vector3(0.05, Math.tan(pitch * D2R), -1).normalize();
+  const pitch = lerp(10, 15, k) + 46 * c; const d = new THREE.Vector3(0.05, Math.tan(pitch * D2R), -1).normalize();
   const pos = EYE.clone().add(new THREE.Vector3(0, 9 * c, -1.2 * tt)); return { pos, look: pos.clone().addScaledVector(d, 1000), mm: 35, roll: -1.2 + 1.2 * c }; };
 const ref = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 2e5); applyCam(ref, camRig(0));
 const elevDir = (az, el) => new THREE.Vector3(Math.sin(az * D2R) * Math.cos(el * D2R), Math.sin(el * D2R), -Math.cos(az * D2R) * Math.cos(el * D2R));
@@ -33,10 +33,10 @@ const ring = createRingArc(S, { face, lat: 13, r0: 1.32, r1: 2.05, dist: 40000, 
 const e0 = EYE.clone();
 const R3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const streams = createStreams(S, [
-  { o: e0.clone().add(R3(0, 3400, -4200)), d: R3(-1, -0.03, 0.12).normalize(), n: 300, speed: 3000, spread: 380, len: 140000, size: [14, 120], glowW: 240, glowI: 0.75, tail: 0.22 },
-  { o: e0.clone().add(R3(0, 6200, -1800)), d: R3(-1, -0.02, -0.18).normalize(), n: 260, speed: 3400, spread: 520, len: 140000, size: [16, 150], glowW: 340, glowI: 0.6, tail: 0.2 },
-  { o: e0.clone().add(R3(0, 2300, -9500)), d: R3(-1, -0.04, 0.05).normalize(), n: 220, speed: 2600, spread: 300, len: 140000, size: [12, 90], glowW: 190, glowI: 0.8, tail: 0.25 },
-], { hot: 0.9, sunI: 1.4, fade: 45000, trailGain: 1.0 });
+  { o: e0.clone().add(R3(0, 2100, -5600)), d: R3(-1, -0.22, 0.12).normalize(), n: 520, speed: 3000, spread: 260, len: 32000, size: [14, 120], glowW: 240, glowI: 0.75, tail: 0.22 },
+  { o: e0.clone().add(R3(0, 5200, -4800)), d: R3(-1, -0.12, -0.1).normalize(), n: 480, speed: 3400, spread: 380, len: 32000, size: [16, 150], glowW: 340, glowI: 0.6, tail: 0.2 },
+  { o: e0.clone().add(R3(0, 3500, -6200)), d: R3(-1, -0.3, 0.05).normalize(), n: 420, speed: 2600, spread: 220, len: 32000, size: [12, 90], glowW: 190, glowI: 0.8, tail: 0.25 },
+], { hot: 0.9, sunI: 1.4, fade: 0, trailGain: 1.0 });
 streams.rockU.hotDir.value.set(-1, 0.1, 0).normalize();         // leading faces glow (they travel toward -X)
 // streaks keep falling lower down
 const DIR = dirThroughScreen(ref, -220, 820); DIR.y = Math.min(DIR.y, -0.25); DIR.normalize();
@@ -57,6 +57,7 @@ S.run((t) => {
     sep: 1.5 + 0.7 * u, stretch: 0.8 + 0.3 * u, tail: 1.2 + 0.4 * u, airCol, hot: 0.6 + 0.3 * u });
   ring.update(tt, camera); streams.update(tt, camera); M.update(tt);
   W.update(S, t, { storyT, moonDir: md, moonVisible: false, level: 1.2, amp: 1.3 + 0.3 * u, flicker: 0.4, power: 0.3, wet: 1, grade: { skyMoonWash: 0.05, stars: 0.35, moonLightI: 1.0, winI: 0.7 } });
+  W.ocean.U.moonI.value = 1.0;
   const sky = W.sky.U; sky.lpCol.value.setRGB(1.0, 0.4, 0.13); sky.lpDir.value.copy(fwd); sky.lp.value = 1.6 + 0.6 * u;
   // the streams light the whole frame orange from above
   fire.position.copy(camera.position).add(new THREE.Vector3(60, 200, -120)); fire.target.position.copy(camera.position); fire.intensity = 0.35 + 0.35 * u;

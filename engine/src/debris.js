@@ -249,7 +249,8 @@ export function createStreams(S, streams, o = {}) {
         void main(){ float y = abs(vY); float core = exp(-y*y*10.), wide = exp(-y*y*3.5) * 0.12;
           float ends = smoothstep(0., 0.08, vS) * smoothstep(1., 0.92, vS);
           float ex = fade > 0. ? exp(-vD / fade) : 1.;
-          vec3 c = vec3(1.0, 0.42, 0.12) * core + vec3(0.9, 0.22, 0.06) * wide;
+          float lump = 0.55 + 0.45 * sin(vS * 61. + time * 2.1) * sin(vS * 23. - time * 1.3 + 1.7);   // heat pulses riding the stream
+          vec3 c = vec3(1.0, 0.42, 0.12) * core * (0.6 + 0.6 * lump) + vec3(0.9, 0.22, 0.06) * wide;
           gl_FragColor = vec4(c * I * ends * ex, 1.); }` });
     const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 20; S.scene.add(m); return { m, U };
   });

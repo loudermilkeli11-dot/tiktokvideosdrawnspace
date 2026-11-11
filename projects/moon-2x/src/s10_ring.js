@@ -21,11 +21,11 @@ const airCol = new THREE.Color(0.02, 0.035, 0.07);
 const fwd = new THREE.Vector3(0, 0, -1);
 // camera: high on the hill inland, looking out over the flooded town to the sea; slow eased tilt up
 const EYE = new THREE.Vector3(-100, W.bay.ground(-100, 240) + 34, 240);
-const camRig = (tt) => { const k = ease.inOutSine(clamp((tt + 0.3) / 5.3)); const pitch = -7 + 23 * k, yaw = 4 * D2R * (1 - k);
+const camRig = (tt) => { const k = ease.inOutSine(clamp((tt + 0.3) / 5.3)); const pitch = 1 + 19 * k, yaw = 4 * D2R * (1 - k);
   const d = new THREE.Vector3(Math.sin(-yaw), Math.tan(pitch * D2R), -Math.cos(yaw)).normalize();
   const pos = EYE.clone().add(new THREE.Vector3(0, 1.2 * k, -2 * k)); return { pos, look: pos.clone().addScaledVector(d, 1000), mm: 24, roll: 0 }; };
 const ref = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 2e5); applyCam(ref, camRig(0));
-const md0 = dirThroughScreen(ref, 430, 230);                 // the chunks hang to the right, inside the arch's sweep
+const md0 = dirThroughScreen(ref, 420, 415);                 // the chunks hang to the right, inside the arch's sweep
 const sun = sunForPhase(md0.clone().negate(), 48, undefined, 160);
 // the ring: rises from the sea horizon left of centre, leans right as it climbs over the top of the frame
 const face = new THREE.Vector3(-Math.sin(24 * D2R), 0, -Math.cos(24 * D2R)).normalize();
@@ -53,6 +53,7 @@ S.run((t) => {
     sep: 0.9 + 0.6 * u, stretch: 0.5 + 0.3 * u, tail: 0.8 + 0.4 * u, airCol, hot: 0.45 + 0.9 * roche });
   ring.update(tt, camera); M.update(tt); const glow = G.update(tt);
   W.update(S, t, { storyT, moonDir: md, moonVisible: false, level: 5.2 + 0.3 * u, amp: 1.6, flicker: 0.4, power: 0.32, wet: 1, grade: { skyMoonWash: 0.06, stars: 0.4, moonLightI: 1.2, winI: 0.7 } });
+  W.ocean.U.moonI.value = 1.1;                                // keep the glitter path from flaring white
   const sky = W.sky.U; sky.lpCol.value.setRGB(1.0, 0.42, 0.14); sky.lpDir.value.copy(fwd); sky.lp.value = 1.1 + 2.0 * glow;
   fire.position.copy(camera.position).add(new THREE.Vector3(0, 80, -100)); fire.target.position.copy(camera.position); fire.intensity = 0.05 + 0.5 * glow;
   crowd.material.U.rimDir.value.copy(md); crowd.update(t, { agitation: 0.7 });

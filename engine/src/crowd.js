@@ -27,19 +27,24 @@ export function createCrowd(S, people, o = {}) {
   });
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v3 = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
   const qPh = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.25, Math.PI, 0));
+  const tq = new THREE.Quaternion(), e2 = new THREE.Euler(), PIV = new THREE.Vector3(0, 0.95, 0), ZERO = new THREE.Vector3();
   return {
     meshes, phones, material: mat,
     update(t, st = {}) { // st.agitation 0..1
       const ag = st.agitation ?? 0.2;
       const sway = (p) => fbm(t * (0.5 + ag) + p.seed * 50, 3) * (0.03 + 0.08 * ag);
-      for (const m of meshes) { m.userData.list.forEach((p, i) => { const sw = sway(p);
-        q.setFromEuler(e.set(sw * 0.3, (p.yaw || 0) + sw * 0.8, sw * 0.5, 'YXZ'));
-        const bob = Math.max(0, fbm(t * 2.2 + p.seed * 80, 5)) * 0.05 * ag;
-        m4.compose(v3.set(p.x, (p.y ?? 0) + bob, p.z), q, one); m.setMatrixAt(i, m4); }); m.instanceMatrix.needsUpdate = true; }
-      for (const ph of phones) { const off = ph.userData.off; ph.userData.list.forEach((p, i) => { const sw = sway(p);
-        q.setFromEuler(e.set(sw * 0.3, (p.yaw || 0) + sw * 0.8, sw * 0.5, 'YXZ'));
+      // st.lift: metres added to everyone's height (or (p) => metres); st.tumble: 0.. scale of a per-person spin about the waist
+      const lift = typeof st.lift === 'function' ? st.lift : () => (st.lift ?? 0), tb = st.tumble ?? 0;
+      const pose = (p) => { const sw = sway(p); q.setFromEuler(e.set(sw * 0.3, (p.yaw || 0) + sw * 0.8, sw * 0.5, 'YXZ'));
+        let off = ZERO; if (tb) { const f = (k) => ((p.seed * k) % 1) - 0.5;
+          tq.setFromEuler(e2.set(tb * f(7.31) * 2.6, tb * f(3.17) * 3.0, tb * f(5.53) * 2.6)); q.premultiply(tq); off = PIV.clone().sub(PIV.clone().applyQuaternion(q)); }
+        return off; };
+      for (const m of meshes) { m.userData.list.forEach((p, i) => { const off = pose(p);
+        const bob = Math.max(0, fbm(t * 2.2 + p.seed * 80, 5)) * 0.05 * ag * (tb ? 0 : 1);
+        m4.compose(v3.set(p.x + off.x, (p.y ?? 0) + bob + lift(p) + off.y, p.z + off.z), q, one); m.setMatrixAt(i, m4); }); m.instanceMatrix.needsUpdate = true; }
+      for (const ph of phones) { const off = ph.userData.off; ph.userData.list.forEach((p, i) => { const po = pose(p);
         const o3 = new THREE.Vector3(...off).applyQuaternion(q);
-        m4.compose(v3.set(p.x + o3.x, (p.y ?? 0) + o3.y, p.z + o3.z), q.clone().multiply(qPh), one); ph.setMatrixAt(i, m4); }); ph.instanceMatrix.needsUpdate = true; }
+        m4.compose(v3.set(p.x + o3.x + po.x, (p.y ?? 0) + o3.y + lift(p) + po.y, p.z + o3.z + po.z), q.clone().multiply(qPh), one); ph.setMatrixAt(i, m4); }); ph.instanceMatrix.needsUpdate = true; }
     },
   };
 }

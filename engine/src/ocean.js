@@ -26,6 +26,103 @@ vec3 gerstner(vec2 xz, float t, float amp, float atten, out vec3 nrm, out float 
     tz += vec3(-Q*wD[i].x*wD[i].y*WA*s, wD[i].y*WA*c, -Q*wD[i].y*wD[i].y*WA*s);
     jac -= Q*WA*s; }
   nrm = normalize(cross(tz, tx)); return p; }`;
+
+// ---- gravity-flip slab (compiled in only with createOcean(S, { slab: true }); needs sField() in groundGLSL) ----
+// surge: a decelerating bore pushed inland from the shoreline. Water-surface height above `level` at xz, ts s after impact.
+const SURGE_GLSL = `
+float surgeW(vec2 xz, float ts){
+  float s = sField(xz);
+  float front = surgeR*(1. - exp(-ts*surgeV/surgeR));
+  float behind = front - s;
+  float wf = smoothstep(-1.5, 9., behind) * smoothstep(-320., -30., s);
+  float wob = 0.8 + 0.2*sin(xz.x*0.045 + xz.y*0.03 + ts*2.3) + 0.12*sin(xz.x*0.21 - ts*4.);
+  return surgeH*wob*wf*(1. - 0.35*clamp(s/max(front, 1.), 0., 1.)); }`;
+const SLAB_VS = `
+        if (churn > 0.) { float c = churn*smoothstep(-0.5, 4., depth);
+          p.y += c*(2.6*sin(xz.x*0.031 + time*1.3)*sin(xz.y*0.027 - time*1.1) + 1.6*sin(xz.x*0.083 - xz.y*0.061 + time*2.1) + 0.8*sin(xz.x*0.19 + xz.y*0.17 - time*3.3));
+          n = normalize(n + c*vec3(0.25*sin(xz.x*0.083 + time), 0., 0.25*cos(xz.y*0.071 - time))); }
+        vSurge = -1.;
+        if (surgeT > 0.) { float W = surgeW(xz, surgeT); vSurge = W - (gh - level); if (W > p.y) { p.y = mix(p.y, W, smoothstep(-0.5, 0.5, vSurge)); } }
+        p.y += lift;`;
+const SLAB_FS = `
+        if (lift > 0.01 && vDepth < 0.) discard;
+        if (surgeT > 0. && vDepth < 0.6) {          // the surge over the land: muddy, churning, foam-streaked; a white breaking front
+          float sd = vSurge; if (sd < -0.05 && vDepth < 0.) discard;
+          float fl = fbm2(vFlat*vec2(0.09, 0.05) + vec2(time*0.6, -time*1.1));
+          float fr = smoothstep(0.0, 1.2, sd)*smoothstep(3.5, 1.0, sd);
+          vec3 mud = mix(vec3(0.20,0.19,0.15), vec3(0.32,0.36,0.33), fl)*(amb*1.4 + sunCol*sunI*0.35);
+          float wf = clamp(smoothstep(0.42, 0.62, fl + 0.25*fbm2(vFlat*0.35 - time*0.9)) + fr*0.9, 0., 1.);
+          vec3 sc = mix(mud, foamLit*1.08, wf);
+          float land = smoothstep(0.3, -0.3, vDepth);
+          col = mix(col, sc, land); a = mix(a, smoothstep(-0.05, 0.25, sd), land);
+        }
+        if (churn > 0.) {                           // the impact: the bay smashed into white water
+          float c1 = fbm2(vWP.xz*0.045 + vec2(time*0.35, time*0.2)), c2 = fbm2(vWP.xz*0.19 - vec2(time*0.8, -time*0.5));
+          float wc = churn*clamp(smoothstep(0.32, 0.6, c1*0.75 + c2*0.45) + 0.25, 0., 1.);
+          col = mix(col, foamLit*(0.95 + 0.25*c2), wc*0.92);
+        }`;
+// underside of the lifted sea, seen from below: the seabed's shape + lift. Sky and sun through the water (refracted twice,
+// Beer-Lambert per channel), single scattering (turquoise -> deep blue with thickness), caustic shimmer, boats as dark
+// hull silhouettes at the top surface, Fresnel mirror of the land below at grazing angles, daylight haze.
+const NBOAT = 24;
+const UNDER_VS = `
+  uniform float level, lift; varying vec3 vWP; varying float vDepth;
+  float gH(vec2 p);
+  void main(){ vec4 wp0 = modelMatrix*vec4(position,1.); vec2 xz = wp0.xz;
+    float gh = groundH(xz); vDepth = level - gh;
+    vec3 p = vec3(xz.x, min(gh, level) + lift - 0.15, xz.y); vWP = p;
+    gl_Position = projectionMatrix*viewMatrix*vec4(p,1.); }`;
+const UNDER_FS = `
+  uniform float time, level, lift, sunI, exposure, hazeD, causI, glitter;
+  uniform vec3 sunDir, sunCol, skyZen, skyHor, absorb, scatThin, scatThick, landCol, bedCol, hazeCol;
+  uniform sampler2D nTex; uniform vec4 boats[${NBOAT}];
+  varying vec3 vWP; varying float vDepth;
+  vec3 nm(vec2 uv){ return texture2D(nTex, uv).xzy*2.-1.; }
+  float caus(vec2 uv, float t){ vec2 p = mod(uv*6.28318, 6.28318) - 250.; vec2 i = p; float c = 1.; const float inten = .005;
+    for (int n = 0; n < 4; n++){ float tt = t*(1. - (3.5/float(n+1))); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x));
+      c += 1./length(vec2(p.x/(sin(i.x + tt)/inten), p.y/(cos(i.y + tt)/inten))); }
+    c /= 4.; c = 1.17 - pow(c, 1.4); return pow(abs(c), 8.); }
+  float hull(vec2 xz, float blur){ float m = 0.;
+    for (int k = 0; k < ${NBOAT}; k++){ vec4 b = boats[k]; if (b.w <= 0.) continue; vec2 d = xz - b.xy; float c = cos(b.z), s = sin(b.z);
+      vec2 l = vec2(c*d.x - s*d.y, s*d.x + c*d.y); l /= vec2(b.w*0.2, b.w*0.5);
+      m = max(m, smoothstep(1. + blur/b.w*3., 1. - blur/b.w*1.5, length(l))); }
+    return m; }
+  void main(){
+    float gh = groundH(vWP.xz); float th = level - gh; if (th < 0.) discard;
+    vec3 Vv = cameraPosition - vWP; float dist = length(Vv); vec3 V = Vv/dist;
+    float e = 3.; vec3 nb = normalize(vec3(groundH(vWP.xz + vec2(e, 0.)) - groundH(vWP.xz - vec2(e, 0.)), -2.*e, groundH(vWP.xz + vec2(0., e)) - groundH(vWP.xz - vec2(0., e))));
+    float fade = 1. - smoothstep(150., 1800., dist);
+    vec3 dt = nm(vWP.xz/11. + vec2(time*0.012, -time*0.009)) + 0.6*nm(vWP.xz/4.3 - vec2(time*0.02, time*0.017));
+    nb = normalize(nb + vec3(dt.x, 0., dt.z)*0.05*fade);
+    vec3 I = -V; if (dot(I, nb) > 0.) nb = -nb;
+    vec3 d1 = refract(I, nb, 1./1.333);
+    float L = min(th/max(d1.y, 0.08), 60.);
+    vec3 pt = vWP + d1*L;                                  // where the ray leaves through the wavy top surface
+    vec3 dn = nm(pt.xz/9. + vec2(time*0.020, time*0.013)) + 0.6*nm(pt.xz/3.1 - vec2(time*0.031, -time*0.024)) + 0.8*nm(pt.xz/38. + vec2(-time*0.008, time*0.011));
+    vec3 nt = normalize(vec3(0., 1., 0.) + vec3(dn.x, 0., dn.z)*0.32);
+    vec3 d2 = refract(d1, -nt, 1.333); float tir = step(dot(d2, d2), 0.01);
+    d2 = normalize(mix(d2, vec3(0., 1., 0.), tir));
+    vec3 sky = mix(skyHor, skyZen, pow(max(d2.y, 0.), 0.5))*1.5;
+    float cs = max(dot(d2, normalize(sunDir)), 0.);
+    vec3 Lin = sky*(1. - 0.6*tir) + sunCol*sunI*(pow(cs, 900.)*40.*glitter + pow(cs, 60.)*1.2 + pow(cs, 8.)*0.25);
+    vec3 T = exp(-absorb*L);
+    float ca = caus(pt.xz/14. + vec2(0.13, 0.07)*time*0.2, time*0.35) + 0.5*caus(pt.xz/5.5 - 0.05*time, time*0.5 + 2.);
+    float hm = hull(pt.xz, 0.4 + th*0.12);                 // boats on top: dark hulls through the water
+    vec2 sh = vWP.xz + normalize(sunDir).xz/max(normalize(sunDir).y, 0.2)*th*0.6;
+    float hs = hull(sh, 1. + th*0.25);                     // their shadow columns in the water
+    float k = 1. - exp(-0.075*L);
+    vec3 scat = mix(scatThin, scatThick, smoothstep(2., 26., th))*sunI*k*(0.8 + causI*ca*(1. - smoothstep(4., 30., th)) + 0.25*causI*ca);
+    vec3 col = Lin*T*(1. - hm) + scat*(1. - 0.75*hs)*(1. - 0.55*hm);
+    // the land below, mirrored at grazing angles
+    float F = 0.02 + 0.98*pow(1. - clamp(dot(nb, V), 0., 1.), 5.);
+    vec3 R = reflect(I, nb); vec2 gp = vWP.xz + R.xz*(vWP.y/max(-R.y, 0.05));
+    float landF = smoothstep(-2., 6., groundH(gp) - level);
+    col = mix(col, mix(bedCol, landCol, landF), F*0.85);
+    // the thin glassy edge catches the light
+    col += sunCol*sunI*0.35*smoothstep(1.2, 0.0, th)*(0.5 + 0.5*ca);
+    col = mix(col, hazeCol, 1. - exp(-dist/hazeD));
+    gl_FragColor = vec4(col*exposure, 1.); }`;
+
 export function createOcean(S, o = {}) {
   const groundGLSL = o.groundGLSL || 'float groundH(vec2 p){ return -200.; }';
   const nTex = S.tex('water_normal_1k.jpg', { srgb: false, repeat: true });
@@ -146,13 +243,24 @@ export function createOcean(S, o = {}) {
   const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = 10;
   // Reflector hides only itself: hide the ocean during the mirror render
   const ob = refl.onBeforeRender.bind(refl);
-  refl.onBeforeRender = (r, sc, cam) => { mesh.visible = false; ob(r, sc, cam); mesh.visible = true; };
+  refl.onBeforeRender = (r, sc, cam) => { const uv = under && under.visible; mesh.visible = false; if (under) under.visible = false; ob(r, sc, cam); mesh.visible = true; if (under) under.visible = uv; };
   mesh.refl = refl; mesh.U = U;
+  let under = null;
+  if (o.slab) {
+    Object.assign(U, { skyZen: { value: new THREE.Color(0x2f6fd0) }, skyHor: { value: new THREE.Color(0xa6cdee) }, absorb: { value: new THREE.Vector3(0.32, 0.07, 0.045) },
+      scatThin: { value: new THREE.Color(0x3fd6d0) }, scatThick: { value: new THREE.Color(0x0b3f8a) }, landCol: { value: new THREE.Color(0x9a8a70) }, bedCol: { value: new THREE.Color(0x1d3a3a) },
+      hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: 9000 }, causI: { value: 0.9 },
+      boats: { value: Array.from({ length: NBOAT }, () => new THREE.Vector4(0, 0, 0, 0)) } });
+    const um = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide,
+      vertexShader: groundGLSL + UNDER_VS.replace('float gH(vec2 p);', ''), fragmentShader: NOISE + groundGLSL + UNDER_FS });
+    under = new THREE.Mesh(geo, um); under.frustumCulled = false; under.renderOrder = 9; under.visible = false;
+  }
   mesh.update = (S, t) => {
     U.time.value = t;
     // follow the camera in XZ, snapped to the grid's inner spacing to avoid swimming
     const c = S.camera.position; mesh.position.set(Math.round(c.x / 4) * 4, 0, Math.round(c.z / 4) * 4);
-    refl.position.y = U.level.value + U.lift.value; refl.updateMatrixWorld(); U.reflInv.value.copy(refl.matrixWorld).invert();
+    refl.position.y = U.level.value + U.lift.value; refl.updateMatrixWorld();
+    if (under) { under.position.copy(mesh.position); under.visible = U.lift.value > 0.05; } U.reflInv.value.copy(refl.matrixWorld).invert();
   };
-  return { mesh, refl, U, add(scene) { scene.add(refl); scene.add(mesh); } };
+  return { mesh, refl, U, under, add(scene) { scene.add(refl); scene.add(mesh); if (under) scene.add(under); } };
 }

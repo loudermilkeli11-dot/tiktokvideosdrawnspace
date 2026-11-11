@@ -246,7 +246,7 @@ export function createStreams(S, streams, o = {}) {
         void main(){ vec3 p = position; vec3 side = normalize(cross(dir, cameraPosition - p)); p += side * aY.x * W; vY = aY.x; vS = aY.y; vD = length(p - cameraPosition);
           gl_Position = projectionMatrix*viewMatrix*vec4(p,1.); }`,
       fragmentShader: `uniform float I, time, fade; varying float vY; varying float vS; varying float vD;
-        void main(){ float y = abs(vY); float core = exp(-y*y*9.), wide = exp(-y*y*2.5) * 0.35;
+        void main(){ float y = abs(vY); float core = exp(-y*y*10.), wide = exp(-y*y*3.5) * 0.12;
           float ends = smoothstep(0., 0.08, vS) * smoothstep(1., 0.92, vS);
           float ex = fade > 0. ? exp(-vD / fade) : 1.;
           vec3 c = vec3(1.0, 0.42, 0.12) * core + vec3(0.9, 0.22, 0.06) * wide;

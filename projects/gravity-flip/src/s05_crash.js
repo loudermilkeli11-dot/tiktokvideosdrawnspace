@@ -79,7 +79,7 @@ for (let i = 0, nj = 0; i < 20000 && nj < 190; i++) { const c = CAM.clone().addS
   for (let k = 0; k < m; k++) { const u = k % 2 ? 0.15 + 0.85 * Math.sqrt(SR()) : 0.12 + 0.6 * SR(), a2 = SR() * 6.283, rr = Math.sqrt(SR()) * rad, ox = Math.cos(a2), oz = Math.sin(a2), kind = SR() < (u > 0.85 ? 0.35 : 0.7) ? 1 : 0;
     const jx = tx + (SR() - 0.5) * 0.07 + ox * 0.05, jz = tz + (SR() - 0.5) * 0.07 + oz * 0.05;
     parts.push({ p: [c.x + ox * rr, 0.5 + SR() * 2, c.z + oz * rr], v: [jx * vmax * u, vmax * u, jz * vmax * u], shade: 0.6 + 0.4 * Math.max(0, ox * sunH.x + oz * sunH.y) + 0.12 * (u - 0.5),
-      t0: T_IMP + 4 + SR() * 0.12, size: kind === 1 ? (3 + SR() * 6) * (0.55 + d / 1100) : (0.8 + SR() * 1.6) * (0.6 + d / 1200), drag: kind === 1 ? 0.12 : 0.05, life: 8, kind }); } }
+      t0: T_IMP + 4 + SR() * 0.12, size: kind === 1 ? (4.5 + SR() * 7) * (0.55 + d / 1100) : (0.8 + SR() * 1.6) * (0.6 + d / 1200), drag: kind === 1 ? 0.12 : 0.05, life: 8, kind }); } }
 for (let i = 0; i < 3500; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 140 + Math.pow(SR(), 0.8) * 1500); if (sField(p.x, p.z) > -15) continue;   // and low white water between them
   parts.push({ p: [p.x, 0.3, p.z], v: [(SR() - 0.5) * 8, 4 + SR() * 12, (SR() - 0.5) * 8], t0: T_IMP + 4 + SR() * 0.2, size: 5 + SR() * 8, drag: 0.4, life: 8, kind: 1 }); }
 // spray off the surge front as it runs inland (our shore only)

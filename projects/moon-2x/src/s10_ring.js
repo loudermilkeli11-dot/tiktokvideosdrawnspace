@@ -28,7 +28,7 @@ const ref = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 2e5); applyCam(ref
 const md0 = dirThroughScreen(ref, 430, 230);                 // the chunks hang to the right, inside the arch's sweep
 const sun = sunForPhase(md0.clone().negate(), 48, undefined, 160);
 // the ring: rises from the sea horizon left of centre, leans right as it climbs over the top of the frame
-const face = new THREE.Vector3(-Math.sin(-20 * D2R), 0, -Math.cos(20 * D2R)).normalize();
+const face = new THREE.Vector3(-Math.sin(14 * D2R), 0, -Math.cos(14 * D2R)).normalize();
 const ring = createRingArc(S, { face, lat: 13, r0: 1.32, r1: 2.05, dist: 40000, rocks: 6000, I: 0.85, spin: 0.003, rockI: 4.0 });
 // streaks keep falling (same consistent direction family as s09), two late impacts far out at sea
 const DIR = dirThroughScreen(ref, -200, 760); DIR.y = Math.min(DIR.y, -0.25); DIR.normalize();

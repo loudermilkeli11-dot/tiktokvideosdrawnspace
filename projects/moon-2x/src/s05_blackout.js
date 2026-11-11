@@ -13,6 +13,8 @@ const S = createStudio({ samples: 8, shadows: false, post: { exposure: 1.15, blo
 const { scene, camera } = S;
 const W = bayWorld(S, { pierLights: 0, ocean: { amp: 1.0, level: 4.8 } });
 const R = rng(55);
+// soften the window glass so the low Moon behind the town doesn't throw lamp-like glints during the blackout
+{ const m = W.bay.buildings.material, prev = m.onBeforeCompile; m.onBeforeCompile = (sh, r) => { prev(sh, r); sh.fragmentShader = sh.fragmentShader.replace('roughnessFactor = mix(roughnessFactor, 0.15, win);', 'roughnessFactor = mix(roughnessFactor, 0.55, win);'); }; }
 // hero on the flooded promenade (left inner shore), camera ~58 m behind on a low terrace, looking NE across the bay
 const hp = onContour(Math.sin(-30 * D2R) * 834, -800 + Math.cos(-30 * D2R) * 834, 34);
 const heroP = new THREE.Vector3(hp.x, groundH(hp.x, hp.z), hp.z);

@@ -140,14 +140,14 @@ export function rockGeometry(detail = 1, seed = 1) {
   g.computeVertexNormals(); return g;
 }
 function rockMaterial(o = {}) {
-  const U = { sunDir: { value: new THREE.Vector3(0.5, 0.4, 0.2).normalize() }, sunI: { value: o.sunI ?? 1.6 }, hot: { value: o.hot ?? 0 }, hotDir: { value: new THREE.Vector3(0, 1, 0) }, air: { value: new THREE.Color(0, 0, 0) }, fade: { value: o.fade ?? 0 } };
+  const U = { sunDir: { value: new THREE.Vector3(0.5, 0.4, 0.2).normalize() }, sunI: { value: o.sunI ?? 1.6 }, hot: { value: o.hot ?? 0 }, hotDir: { value: new THREE.Vector3(0, 1, 0) }, glow: { value: o.glow ?? 0 }, air: { value: new THREE.Color(0, 0, 0) }, fade: { value: o.fade ?? 0 } };
   const mat = new THREE.ShaderMaterial({ uniforms: U,
     vertexShader: `attribute float aTone; varying vec3 vN; varying float vT; varying float vD; void main(){ vec4 w = modelMatrix*instanceMatrix*vec4(position,1.); vN = normalize(mat3(modelMatrix*instanceMatrix)*normal); vT = aTone; vD = length(w.xyz - cameraPosition); gl_Position = projectionMatrix*viewMatrix*w; }`,
-    fragmentShader: `uniform vec3 sunDir, hotDir, air; uniform float sunI, hot, fade; varying vec3 vN; varying float vT; varying float vD;
+    fragmentShader: `uniform vec3 sunDir, hotDir, air; uniform float sunI, hot, fade, glow; varying vec3 vN; varying float vT; varying float vD;
       void main(){ vec3 n = normalize(vN); float l = max(dot(n, normalize(sunDir)), 0.);
         vec3 c = vec3(0.16, 0.15, 0.14) * (0.6 + 0.8 * vT) * (0.06 + l) * sunI;
         float h = pow(max(dot(n, normalize(hotDir)), 0.), 1.5) * hot * (0.4 + 0.6 * vT);
-        c += vec3(1.0, 0.36, 0.08) * h * 2.5 + vec3(1.0, 0.6, 0.25) * hot * 0.08;
+        c += vec3(1.0, 0.36, 0.08) * h * 2.5 + vec3(1.0, 0.6, 0.25) * hot * 0.08 + vec3(0.95, 0.9, 0.82) * glow * (0.5 + vT);
         float ex = fade > 0. ? exp(-vD / fade) : 1.;
         gl_FragColor = vec4(mix(air, c, ex), 1.); }` });
   mat.U = U; return mat;
@@ -195,7 +195,7 @@ export function createRingArc(S, o = {}) {
   const rg = rockGeometry(0, 3); const tone = new Float32Array(n); const rk = [];
   for (let i = 0; i < n; i++) { const rr = r0 + (r1 - r0) * Math.pow(R(), 0.9); rk.push({ th: th0 + (th1 - th0) * R(), r: rr, s: 0.6 + 2.2 * Math.pow(R(), 3), w: R() * 6.28 }); tone[i] = R(); }
   rg.setAttribute('aTone', new THREE.InstancedBufferAttribute(tone, 1));
-  const rmat = rockMaterial({ sunI: o.rockI ?? 3.0 });
+  const rmat = rockMaterial({ sunI: o.rockI ?? 3.0, glow: o.rockGlow ?? 1.2 });
   const rocks = new THREE.InstancedMesh(rg, rmat, n); rocks.frustumCulled = false; rocks.renderOrder = -400; S.scene.add(rocks);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
   return { band, rocks, U, rockU: rmat.U, dirAt, E, N, Q,

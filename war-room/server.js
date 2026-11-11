@@ -69,7 +69,7 @@ function makeCanUseTool(task, agent) {
     if (READ_ONLY.has(toolName)) return { behavior: 'allow', updatedInput: input };
     const fp = String(input.file_path || input.notebook_path || '');
     if (['Write', 'Edit', 'MultiEdit'].includes(toolName) && fp) {
-      const rel = path.relative(WORKSPACE, path.resolve(WORKSPACE, fp));
+      const rel = path.relative(WORKSPACE, path.resolve(WORKSPACE, fp)).replace(/\\/g, '/');
       if (!rel.startsWith('..') && agent.writes.some((w) => rel.startsWith(w))) return { behavior: 'allow', updatedInput: input };
     }
     const id = uid();
@@ -161,15 +161,15 @@ async function runTask(task) {
 
 // ---------------- War Room ----------------
 const demoSeat = (a, role, q) => () => role === 'marshal'
-  ? `STRATEGY: Back the giant-Moon pitch, opening on a giant Moon over a packed beach at frame 1, built mostly in the bay set; spend the saved time on the last 15 s in space.\n\nBATTLE PLAN:\n1. @writer: Board the winning premise with 11 steps and the loop.\n2. @factcheck: Verify the fuse fact and every counter number.\n3. @critic: Review the board for the first 3 seconds and the loop.\n4. @engineer: Build the hero look-test shot at half size.\n\nCONSENSUS: 4 of 5 officers back the giant-Moon premise; the Fact Officer wants the recession fact on screen.`
+  ? `STRATEGY: Back the giant-Moon pitch, opening on a giant Moon over a packed beach at frame 1, built mostly in the bay set; spend the saved time on the last 15 s in space.\n\nBATTLE PLAN:\n1. @scout: Lock the fuse fact (Moon recession, 3.8 cm/yr) with a NASA source.\n2. @writer: Board the winning premise with 11 steps and the loop.\n3. @analyst: Review the board as the Scroller: first 3 seconds, steps 2–4, the loop.\n4. @studio: Build the hero look-test shot at half size.\n\nCONSENSUS: all 4 officers back the giant-Moon premise; the Analyst warns the middle steps may repeat.`
   : role === 'tenth'
     ? `OBVIOUS: (1) space topics are oversaturated; (2) 66 s is too long; (3) the fact is too nerdy.\n\nPRE-MORTEM (48 h after posting): 2.1k views, 19% completion. The mechanism: the counter changed every 5 s but the WORLD only changed every 10 s, so steps 2, 4 and 6 read as repeats; viewers learned the pattern by 0:12 and swiped. The loop never paid off because nobody reached it.\n\nPREDICTABILITY: novel (not in the obvious three).`
     : (DEMO_OFFICER[a.id] || DEMO_OFFICER.default);
 const DEMO_OFFICER = {
-  scout: 'POSITION: Giant Moon. It is the only pitch whose frame 1 reads with the sound off.\nWHY:\n- Body-in-the-sky what-ifs are a proven space format (speculative: no channel data yet, channel/results.csv is empty).\n- The 3.8 cm/yr recession fact is checkable (https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html).\nRISK: the format is crowded; ours must look far more expensive than the rest.',
-  writer: 'POSITION: Giant Moon, but only if every step changes the whole world, not just the Moon size.\nWHY:\n- 11 steps fit 66 s at ~5.5 s each with captions ≥ 2.8 s (PLAYBOOK.md).\n- Tides, light, crowd and sky give 4 world layers to escalate (speculative).\nRISK: steps 2–4 can look identical; I need a new reaction per step.',
-  factcheck: 'POSITION: Giant Moon is the most defensible fact; the other two need heavier DRAMATIZATION tags.\nWHY:\n- Mean distance 384,400 km and recession 3.8 cm/yr are NASA/LLR numbers.\n- Tidal force scales ~1/d³, so the flood ladder is physically motivated.\nRISK: past the Roche limit everything is speculative; tag it.',
-  critic: 'POSITION: Giant Moon wins frame 1, but the middle is the danger zone.\nWHY:\n- Frame 1: a giant Moon over a crowd reads instantly on a muted phone (speculative).\n- 0:15–0:30 is where escalation formats lose viewers if the world stops changing.\nRISK: if the counter outruns the visuals, people swipe at step 3.',
+  scout: 'POSITION: Giant Moon. It is the only pitch whose frame 1 reads with the sound off, and its fact is the most solid.\nWHY:\n- The Moon recedes 3.8 cm/yr, measured by lunar laser ranging (https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html).\n- Body-in-the-sky what-ifs are a crowded but proven format (speculative: channel/results.csv is still empty).\nRISK: we must look far more expensive than the copycats.',
+  writer: 'POSITION: Giant Moon, but only if every step changes the whole world, not just the Moon size.\nWHY:\n- 11 steps fit 66 s at ~5.5 s each with captions ≥ 2.8 s (PLAYBOOK.md).\n- Tides, light, crowd and sky give 4 world layers to escalate (speculative).\nRISK: steps 2–4 can look identical; each needs its own reaction.',
+  studio: 'POSITION: Giant Moon is the cheapest to build well: the bay set, moon, ocean and crowd already exist.\nWHY:\n- engine/src/moon.js and engine/src/bay.js cover 8 of 11 shots in one set.\n- The space ending needs one new set (Earth from orbit).\nRISK: the flood steps need water rising over the promenade, which is not built yet.',
+  analyst: 'POSITION: Giant Moon wins frame 1, but the middle is the danger zone.\nWHY:\n- A giant Moon over a crowd reads instantly on a muted phone (speculative: no channel data yet).\n- Escalation formats lose viewers at 0:15–0:30 if the world stops changing.\nRISK: if the counter outruns the visuals, people swipe at step 3.',
   default: 'POSITION: Giant Moon, with conditions.\nWHY:\n- Strongest frame 1 (speculative).\nRISK: repetition in the middle.',
 };
 
@@ -252,11 +252,11 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/memory') { store.setPinned(String(b.text || '')); hive({ agent: null, kind: 'memory', text: 'Commander updated pinned memory' }); return json(res, { ok: true }); }
       if (p === '/api/warroom') {
         if (!b.question?.trim()) return json(res, { error: 'empty' }, 400);
-        const officerIds = (b.officers?.length ? b.officers : agents.filter((a) => a.id !== 'producer' && a.id !== 'engineer').map((a) => a.id)).filter((id) => byId[id]);
+        const officerIds = (b.officers?.length ? b.officers : agents.filter((a) => a.id !== 'producer').map((a) => a.id)).filter((id) => byId[id]);
         const wr = { id: uid(), question: b.question.trim(), created: Date.now(), stage: 'convening', cost: 0,
           seats: [...officerIds.map((id) => ({ key: id, agent: id, role: 'officer', status: 'waiting', text: '' })),
             { key: 'marshal', agent: byId.producer ? 'producer' : agents[0].id, role: 'marshal', status: 'waiting', text: '' },
-            { key: 'tenth', agent: byId.critic ? 'critic' : agents[agents.length - 1].id, role: 'tenth', status: 'waiting', text: '' }] };
+            { key: 'tenth', agent: byId.analyst ? 'analyst' : agents[agents.length - 1].id, role: 'tenth', status: 'waiting', text: '' }] };
         Object.defineProperty(wr, 'abort', { value: new AbortController(), enumerable: false });
         store.warrooms.push(wr); store.save(); emit('warroom', wr);
         hive({ agent: null, kind: 'warroom', text: `War Room convened: "${wr.question.slice(0, 80)}"` });

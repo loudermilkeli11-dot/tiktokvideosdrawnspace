@@ -1,4 +1,4 @@
-// Tiny JSON-file persistence: tasks, the hive mind log, memories, war-room sessions. Lives in warroom/data/.
+// Tiny JSON-file persistence: tasks, the hive mind log, memories, war-room sessions. Lives in war-room/data/.
 import fs from 'node:fs';
 import path from 'node:path';
 

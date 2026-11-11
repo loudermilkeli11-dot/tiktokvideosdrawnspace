@@ -85,7 +85,7 @@ const logRow = (e) => `<div class="${e.kind}">${hhmm(e.t)} ${e.kind === 'tool' ?
 // ---------------- war room ----------------
 function renderWrForm() {
   const box = $('#wrOfficers'); if (box.dataset.ready) return; box.dataset.ready = 1;
-  box.innerHTML = S.agents.filter((a) => a.id !== 'producer').map((a) => `<span class="chip ${a.id !== 'engineer' ? 'on' : ''}" style="--c:${a.color}" data-off="${a.id}">${a.emoji} ${esc(a.name)}</span>`).join('');
+  box.innerHTML = S.agents.filter((a) => a.id !== 'producer').map((a) => `<span class="chip on" style="--c:${a.color}" data-off="${a.id}">${a.emoji} ${esc(a.name)}</span>`).join('');
 }
 function renderWrList() {
   $('#wrList').innerHTML = [...S.warrooms].reverse().map((w) => `<div class="wrItem ${w.id === S.wrOpen ? 'on' : ''}" data-wr="${w.id}"><b>${esc(w.stage)}</b> · ${esc(w.question.slice(0, 70))}<div class="muted small">${ago(w.created)} ago${w.cost ? ' · $' + w.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">None yet.</p>';

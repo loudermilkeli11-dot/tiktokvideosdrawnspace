@@ -67,21 +67,19 @@ export async function runAgent(p) {
 // ---------------- demo mode ----------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const DEMO_LINES = {
-  producer: ['Reading CLAUDE.md and the latest results…', 'Splitting the job: Scout pitches, Writer boards the winner, Fact Officer verifies, Scroller reviews.'],
-  scout: ['Searching for space what-ifs trending this week…', 'Checking the topic test on 7 candidates; 3 survive.'],
-  writer: ['Drafting captions on the 61–70 s clock…', 'Counter law: distance halves every 5 s → 11 steps to Roche limit.'],
-  factcheck: ['Looking up the Moon’s mean distance and recession rate…', 'Source found: NASA lunar fact sheet; LLR measures 3.8 cm/yr recession.'],
-  critic: ['Watching frame 1 muted…', 'Attention risk at 0:07: two steps in a row look the same.'],
-  engineer: ['Reading engine/src/moon.js and tools/build_page.py…', 'Building projects/demo/src/s01_hook.js at half size.'],
+  producer: ['Reading CLAUDE.md and channel/results.csv…', 'Splitting the job: Scout pitches and sources the fact, Writer boards the winner, Analyst reviews, Studio builds.'],
+  scout: ['Searching for space what-ifs trending this week…', 'Checking the topic test on 7 candidates; 3 survive. Sourcing each fact.'],
+  writer: ['Drafting captions on the 61–70 s clock…', 'Counter law: distance halves every 5 s → 11 steps to the Roche limit.'],
+  studio: ['Reading engine/src/moon.js and tools/build_page.py…', 'Building projects/demo/src/s01_hook.js at half size.'],
+  analyst: ['Reading channel/results.csv…', 'Watching frame 1 muted: attention risk at 0:07, where two steps look the same.'],
 };
-const DEMO_TOOLS = { producer: ['Read · CLAUDE.md'], scout: ['WebSearch · what if moon closer tiktok', 'WebFetch · https://www.tiktok.com/tag/space'], writer: ['Read · PLAYBOOK.md', 'Write · projects/moon-2x/script.md'], factcheck: ['WebSearch · moon distance recession rate', 'WebFetch · https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html'], critic: ['Read · projects/moon-2x/script.md'], engineer: ['Read · engine/src/moon.js', 'Bash · python3 tools/build_page.py projects/demo/src/s01_hook.js'] };
+const DEMO_TOOLS = { producer: ['Read · CLAUDE.md'], scout: ['WebSearch · what if moon closer tiktok', 'WebFetch · https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html'], writer: ['Read · PLAYBOOK.md', 'Write · projects/moon-2x/script.md'], studio: ['Read · engine/src/moon.js', 'Bash · python3 tools/build_page.py projects/demo/src/s01_hook.js'], analyst: ['Read · channel/results.csv', 'Read · projects/moon-2x/script.md'] };
 const DEMO_RESULT = {
-  producer: (task) => `SUMMARY: Plan set for "${task.slice(0, 50)}".\n\n**Plan (UTC):**\n1. Scout pitches 3 premises (30 min).\n2. War Room picks one (15 min).\n3. Writer boards it; Fact Officer verifies the fuse fact (45 min).\n4. Scroller reviews the board; Engineer builds the look test.\n\nDELEGATE @scout: Pitch 3 premises for the next video that pass the topic test.`,
-  scout: () => `SUMMARY: 3 pitches ready; strongest is "What if the Moon got 2x closer every 5 s?"\n\n1. **Moon 2× closer every 5 s**: fact: the Moon recedes 3.8 cm/yr (LLR). Ladder: tides → floods → Roche limit → ring. Hook: a giant Moon over a packed beach.\n2. **Earth spins 2× faster each step**: fact: a day was ~22 h 400 M years ago.\n3. **Sun shrinks by half every 6 s**: fact: the Sun loses 4 M t/s.\n\nVERIFIED: facts 1–3. ASSUMED: retention on space topics.\nREMEMBER: Space what-ifs with a body growing in the sky make the strongest frame 1.`,
-  writer: () => `SUMMARY: Board written to projects/moon-2x/script.md (66 s, 11 steps, 3 sets).\n\nCaptions (excerpt): "WHAT IF THE MOON GOT 2× CLOSER" 0.0–3.0 s · "EVERY 5 SECONDS" 3.0–6.0 s…\n\nDELEGATE @factcheck: Verify every number in projects/moon-2x/script.md.`,
-  factcheck: () => `SUMMARY: Fuse fact verified; 2 numbers fixed; 4 shots need DRAMATIZATION.\n\nVERIFIED: mean distance 384,400 km (NASA). LIKELY: tides scale with 1/d³. SPECULATIVE: everything after step 3.`,
-  critic: () => `SUMMARY: 3 ranked fixes; the biggest is a dead frame at 0:07.\n\n1. 0:07: steps 2 and 3 read the same; make step 3 flood the promenade.\n2. Frame 1 lacks a sound hit; add the braaam on frame 0.\n3. The caption at 0:41 is 9 words; cut "really".`,
-  engineer: () => `SUMMARY: Look-test shot built at half size; 2 key frames OK.\n\nChanged: projects/demo/src/s01_hook.js. Verified: page builds, frames at t=0 and 2.5 s render. Weak: crowd reads small at phone size.`,
+  producer: (task) => `SUMMARY: Plan set for "${task.slice(0, 50)}".\n\n**Plan (UTC):**\n1. Scout pitches 3 premises with sourced facts (30 min).\n2. War Room picks one (15 min).\n3. Writer boards it (45 min), then the Analyst reviews it as the Scroller.\n4. Studio builds the look test.\n\nDELEGATE @scout: Pitch 3 premises for the next video that pass the topic test, each with a sourced fact.`,
+  scout: () => `SUMMARY: 3 pitches ready; strongest is "What if the Moon got 2x closer every 5 s?"\n\n1. **Moon 2× closer every 5 s**: the Moon recedes 3.8 cm/yr (NASA/LLR). Ladder: tides → floods → Roche limit → ring. Frame 1: a giant Moon over a packed beach.\n2. **Earth spins 2× faster each step**: a day was ~22 h, 400 M years ago.\n3. **Sun shrinks by half every 6 s**: the Sun loses ~4 M tonnes of mass per second.\n\nVERIFIED: all 3 facts. SPECULATIVE: how space topics retain.\nREMEMBER: Space what-ifs with a body growing in the sky make the strongest frame 1.`,
+  writer: () => `SUMMARY: Board written to projects/moon-2x/script.md (66 s, 11 steps, 2 sets).\n\nCaptions (excerpt): "WHAT IF THE MOON GOT 2× CLOSER" 0.0–3.0 s · "EVERY 5 SECONDS" 3.0–6.0 s…\n\nDELEGATE @analyst: Review projects/moon-2x/script.md as the Scroller.`,
+  studio: () => `SUMMARY: Look-test shot built at half size; 2 key frames OK.\n\nChanged: projects/demo/src/s01_hook.js. Verified: the page builds and frames at t=0 and 2.5 s render. Weak: the crowd reads small at phone size.`,
+  analyst: () => `SUMMARY: 3 ranked fixes; the biggest is a dead frame at 0:07.\n\n1. 0:07: steps 2 and 3 read the same; make step 3 flood the promenade.\n2. Frame 1 lacks a sound hit; put the braaam on frame 0.\n3. The caption at 0:41 is 9 words; cut "really".\n\nREMEMBER: Every step needs its own world reaction, not only a bigger counter.`,
 };
 async function demoRun(p) {
   const id = p.agent.id;

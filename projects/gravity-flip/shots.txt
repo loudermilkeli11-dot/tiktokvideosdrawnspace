@@ -1,0 +1,13 @@
+# gravity-flip: 38.0 s = 1140 frames. Board: script.md. Law: src/story.js (SHOT table: t0, dur, T, tau0, rate)
+# <name> <frames>
+s01_plaza 90
+s02_flip 90
+s03_pov 75
+s04_seaup 60
+s05_crash 90
+s06_again 45
+s07_clouds 150
+s08_coasts 120
+s09_peel 195
+s10_return 135
+s11_end 90

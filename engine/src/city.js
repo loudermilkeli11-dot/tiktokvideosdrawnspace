@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { rng } from './util.js';
 import { NOISE } from './glsl.js';
+import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 export const PERIOD = 120, STREET = 24, SIDEWALK = 5;          // grid period, street width (kerb to kerb + sidewalks), sidewalk width
 const ROAD = STREET - 2 * SIDEWALK;                              // 14 m roadway: 2 lanes each way
 export const SL = (k) => (k + 0.5) * PERIOD;                     // street centre-lines; blocks are centred on k*PERIOD
@@ -122,7 +123,7 @@ export function createCity(S, o = {}) {
       for (const p of [a, b]) { const cc = (v) => Math.abs(v - SL(Math.round((v - PERIOD / 2) / PERIOD))); if (cc(p.x) < STREET * 0.5 + 2 && cc(p.z) < STREET * 0.5 + 2) continue; if (R() < 0.75) trees.push({ ...p, s: 0.8 + R() * 0.5, seed: R() }); } }
   }
   for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2; trees.push({ x: Math.cos(a) * 34, z: Math.sin(a) * 34, s: 1.0 + R() * 0.3, seed: R() }); }     // plaza ring
-  let canG = new THREE.IcosahedronGeometry(1, 5);
+  let canG = mergeVertices(new THREE.IcosahedronGeometry(1, 5));   // indexed -> smooth vertex normals
   { const p = canG.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i);
       const k = 1 + 0.18 * Math.sin(v.x * 4.1 + v.y * 2.3) * Math.sin(v.z * 3.7 + 1.1) + 0.1 * Math.sin(v.y * 9.1 + v.x * 7.7); p.setXYZ(i, v.x * k * 2.6, v.y * k * 2.2 + 5.6, v.z * k * 2.6); } canG.computeVertexNormals(); }
   const trunkG = new THREE.CylinderGeometry(0.16, 0.24, 4.4, 8); trunkG.translate(0, 2.2, 0);
@@ -143,18 +144,27 @@ export function createCity(S, o = {}) {
     if (Math.hypot(x, z) < 7.5) continue;
     const t = R(); props.push({ x, y: 0, z, yaw: R() * 6.28, rx: 0, rz: 0, ry: 0, kind: t < 0.35 ? 0 : t < 0.6 ? 1 : t < 0.8 ? 2 : 3, seed: R(),
       dims: t < 0.35 ? [1.8, 0.85, 0.6] : t < 0.6 ? [0.55, 1.0, 0.55] : t < 0.8 ? [1.2, 0.7, 1.2] : [0.8, 0.75, 0.8] }); }
-  const PCOL = [0x6a4a30, 0x2d4a33, 0x8a7a68, 0xf2f2ee];
-  const propM = new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), props.length);
-  props.forEach((p, i) => propM.setColorAt(i, new THREE.Color(PCOL[p.kind]))); propM.castShadow = true; propM.frustumCulled = false; group.add(propM);
+  const box = (w, h, d, x, y, z, col) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); return paint(g, col); };
+  const cyl = (r0, r1, h, x, y, z, col, n = 12) => { const g = new THREE.CylinderGeometry(r0, r1, h, n); g.translate(x, y, z); return paint(g, col); };
+  function paint(g, hex) { g = g.index ? g.toNonIndexed() : g; const c = new THREE.Color(hex), a = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < a.length; i += 3) c.toArray(a, i); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.deleteAttribute('uv'); return g; }
+  const bush = (() => { let g = mergeVertices(new THREE.IcosahedronGeometry(0.55, 2)); const p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const k = 1 + 0.15 * Math.sin(v.x * 9 + v.y * 5) * Math.sin(v.z * 7); p.setXYZ(i, v.x * k, v.y * k * 0.8 + 0.95, v.z * k); } g.computeVertexNormals(); return paint(g.toNonIndexed(), 0x3f7a35); })();
+  const KG = [
+    mergeGeometries([box(1.8, 0.07, 0.45, 0, 0.45, 0, 0x7a5236), box(1.8, 0.4, 0.06, 0, 0.72, -0.2, 0x7a5236), box(0.06, 0.45, 0.42, -0.8, 0.22, 0, 0x2b2b2e), box(0.06, 0.45, 0.42, 0.8, 0.22, 0, 0x2b2b2e)]),     // bench
+    mergeGeometries([cyl(0.28, 0.24, 0.95, 0, 0.475, 0, 0x2c4a36), cyl(0.3, 0.3, 0.05, 0, 0.97, 0, 0x1d2a22)]),                                                         // bin
+    mergeGeometries([box(1.1, 0.6, 1.1, 0, 0.3, 0, 0x9a8f80), bush]),                                                                                                       // planter + bush
+    mergeGeometries([cyl(0.45, 0.45, 0.04, 0, 0.74, 0, 0xf2f2ee, 20), cyl(0.04, 0.04, 0.72, 0, 0.37, 0, 0x2b2b2e, 8), cyl(0.3, 0.3, 0.03, 0, 0.01, 0, 0x2b2b2e, 16)]),   // cafe table
+  ];
+  const propMs = KG.map((g, k) => { const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 }), Math.max(1, props.filter((p) => p.kind === k).length)); m.castShadow = true; m.frustumCulled = false; group.add(m); return m; });
+  props.forEach((p) => { p.dims = [1, 1, 1]; });
   // ---------- fountain: basin + water disc + jet droplets (liftable water) ----------
   const basin = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.45, 10, 64).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9a948a, roughness: 0.7 })); basin.position.y = 0.45; basin.castShadow = true; group.add(basin);
   const waterMat = new THREE.MeshStandardMaterial({ color: 0x2e7f93, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.85 });
   const disc = new THREE.Mesh(new THREE.CircleGeometry(6.0, 48).rotateX(-Math.PI / 2), waterMat); disc.position.y = 0.55; group.add(disc);
-  const ND = 1600, drops = []; for (let i = 0; i < ND; i++) drops.push({ a: R() * 6.28, r: Math.pow(R(), 0.6) * 5.6, ph: R(), s: 0.04 + R() * 0.1, jet: R() < 0.6 });
+  const ND = 2600, drops = []; for (let i = 0; i < ND; i++) drops.push({ a: R() * 6.28, r: Math.pow(R(), 0.6) * 5.6, ph: R(), s: 0.018 + R() * 0.05, jet: R() < 0.65 });
   const dropM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0xdff4fa, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.75, emissive: 0x6a8a94, emissiveIntensity: 0.25 }), ND);
   dropM.frustumCulled = false; group.add(dropM);
   const v3 = new THREE.Vector3(), sc = new THREE.Vector3();
-  const api = { group, cars, props, trees, lanes, buildings: B, bodyM, cabM, whM, propM, disc, dropM, drops,
+  const api = { group, cars, props, trees, lanes, buildings: B, bodyM, cabM, whM, propMs, disc, dropM, drops,
     ground: () => 0,
     // place everything; lift(h): vertical offset for loose things at this instant (metres), spin: tumble scale (rad), time t
     update(t, st = {}) {
@@ -167,8 +177,9 @@ export function createCity(S, o = {}) {
         [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([sx, sz], k) => { m4.compose(base.clone().add(new THREE.Vector3(sx * c.W * 0.45, 0.34, sz * c.L * 0.33).applyQuaternion(q)), q, sc.set(1, 1, 1)); whM.setMatrixAt(i * 4 + k, m4); });
       });
       bodyM.instanceMatrix.needsUpdate = cabM.instanceMatrix.needsUpdate = whM.instanceMatrix.needsUpdate = true;
-      props.forEach((p, i) => { q.setFromEuler(e.set(p.rx * tumble, p.yaw + p.ry * tumble, p.rz * tumble)); m4.compose(v3.set(p.x, p.y + L * (p.liftK ?? 1), p.z), q, sc.set(...p.dims)); propM.setMatrixAt(i, m4); });
-      propM.instanceMatrix.needsUpdate = true;
+      const ki = [0, 0, 0, 0];
+      props.forEach((p) => { q.setFromEuler(e.set(p.rx * tumble, p.yaw + p.ry * tumble, p.rz * tumble)); m4.compose(v3.set(p.x, p.y + L * (p.liftK ?? 1), p.z), q, sc.set(1, 1, 1)); propMs[p.kind].setMatrixAt(ki[p.kind]++, m4); });
+      propMs.forEach((m) => { m.instanceMatrix.needsUpdate = true; });
       // fountain: before the flip a splashing jet; after, the whole pool lifts as a wobbling slab of water + droplets
       const wl = st.waterLift ?? L, jetOn = L <= 0.001;
       disc.position.y = 0.55 + wl; disc.scale.setScalar(1 + 0.04 * Math.sin(t * 3.1) * Math.min(1, wl));

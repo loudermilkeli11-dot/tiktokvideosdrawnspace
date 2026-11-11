@@ -1,0 +1,11 @@
+{
+  "master_peak_db": -3.0,
+  "reverb": {"decay": 2.4, "send": 0.2},
+  "ticks": {"t0": 0.0, "t1": 1.9, "rate": 2, "steps": [0.8, 1.4], "gain_db": -12},
+  "risers": [{"t0": 0.6, "t1": 1.9, "gain_db": -10, "speed": 0.5, "noise": 0.5}],
+  "impacts": [{"t": 0.8, "gain_db": -8}],
+  "braaams": [{"t": 1.5, "gain_db": -4, "decay": 3.0}],
+  "big_hit": {"t": 1.9, "gain_db": 0, "decay": 5.0},
+  "silent": [[2.4, 2.7]],
+  "loop_silence_frames": 2
+}

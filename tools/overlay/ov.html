@@ -1,0 +1,236 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: 'Anton'; src: url('fonts/anton-latin-400-normal.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-500-normal.woff2') format('woff2'); font-weight: 500; }
+@font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-700-normal.woff2') format('woff2'); font-weight: 700; }
+html, body { margin: 0; background: transparent; }
+canvas { display: block; }
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script type="module">
+// Overlay layer renderer. Driven by render_ov.js through window.ov.*
+// Design space is 540x960; everything is drawn with a 2x transform.
+const FPS = 30, S = 2;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const DEFAULT_STYLE = {
+  accent: '#FFD23F',
+  capFont: 'Anton', capSize: 46, capMinSize: 26, capMaxW: 480, capY0: 230, capY1: 350,
+  capStroke: 8,          // design px lineWidth (=> ~8 real px outline outside glyph)
+  capShadow: 3.5,        // design px hard shadow offset (=> 7 real px)
+  capLineGap: 1.02,
+  capPunchFrames: 4, capPunchScale: 1.12, capOutFrames: 2,
+  panelY0: 129, panelY1: 210, panelW: 380,
+  pulseFrames: 6, pulseScale: 1.08,
+  tagX: 26, tagY: 110,
+};
+let SPEC = null, ST = DEFAULT_STYLE, TOTAL = 0;
+
+const easeOut = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+const fmtThousands = v => {
+  if (typeof v !== 'number') return String(v);
+  const neg = v < 0; v = Math.abs(v);
+  const r = Math.round(v);
+  return (neg ? '-' : '') + r.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+const fr = t => Math.round(t * FPS);   // seconds -> frame
+
+// ---------------- captions ----------------
+function layoutCaption(text, hl, size, force) {
+  ctx.font = `${size}px ${ST.capFont}`;
+  const words = text.toUpperCase().split(/\s+/).filter(Boolean);
+  const space = ctx.measureText(' ').width * 1.15 + ST.capStroke * 0.35; // outline eats the gap
+  const ws = words.map(w => ({ w, width: ctx.measureText(w).width,
+    hl: hl.includes(w.replace(/[^A-Z0-9×%]/g, '')) }));
+  // try 1 line, else best balanced 2-line split
+  const total = ws.reduce((a, b) => a + b.width, 0) + space * (ws.length - 1);
+  if (total <= ST.capMaxW || (ws.length < 2 && force)) return { lines: [ws], widths: [total], size, space };
+  if (ws.length < 2) return null;
+  let best = null;
+  for (let k = 1; k < ws.length; k++) {
+    const a = ws.slice(0, k), b = ws.slice(k);
+    const wa = a.reduce((s, x) => s + x.width, 0) + space * (a.length - 1);
+    const wb = b.reduce((s, x) => s + x.width, 0) + space * (b.length - 1);
+    const m = Math.max(wa, wb);
+    if (!best || m < best.m) best = { m, lines: [a, b], widths: [wa, wb] };
+  }
+  if (best.m <= ST.capMaxW || force) return { lines: best.lines, widths: best.widths, size, space };
+  return null;
+}
+const capCache = new Map();
+function fitCaption(text, hl) {
+  const key = text + '|' + hl.join(',');
+  if (capCache.has(key)) return capCache.get(key);
+  let L = null;
+  for (let s = ST.capSize; s >= ST.capMinSize && !L; s -= 1) {
+    L = layoutCaption(text, hl, s);
+    if (L) { // must also fit vertically in the caption band
+      const h = L.lines.length * s * ST.capLineGap * 1.18;
+      if (h > (ST.capY1 - ST.capY0) + 10) L = null;
+    }
+  }
+  if (!L) L = layoutCaption(text, hl, ST.capMinSize, true);
+  capCache.set(key, L);
+  return L;
+}
+function drawCaption(c, f) {
+  const f0 = fr(c.t0), f1 = fr(c.t1);
+  if (f < f0 || f >= f1) return;
+  // exit: last capOutFrames frames cut out (scale squeeze + gone), no slow fade
+  const fromEnd = f1 - f;
+  if (fromEnd <= ST.capOutFrames && c.cutOut !== false) {
+    if (fromEnd === 1) return;     // final frame: gone (hard cut out)
+  }
+  const L = fitCaption(c.text, (c.hl || []).map(w => w.toUpperCase()));
+  const k = (f - f0) / ST.capPunchFrames;
+  let sc = c.punch === false ? 1 : ST.capPunchScale + (1 - ST.capPunchScale) * easeOut(k);
+  if (fromEnd === 2 && c.cutOut !== false) sc *= 0.96;
+  const lh = L.size * ST.capLineGap;
+  const blockH = lh * L.lines.length;
+  const cy = (c.y ?? (ST.capY0 + ST.capY1) / 2);
+  ctx.save();
+  ctx.setTransform(S * sc, 0, 0, S * sc, S * 270 * (1 - sc) + 0, S * cy * (1 - sc));
+  // after transform, coordinates are design px scaled about (270, cy)
+  ctx.font = `${L.size}px ${ST.capFont}`;
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  const drawPass = (pass) => {
+    L.lines.forEach((line, i) => {
+      let x = 270 - L.widths[i] / 2;
+      const y = cy - blockH / 2 + lh * (i + 0.5) + L.size * 0.04;
+      for (const w of line) {
+        if (pass === 'shadow') {
+          ctx.lineWidth = ST.capStroke; ctx.strokeStyle = '#000'; ctx.fillStyle = '#000';
+          ctx.strokeText(w.w, x + ST.capShadow, y + ST.capShadow);
+          ctx.fillText(w.w, x + ST.capShadow, y + ST.capShadow);
+        } else if (pass === 'stroke') {
+          ctx.lineWidth = ST.capStroke; ctx.strokeStyle = '#000';
+          ctx.strokeText(w.w, x, y);
+        } else {
+          ctx.fillStyle = w.hl ? (c.color || ST.accent) : '#FFFFFF';
+          ctx.fillText(w.w, x, y);
+        }
+        x += w.width + L.space;
+      }
+    });
+  };
+  drawPass('shadow'); drawPass('stroke'); drawPass('fill');
+  ctx.restore();
+}
+
+// ---------------- counter ----------------
+function counterText(cn, f) {
+  const v = cn.value(f / FPS);
+  return (cn.format || fmtThousands)(v);
+}
+function drawCounter(cn, f) {
+  const f0 = fr(cn.t0), f1 = fr(cn.t1);
+  if (f < f0 || f >= f1) return;
+  const txt = counterText(cn, f);
+  // pulse: since last change of displayed value (stateless: look back), or explicit steps
+  let since = Infinity;
+  if (cn.steps) {
+    for (const s of cn.steps) { const d = f - fr(s); if (d >= 0 && d < since) since = d; }
+  } else {
+    for (let d = 0; d < ST.pulseFrames && f - d - 1 >= f0; d++) {
+      if (counterText(cn, f - d) !== counterText(cn, f - d - 1)) { since = d; break; }
+    }
+  }
+  const pulse = since < ST.pulseFrames ? 1 - since / ST.pulseFrames : 0;
+  const k = easeOut((f - f0) / 4);
+  const inSc = 1.08 + (1 - 1.08) * k;
+  if (f1 - f === 1) return; // hard cut out on last frame
+  const y0 = ST.panelY0, y1 = ST.panelY1, w = cn.width || ST.panelW, h = y1 - y0;
+  const cy = (y0 + y1) / 2;
+  ctx.save();
+  ctx.setTransform(S * inSc, 0, 0, S * inSc, S * 270 * (1 - inSc), S * cy * (1 - inSc));
+  ctx.beginPath(); ctx.roundRect(270 - w / 2, y0, w, h, 14);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.stroke(); // 1 design = 2 real px
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `500 12px 'Azeret Mono'`; ctx.letterSpacing = '2.5px';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText(String(cn.label).toUpperCase(), 270 + 1.25, y0 + 19);
+  ctx.letterSpacing = '0px';
+  // value: auto-shrink to panel width
+  let vs = cn.valueSize || 34;
+  ctx.font = `700 ${vs}px 'Azeret Mono'`;
+  while (ctx.measureText(txt).width > w - 28 && vs > 14) { vs -= 1; ctx.font = `700 ${vs}px 'Azeret Mono'`; }
+  const ps = 1 + (ST.pulseScale - 1) * pulse;
+  const vy = y0 + 53;
+  ctx.translate(270, vy); ctx.scale(ps, ps);
+  ctx.fillStyle = pulse > 0 ? (cn.accent || ST.accent) : '#FFFFFF';
+  ctx.fillText(txt, 0, 0);
+  ctx.restore();
+}
+
+// ---------------- tags ----------------
+function drawTag(tg, f) {
+  if (f < fr(tg.t0) || f >= fr(tg.t1)) return;
+  ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.font = `700 11px 'Azeret Mono'`; ctx.letterSpacing = '2.2px';
+  ctx.textBaseline = 'middle';
+  const align = tg.align || 'left';
+  ctx.textAlign = align;
+  const x = tg.x ?? (align === 'center' ? 270 : ST.tagX), y = tg.y ?? ST.tagY;
+  ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  const t = String(tg.text).toUpperCase();
+  ctx.strokeText(t, x, y);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText(t, x, y);
+  ctx.restore();
+}
+
+function normalizeSpec(raw) {
+  const s = Object.assign({ captions: [], tags: [], counter: null }, raw);
+  if (s.counter && !Array.isArray(s.counter)) s.counter = [s.counter];
+  s.counter = s.counter || [];
+  for (const cn of s.counter) {
+    if (typeof cn.value !== 'function') { const v = cn.value; cn.value = () => v; }
+  }
+  return s;
+}
+
+window.ov = {
+  async init(overlayUrl, info) {
+    await document.fonts.load(`46px Anton`);
+    await document.fonts.load(`500 12px 'Azeret Mono'`);
+    await document.fonts.load(`700 12px 'Azeret Mono'`);
+    TOTAL = info.total;
+    const mod = await import(overlayUrl);
+    let raw = mod.default;
+    if (typeof raw === 'function') raw = await raw(info);
+    SPEC = normalizeSpec(raw);
+    ST = Object.assign({}, DEFAULT_STYLE, SPEC.style || {});
+    return {
+      captions: SPEC.captions.map(c => ({ t0: c.t0, t1: c.t1, text: c.text })),
+      fonts: [...document.fonts].map(f => f.family + ':' + f.status),
+    };
+  },
+  draw(f) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const t = f / FPS;
+    let n = 0;
+    for (const tg of SPEC.tags) { if (f >= fr(tg.t0) && f < fr(tg.t1)) { drawTag(tg, f); n++; } }
+    for (const cn of SPEC.counter) { if (f >= fr(cn.t0) && f < fr(cn.t1)) { drawCounter(cn, f); n++; } }
+    for (const c of SPEC.captions) { if (f >= fr(c.t0) && f < fr(c.t1)) { drawCaption(c, f); n++; } }
+    if (SPEC.draw) { ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); if (SPEC.draw(ctx, t, f) !== false) n++; ctx.restore(); }
+    return n;
+  },
+  // returns base64 PNG (or '' if the frame is empty)
+  async frame(f) {
+    const n = this.draw(f);
+    if (!n) return '';
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    let s = ''; const CH = 0x8000;
+    for (let i = 0; i < buf.length; i += CH) s += String.fromCharCode.apply(null, buf.subarray(i, i + CH));
+    return btoa(s);
+  },
+};
+window.ovReady = true;
+</script>
+</body></html>

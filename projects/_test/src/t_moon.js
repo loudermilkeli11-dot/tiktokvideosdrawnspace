@@ -1,0 +1,22 @@
+import { createStudio, THREE } from '@engine/engine.js';
+import { createMoon, sunForPhase } from '@engine/moon.js';
+import { createSky } from '@engine/sky.js';
+import { createOcean } from '@engine/ocean.js';
+import { Path, applyCam, shake } from '@engine/camera.js';
+const S = createStudio({ samples: 4 });
+const { scene, camera } = S;
+const sky = createSky(S); scene.add(sky);
+const moon = createMoon(S); scene.add(moon);
+const ocean = createOcean(S, { amp: 0.5 }); ocean.add(scene);
+const path = new Path([{ t: 4, pos: [0, 3, 0], look: [0, 40, -1000], mm: 50 }, { t: 7, pos: [0, 3.5, -20], look: [0, 60, -1000], mm: 60 }]);
+S.run((t) => {
+  applyCam(camera, path.at(t), shake(t, 0.15, 0.6));
+  const md = new THREE.Vector3(0.05, 0.06 + (t - 4) * 0.01, -1).normalize();
+  const dist = 3000, R = 3000 * Math.tan(THREE.MathUtils.degToRad(2.5));
+  moon.position.copy(camera.position).addScaledVector(md, dist); moon.scale.setScalar(R);
+  moon.faceNearSide(md.clone().negate());
+  const sun = sunForPhase(md.clone().negate(), 60); moon.U.sunDir.value.copy(sun); moon.U.earthDir.value.copy(md).negate();
+  moon.U.haze.value = 1.0; moon.U.horizonY.value = 0; moon.U.hazeH.value = R * 0.6;
+  sky.U.moonDir.value.copy(md); sky.U.moonAng.value = 0.044; sky.U.moonLight.value = 0.25; sky.update(S, t);
+  ocean.U.moonDir.value.copy(md); ocean.U.moonI.value = 2.0; ocean.mesh.update(S, t);
+});

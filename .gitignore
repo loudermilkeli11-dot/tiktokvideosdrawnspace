@@ -1,0 +1,7 @@
+*.parts.*
+*.pyc
+__pycache__/
+engine/node_modules/
+node_modules/
+projects/*/dist/
+projects/*/out/

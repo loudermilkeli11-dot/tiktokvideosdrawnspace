@@ -1,0 +1,4 @@
+# _example: two synthetic shots, 90 frames = 3.0 s (real films: 1830–2100 frames)
+# <name> <frames>
+intro 45
+reveal 45

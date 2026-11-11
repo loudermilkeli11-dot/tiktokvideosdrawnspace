@@ -20,7 +20,7 @@ PALETTE.top.splice(0, PALETTE.top.length, 0xd94a3d, 0xf0b23a, 0x3a78d0, 0x2f9e68
 PALETTE.bot.splice(0, PALETTE.bot.length, 0x2d3d5c, 0xd9cfb6, 0x3e3e3e, 0x5b7fa8, 0xebe6da, 0x6d5539, 0x1c1c22);
 PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a5a, 0x1a1410, 0x8a6a48, 0xd8c08a);
 const PASS = 2.4;                                                    // shot time of the jet's closest pass
-const S = createStudio({ samples: (t) => (Math.abs(t - 4 - PASS) < 0.8 ? 4 : 2), far: 4e5,
+const S = createStudio({ samples: (t) => (Math.abs(t - 4 - PASS) < 0.8 ? 4 : t - 4 > 3.3 ? 3 : 2), far: 4e5,
   post: { exposure: 1.0, bloom: 0.09, bloomThreshold: 2.4, bloomRadius: 0.6, vignette: 0.2, grain: 0.012, ca: 0.0008, sat: 1.12, contrast: 1.06 } });
 const { scene, camera } = S;
 S.hdri('hdri_day_1k.hdr', 0.45);
@@ -90,6 +90,8 @@ const cars = [[-30, -38, -48], [34, 14, -52], [52, -64, -80], [-55, 40, -70], [8
   const r = rng(40 + i); g.userData = { p: new THREE.Vector3(x, y, z), w: new THREE.Vector3((r() - 0.5) * 0.9, (r() - 0.5) * 0.7, (r() - 0.5) * 0.9), e0: new THREE.Euler(r() * 6, r() * 6, r() * 6), v: new THREE.Vector3((r() - 0.5) * 2, (r() - 0.5) * 2, (r() - 0.5) * 2) };
   scene.add(g); return g;
 });
+// one car was still driving when gravity flipped: it keeps its road speed (~36 km/h) relative to us and tumbles across the top of frame
+{ const hc = cars[0]; hc.userData.hero = true; hc.userData.p.set(50, 25, -17); hc.userData.v.set(-10, 0.6, -0.6); hc.userData.w.set(0.7, 0.4, 1.1); }
 // ---- plaza furniture falling up with us: cafe umbrellas, benches, bins, planters, cafe tables ----
 function part(g, col, m) { g = g.index ? g.toNonIndexed() : g; if (m) g.applyMatrix4(m); g.deleteAttribute('uv'); const c = new THREE.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) c.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }

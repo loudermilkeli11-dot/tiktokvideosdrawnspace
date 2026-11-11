@@ -47,12 +47,16 @@ export function createOcean(S, o = {}) {
     exposure: { value: 1 },
     thru: { value: 0 }, underCol: { value: new THREE.Color(1.0, 0.5, 0.2) },   // see-through Earth: core light from below
     lava: { value: 0 }, lavaI: { value: 4.0 },   // 0 = water, 1 = molten basalt (incandescent cracks, dark crust plates)
+    // gravity-flip (compiled in only with o.slab; inert otherwise): the whole original sea lifted by `lift` metres, an underside
+    // that mirrors the seabed, `churn` (0..1: the bay smashed to white water after the impact) and a surge (bore) over the land
+    lift: { value: 0 }, churn: { value: 0 }, surgeT: { value: -1 }, surgeH: { value: 9 }, surgeR: { value: 140 }, surgeV: { value: 75 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.DoubleSide,
     vertexShader: `${WGLSL}
       ${groundGLSL}
       uniform float time, amp, level; uniform mat4 texM, reflInv;
+      ${o.slab ? 'uniform float lift, churn, surgeT, surgeH, surgeR, surgeV; varying float vSurge;' + SURGE_GLSL : ''}
       varying vec3 vWP; varying vec3 vN; varying float vJac; varying vec4 vRU; varying float vDepth; varying vec2 vFlat;
       void main(){
         vec4 wp0 = modelMatrix*vec4(position,1.); vec2 xz = wp0.xz;
@@ -60,12 +64,14 @@ export function createOcean(S, o = {}) {
         float atten = clamp(depth/6., 0.15, 1.) * smoothstep(-1., 1.5, depth);
         float dist = length(xz - cameraPosition.xz); float far = 1. - smoothstep(1500., 6000., dist);
         vec3 n; float j; vec3 p = gerstner(xz, time, amp, atten*far + 0.0001, n, j);
+        ${o.slab ? SLAB_VS : ''}
         p.y += level; vWP = p; vN = n; vJac = j; vDepth = depth; vFlat = xz;
-        vRU = texM * reflInv * vec4(xz.x, level, xz.y, 1.);
+        vRU = texM * reflInv * vec4(xz.x, level${o.slab ? ' + lift' : ''}, xz.y, 1.);
         gl_Position = projectionMatrix*viewMatrix*vec4(p,1.); }`,
     fragmentShader: `${NOISE}
       ${groundGLSL}
       uniform float time, amp, level, moonI, sunI, reflI, distort, foamAmt, surf, rough, glitter, exposure, thru, lava, lavaI; uniform vec3 underCol;
+      ${o.slab ? 'uniform float lift, churn, surgeT; varying float vSurge;' : ''}
       uniform sampler2D nTex, refl; uniform vec3 moonDir, moonCol, sunDir, sunCol, deep, shallow, sand, amb;
       varying vec3 vWP; varying vec3 vN; varying float vJac; varying vec4 vRU; varying float vDepth; varying vec2 vFlat;
       vec3 nm(vec2 uv){ return texture2D(nTex, uv).xzy*2.-1.; }
@@ -107,6 +113,7 @@ export function createOcean(S, o = {}) {
         col = mix(col, foamLit, foam*0.85);
         // wet-edge alpha: let the sand show through in the last few cm
         float a = smoothstep(-0.05, 0.25, vDepth);
+        ${o.slab ? SLAB_FS : ''}
         if (lava > 0.) {   // molten sea: cooled crust plates drift on incandescent melt; wave crests tear the crust open
           vec2 lp = vWP.xz*0.035 + vec2(time*0.006, -time*0.004);
           float n1 = fbm2(lp), n2 = fbm2(lp*2.9 + 3.1);
@@ -145,7 +152,7 @@ export function createOcean(S, o = {}) {
     U.time.value = t;
     // follow the camera in XZ, snapped to the grid's inner spacing to avoid swimming
     const c = S.camera.position; mesh.position.set(Math.round(c.x / 4) * 4, 0, Math.round(c.z / 4) * 4);
-    refl.position.y = U.level.value; refl.updateMatrixWorld(); U.reflInv.value.copy(refl.matrixWorld).invert();
+    refl.position.y = U.level.value + U.lift.value; refl.updateMatrixWorld(); U.reflInv.value.copy(refl.matrixWorld).invert();
   };
   return { mesh, refl, U, add(scene) { scene.add(refl); scene.add(mesh); } };
 }

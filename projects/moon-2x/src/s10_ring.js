@@ -6,7 +6,7 @@ import { createCrowd, createBirds } from '@engine/crowd.js';
 import { applyCam, shake, kick } from '@engine/camera.js';
 import { sunForPhase } from '@engine/moon.js';
 import { createBreakup } from '@engine/breakup.js';
-import { createMeteors, meteorShower, createImpacts, createRingArc } from '@engine/debris.js';
+import { createMeteors, meteorShower, createImpacts, createRingArc, trimBreakup, hideFromReflection } from '@engine/debris.js';
 import { clamp, ease, rng } from '@engine/util.js';
 import { scatter } from '@engine/crowd.js';
 import { bayWorld, D2R, dirThroughScreen, SHOT } from './kit.js';
@@ -16,6 +16,7 @@ const S = createStudio({ samples: 8, shadows: false, post: { exposure: 1.1, bloo
 const { scene, camera } = S;
 const W = bayWorld(S, { pierYaw: 3 * D2R, pierLights: 0, sky: { beltI: 0, stars: 0.5 }, ocean: { amp: 1.6, level: 5.2 } });
 const B = createBreakup(S, {});
+trimBreakup(B); hideFromReflection(W.ocean.refl, [B.group]);    // same picture, ~3x cheaper (see debris.js)
 for (const ch of B.chunks) ch.mesh.material.fragmentShader = ch.mesh.material.fragmentShader.replace('rockA * strata * l * sunI * 0.55', 'rockA * strata * l * sunI * 0.16');
 const airCol = new THREE.Color(0.02, 0.035, 0.07);
 const fwd = new THREE.Vector3(0, 0, -1);

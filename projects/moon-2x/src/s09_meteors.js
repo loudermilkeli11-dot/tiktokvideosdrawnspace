@@ -7,7 +7,7 @@ import { figureGeometry, figureMaterial } from '@engine/figure.js';
 import { applyCam, shake, kick } from '@engine/camera.js';
 import { sunForPhase } from '@engine/moon.js';
 import { createBreakup } from '@engine/breakup.js';
-import { createMeteors, meteorShower, createImpacts } from '@engine/debris.js';
+import { createMeteors, meteorShower, createImpacts, trimBreakup, hideFromReflection } from '@engine/debris.js';
 import { clamp, rng, fbm } from '@engine/util.js';
 import { bayWorld, D2R, dirThroughScreen, SHOT } from './kit.js';
 import { angRadius } from './story.js';
@@ -19,6 +19,7 @@ const W = bayWorld(S, { pierYaw: PIER_YAW, pierLights: 2, sky: { beltI: 0, stars
 const P = W.bay.pier, DECK = P.deckY;
 const fwd = new THREE.Vector3(-Math.sin(PIER_YAW), 0, -Math.cos(PIER_YAW)), right = new THREE.Vector3(Math.cos(PIER_YAW), 0, -Math.sin(PIER_YAW));
 const B = createBreakup(S, {});
+trimBreakup(B); hideFromReflection(W.ocean.refl, [B.group]);    // same picture, ~3x cheaper (see debris.js)
 const airCol = new THREE.Color(0.02, 0.035, 0.07);
 // shot-local tweak: darker, rockier chunk interiors (the lit grey bowls read as hollow shells at 50 mm)
 for (const ch of B.chunks) ch.mesh.material.fragmentShader = ch.mesh.material.fragmentShader.replace('rockA * strata * l * sunI * 0.55', 'rockA * strata * l * sunI * 0.16');

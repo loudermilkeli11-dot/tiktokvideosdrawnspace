@@ -261,3 +261,23 @@ export function createStreams(S, streams, o = {}) {
         q.setFromEuler(e.set(k.w + t * k.spin, k.w * 1.7 + t * k.spin * 0.6, k.w)); m4.compose(v, q, sc.setScalar(k.size)); rocks.setMatrixAt(i, m4); });
       rocks.instanceMatrix.needsUpdate = true; M.update(t); for (const r of ribbons) r.U.time.value = t; } };
 }
+
+// ---------------------------------------------------------------- render-cost helpers for breakup.js (no edits to it)
+// Each breakup chunk draws the whole Moon sphere (double-sided) and discards everything outside its cell: ~24 layers of
+// overdraw. trimBreakup gives every chunk an index buffer holding only the triangles of its own cell (+ margin), which
+// draws the same picture at a fraction of the cost. hideFromReflection keeps the chunks out of the ocean's mirror pass.
+export function trimBreakup(B, margin = 0.08) {
+  const v = new THREE.Vector3();
+  for (const ch of B.chunks) {
+    const g = ch.mesh.geometry, U = ch.mesh.material.uniforms, cells = U.cells.value, me = U.cell.value;
+    const p = g.attributes.position, idx = g.index.array, near = new Float32Array(p.count), keep = [];
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).normalize(); let best = -2;
+      for (let k = 0; k < cells.length; k++) if (k !== me) best = Math.max(best, v.dot(cells[k])); near[i] = v.dot(cells[me]) - best; }
+    for (let t = 0; t < idx.length; t += 3) if (Math.max(near[idx[t]], near[idx[t + 1]], near[idx[t + 2]]) > -margin) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    const ng = new THREE.BufferGeometry(); for (const k in g.attributes) ng.setAttribute(k, g.attributes[k]); ng.setIndex(keep); ch.mesh.geometry = ng;
+  }
+}
+export function hideFromReflection(refl, objs) {
+  const rb = refl.onBeforeRender;
+  refl.onBeforeRender = function (...a) { const vis = objs.map((o) => o.visible); objs.forEach((o) => { o.visible = false; }); rb.apply(this, a); objs.forEach((o, i) => { o.visible = vis[i]; }); };
+}

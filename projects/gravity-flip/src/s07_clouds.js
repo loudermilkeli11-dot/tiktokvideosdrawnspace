@@ -62,8 +62,8 @@ const tcam = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 1e5), tv = new THREE.V
 function hitsCounter(p0, v) { for (let tt = 0; tt <= 5; tt += 0.25) { applyCam(tcam, camAt(tt)); tcam.updateMatrixWorld();
   tv.copy(p0).addScaledVector(v, tt).project(tcam); const x = (tv.x + 1) * 270, y = (1 - tv.y) * 480; if (tv.z < 1 && x > -10 && x < 300 && y > 345 && y < 525) return true; } return false; }
 // does it ever line up with the jet as seen from the camera (no figure may appear to touch the jet)?
-function nearJetOnScreen(p0, v) { for (let tt = 0; tt <= 5; tt += 0.1) { const c = camAt(tt).pos, J = jetAt(tt).p, P = p0.clone().addScaledVector(v, tt);
-  const a = J.clone().sub(c), b = P.clone().sub(c), ang = a.angleTo(b), jr = Math.atan(33 / a.length()); if (ang < jr + 0.045) return true; } return false; }
+function nearJetOnScreen(p0, v) { for (let tt = 1.8; tt <= 3.0; tt += 0.06) { const c = camAt(tt).pos, J = jetAt(tt).p, P = p0.clone().addScaledVector(v, tt);
+  const a = J.clone().sub(c), b = P.clone().sub(c), ang = a.angleTo(b), jr = Math.atan(33 / a.length()); if (ang < jr + 0.03) return true; } return false; }
 // ---- people: the plaza crowd falling up around us, 10-70 m away, spread around the directions the camera sweeps ----
 const R = rng(707), people = [];
 for (let i = 0; i < 20000 && people.length < 62; i++) {

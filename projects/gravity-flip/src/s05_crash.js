@@ -82,6 +82,7 @@ for (let k = 0; k < 40; k++) { const ts = 0.05 + k * 0.05, front = OU.surgeR.val
     parts.push({ p: [x + (SR() - 0.5) * 4, g + 1 + SR() * 3, z + (SR() - 0.5) * 4], v: [sp.nx * fv * 0.7 + (SR() - 0.5) * 5, 5 + SR() * 12, sp.nz * fv * 0.7 + (SR() - 0.5) * 5],
       t0: T_IMP + 4 + ts, size: SR() < 0.4 ? 1.5 + SR() * 2.5 : 0.5 + SR() * 0.8, drag: 0.5, life: 2, kind: SR() < 0.4 ? 1 : 0 }); } }
 const spray = createSpray(S, parts);
+{ const ob = ocean.refl.onBeforeRender; ocean.refl.onBeforeRender = (r, sc, cam) => { spray.mesh.visible = false; ob(r, sc, cam); spray.mesh.visible = true; }; }   // no spray in the mirror
 spray.U.sunDir.value.copy(SUN); spray.U.hazeD.value = 4000;
 console.log('spray particles', parts.length, 'boats', boats.length, 'impact at shot t', T_IMP.toFixed(3));
 const q = new THREE.Quaternion(), e = new THREE.Euler(), bp = new THREE.Vector3();
@@ -95,6 +96,7 @@ S.run((t) => {
   OU.sunDir.value.copy(SUN); OU.sunI.value = 1.0; OU.moonI.value = 0; OU.moonDir.value.copy(SUN); OU.lift.value = H;
   OU.churn.value = ts > 0 ? sstep(0, 0.12, ts) : 0; OU.surgeT.value = ts > 0 ? ts : -1;
   OU.amp.value = ts > 0 ? 0.45 + 1.4 * sstep(0, 0.4, ts) : 0.45;
+  ocean.refl.visible = ts < 0.25;                                     // after the slam the bay is white water: no mirror needed
   ocean.mesh.update(S, t);
   bay.update(S, t, { waveAmp: 0.45, level: 0, moonDir: SUN, moonLightI: 3.0, shadowCenter: CAM.clone() });
   spray.update(t);

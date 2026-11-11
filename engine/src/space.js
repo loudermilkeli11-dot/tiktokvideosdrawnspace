@@ -76,7 +76,7 @@ export function createSpace(S, o = {}) {
         // night lights (dimmed under clouds), only on the night side
         vec3 nl = texture2D(night, vUv).rgb; col += nl * nl * vec3(1.0,0.75,0.45) * cityI * (1. - dayF) * (1. - clouds*0.7) * (1. - 0.85*scar);
         if (scar > 0.) { float em = smoothstep(0.62, 0.8, fbm3(vO*0.0035 + 2.)) * fbm3(vO*0.03); col += vec3(1.0, 0.32, 0.06) * em * scar * 0.5 * (1. - ocean) * (1. - dayF*0.85); }
-        if (glowI > 0.) { float g = 0.55 + 0.9*fbm3(vO*0.0012 + 4.); col += glowCol * glowI * g * (1. - dayF) * (0.6 + 0.4*(1. - ocean)); }
+        if (glowI > 0.) { float g = fbm3(vO*0.0012 + 4.); g = 0.25 + 2.2*g*g*g + 0.6*fbm3(vO*0.006); col += glowCol * glowI * g * (1. - dayF) * (0.6 + 0.4*(1. - ocean)); }
         // twilight band (reddened)
         col += vec3(1.0,0.45,0.2) * exp(-mu*mu*1400.) * 0.035 * sunI * (1. - clouds*0.5) * atmI;
         // ring shadow on Earth's day side: ray from surface to the sun crosses the ring plane inside ring radii

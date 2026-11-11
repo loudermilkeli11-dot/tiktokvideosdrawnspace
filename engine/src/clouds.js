@@ -66,7 +66,7 @@ export function createClouds(S, o = {}) {
     fragmentShader: `${NOISE}
       uniform sampler2D hTex; uniform float period, base, thick, alt, RE, sunI, skyI, hazeL, pxAng, texel, regional, exposure, steps;
       uniform vec3 sunDir, sunCol, skyCol, hazeCol, seaCol; uniform vec2 offset; varying vec3 vD;
-      vec3 O; vec3 C; float lodK; float reg;
+      vec3 C; float lodK; float reg;
       // cloud top altitude (m above sea level) at map position xz; -1 where clear
       vec4 tex(vec2 xz, float lod){ return textureLod(hTex, (xz + offset)/period, lod); }
       float topAt(vec2 xz, float lod, out vec4 T){ T = tex(xz, lod); float h = max(T.r - reg, 0.)/(1. - reg + 1e-3); return h > 0.002 ? base + h*thick : -1.; }
@@ -74,9 +74,8 @@ export function createClouds(S, o = {}) {
       vec2 sph(vec3 ro, vec3 rd, float r){ vec3 oc = ro - C; float b = dot(oc, rd), c = dot(oc, oc) - r*r, h = b*b - c; if (h < 0.) return vec2(-1.); h = sqrt(h); return vec2(-b - h, -b + h); }
       void main(){
         vec3 d = normalize(vD);
-        O = vec3(cameraPosition.x, 0., cameraPosition.z); C = vec3(O.x, -(RE + alt + cameraPosition.y), O.z);   // camera at altitude alt + its world y
-        O.y = 0.; vec3 ro = cameraPosition;
-        float Rt = RE + base + thick*1.6;                                         // top of the tallest towers
+        C = vec3(0., -(RE + alt), 0.); vec3 ro = cameraPosition;                    // world y = 0 is at altitude alt
+        float Rt = RE + base + thick*2.6;                                         // top of the tallest towers
         vec2 st = sph(ro, d, Rt); if (st.x < 0.) discard;                          // above the deck's horizon: the sky shows
         vec2 sb = sph(ro, d, RE + base);
         float t0 = st.x, t1 = sb.x > 0. ? sb.x : st.y;                             // march from the top shell to the cloud base (or out again)

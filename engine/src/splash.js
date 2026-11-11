@@ -44,23 +44,22 @@ export function patchSlab(mat, U, groundGLSL, o = {}) {
           reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, reflectedLight.indirectDiffuse*0.35 + glow*0.55*material.diffuseColor, cv);
           reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, glow*1.4*(0.25 + 0.75*slabPud), cv); }`);
     if (o.seabed) {                          // the exposed bed: ripple marks, dark weed patches, glassy puddles that mirror the ceiling
-      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', `#include <lights_fragment_begin>`)
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        float bedF = smoothstep(-1., -6., sAt(vWp.xz)) * step(0.05, lift);
-        float pn = fbm2(vWp.xz*0.045 + 3.7) + 0.35*fbm2(vWp.xz*0.31);
-        slabPud = bedF*smoothstep(0.83, 0.9, pn);
-        roughnessFactor = mix(roughnessFactor, 0.04, slabPud);`)
-        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        { float bedN = smoothstep(-1., -6., sAt(vWp.xz)) * step(0.05, lift) * (1. - slabPud);
-          float ph = vWp.x*1.9 + vWp.z*0.7 + 2.2*fbm2(vWp.xz*0.08); float rp = cos(ph);
-          vec3 rn = vec3(-rp*0.9*0.35, 0., -rp*0.35*0.35);
-          normal = normalize(normal + (viewMatrix*vec4(rn, 0.)).xyz*bedN*(1. - smoothstep(30., 140., length(vWp - cameraPosition))));
-          normal = normalize(mix(normal, (viewMatrix*vec4(0.,1.,0.,0.)).xyz, slabPud*0.9)); }`)
-        .replace('#include <map_fragment>', `#include <map_fragment>
-        { float bd = smoothstep(-1., -6., sAt(vWp.xz)) * step(0.05, lift); float wn = fbm2(vWp.xz*0.02 + 9.1);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>', `
+        { float bd = smoothstep(-1., -6., sAt(vWp.xz)) * step(0.05, lift);
+          float pn = fbm2(vWp.xz*0.045 + 3.7) + 0.35*fbm2(vWp.xz*0.31);
+          slabPud = bd*smoothstep(0.83, 0.9, pn);
+          roughnessFactor = mix(roughnessFactor, 0.04, slabPud);
+          float wn = fbm2(vWp.xz*0.02 + 9.1);
           vec3 weed = mix(vec3(0.10,0.12,0.06), vec3(0.16,0.14,0.08), fbm2(vWp.xz*0.4));
-          diffuseColor.rgb = mix(diffuseColor.rgb, weed, bd*smoothstep(0.5, 0.62, wn)*0.85);
-          diffuseColor.rgb *= mix(1., 0.8 + 0.25*fbm2(vWp.xz*0.15), bd); }`);
+          diffuseColor.rgb = mix(diffuseColor.rgb, weed, bd*smoothstep(0.5, 0.62, wn)*0.85*(1. - slabPud));
+          diffuseColor.rgb *= mix(1., 0.8 + 0.25*fbm2(vWp.xz*0.15), bd);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*0.35, slabPud);
+          float ph = vWp.x*1.9 + vWp.z*0.7 + 2.2*fbm2(vWp.xz*0.08); float rp = cos(ph);
+          vec3 rn = vec3(-rp*0.31, 0., -rp*0.12);
+          float bn = bd*(1. - slabPud)*(1. - smoothstep(30., 140., length(vWp - cameraPosition)));
+          normal = normalize(normal + (viewMatrix*vec4(rn, 0.)).xyz*bn);
+          normal = normalize(mix(normal, normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz), slabPud*0.92)); }
+        #include <lights_physical_fragment>`);
     }
     sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'float slabPud = 0.;\nvoid main() {');
   };

@@ -14,12 +14,14 @@ export function createSky(S, o = {}) {
     // see-through Earth (0 = off): below the horizon show the far side's night sky + the glowing iron core at the nadir
     thru: { value: 0 }, coreCol: { value: new THREE.Color(1.0, 0.6, 0.3) }, coreI: { value: 40 }, coreAng: { value: Math.asin(3480 / 6371) }, skyGlow: { value: 0.004 },
     tintAll: { value: new THREE.Color(0xffffff) }, beltCol: { value: new THREE.Color(o.beltCol ?? 0xc98a96) }, beltI: { value: o.beltI ?? 0.35 },
+    // high altitude (all 0 = off): dip = horizon depression (rad); altI 0..1 = steeper day gradient + bright limb haze band; sunDisc = sun disc + aureole
+    dip: { value: 0 }, altI: { value: 0 }, sunDisc: { value: 0 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false,
     vertexShader: `varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }`,
     fragmentShader: `${NOISE}
-      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure; uniform float thru, coreI, coreAng, skyGlow; uniform vec3 coreCol;
+      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure; uniform float thru, coreI, coreAng, skyGlow; uniform vec3 coreCol; uniform float dip, altI, sunDisc;
       varying vec3 vD;
       vec3 starLayer(vec3 d, float sc, float dens, float bright){
         vec3 p = d*sc; vec3 c = floor(p); float h = h13(c);
@@ -32,7 +34,7 @@ export function createSky(S, o = {}) {
         return col * m * tw * exp(-a*a/(w*w)) ;
       }
       void main(){
-        vec3 d = normalize(vD); float y = d.y; float yc = max(y, 0.);
+        vec3 d = normalize(vD); float y = dip > 0. ? sin(asin(clamp(d.y, -1., 1.)) + dip) : d.y; float yc = max(y, 0.);
         float sy = sunDir.y;
         // night base
         vec3 col = mix(nightHor, nightZen, pow(yc, 0.45));
@@ -51,7 +53,9 @@ export function createSky(S, o = {}) {
         col = mix(col, col*vec3(0.55,0.62,0.85), shadowB * anti * 0.7 * beltI);
         // day
         float dy = smoothstep(-0.02, 0.25, sy);
-        col = mix(col, mix(dayHor, dayZen, pow(yc, 0.5)) * 1.5, dy);
+        vec3 dayC = mix(dayHor, dayZen, pow(yc, mix(0.5, 0.3, altI))) * 1.5;
+        if (altI > 0.) dayC += dayHor * altI * 0.8 * exp(-yc * 30.);
+        col = mix(col, dayC, dy);
         // moon-lit sky (blue wash) + glow halo
         float ca = dot(d, normalize(moonDir)); float ang = acos(clamp(ca, -1., 1.));
         col += vec3(0.20,0.32,0.62) * moonLight * (0.35 + 0.65*exp(-yc*1.5));
@@ -90,6 +94,8 @@ export function createSky(S, o = {}) {
           }
           col = mix(col, below, smoothstep(0., -0.05, y));
         }
+        if (sunDisc > 0.) { float sa = acos(clamp(dot(d, normalize(sunDir)), -1., 1.));
+          col += vec3(1.0, 0.96, 0.9) * sunDisc * (smoothstep(0.0056, 0.0040, sa) * 60. + 0.5*exp(-sa/0.012) + 0.25*exp(-sa/0.07)); }
         gl_FragColor = vec4(col*exposure*tintAll, 1.);
       }`,
   });

@@ -4,7 +4,8 @@
 - **Convened:** 2026-11-11, about 19:20–20:00 UTC.
   - Roster: tailored. Data Skeptic, Showrunner, Scroller, Producer and Platform Officer, then the Marshal, then the Tenth Man.
   - Depth: quick. Officers ran on a fast model, the Tenth Man on the strong model.
-- **Status:** AWAITING THE COMMANDER'S SEAL.
+- **Status:** SEALED by the Commander on 2026-11-11 (answered about 20:50 UTC). This dossier is now frozen.
+- **Commander's call:** "Seal as planned", which adopts the strategy with amendments A1, A2 and A3. Video #2 starts right after the seal.
 - **Why a war and not a check:** no test or spec can say which strategy wins. The evidence is 3 fully measured videos and 5 partial ones, with post time, length, hashtags and account age all changing together (channel/analytics/2026-11-11-snapshot.md:51).
 
 ## What the numbers say
@@ -88,7 +89,7 @@ STRATEGY: One lane, "a natural-sky catastrophe with one true number". Package ev
     - Keeping 66 s plus the news lane costs about 2× render per video, adds policy exposure, and chases an audience that hasn't followed.
     - Doing nothing ships another video that teaches nothing.
 
-VIDEO #2 (as advised by the Marshal; see the chief-of-staff wording note):
+VIDEO #2 (as advised by the Marshal; SUPERSEDED by A1, kept for the record):
 - **Premise:** what if the Sun vanished? We'd keep its light for 8 min 20 s. The Marshal's cover line is "WHAT IF THE SUN VANISHED FOR 8 MIN 20 S?"
 - **Length and sets:** 34 s, looping. Two sets: the bay from dusk into night, then space.
 - **Frame 1:**
@@ -113,14 +114,14 @@ SLATE:
 
 BATTLE-PLAN:
   - Read moon-2x at 48 h (2026-11-13 15:30 UTC): views, average watch, completion, 3 s hold, retention curve and traffic-source split. Log them in channel/results.csv.
-  - **Gate A (2026-11-13):** if moon-2x averages 18 s or more watched, #4 is a 64 s length test. Otherwise every video is 30–38 s.
+  - **Gate A (2026-11-13):** if moon-2x averages 18 s or more watched, #4 is a 64 s length test. Otherwise every video is 30–38 s. AMENDED by A2: the bar is 13.4 s.
   - Post in one fixed slot (about 20:00 UTC, near A119's) with one fixed hashtag set. Use no political or weapons tags.
   - Fill hold_3s_pct, fyp_pct and the traffic source for every video. They're blank today.
   - Cadence: one video every 2–3 days from the shared bay rig.
-  - **Gate B (after #5):** if no cover-text video beats 2,000 views, reconvene on the lane.
+  - **Gate B (after #5):** if no cover-text video beats 2,000 views, reconvene on the lane. AMENDED by A3: each remake is judged against its own original.
   - Verify the Creator Rewards thresholds in TikTok Studio by 2026-11-18.
 
-PLAYBOOK CHANGES (proposed; applied only on seal):
+PLAYBOOK CHANGES (applied at the seal):
   - **Amend line 9:** 30–38 s is the default. 61–70 s only for a flagged length test, until the Creator Rewards thresholds are verified.
   - **Add:** every cover is a verifiable fact claim with a number.
   - **Add:** no real people, countries, conflicts or weapons in the cover, caption or hashtags. Never use #trump, #iran, #israel, #war or #doomsday.
@@ -128,7 +129,7 @@ PLAYBOOK CHANGES (proposed; applied only on seal):
   - **Add:** keep the hashtag set and the post slot constant across the next 5 videos.
   - **Keep line 29 (AI label)** and add a pre-publish tick-box.
 
-AMENDMENTS (from the Tenth Man; adopted only if sealed):
+AMENDMENTS (from the Tenth Man; ADOPTED at the seal):
   - **A1: video #2 obeys its own fact.**
     - On frame 1 the Sun is still up, under a claim like "THE SUN IS GONE. | ITS LIGHT ISN'T."
     - The counter runs down the real light-travel time for the post date (8 min 13 s in mid-November).
@@ -153,21 +154,21 @@ HOW-WE-LOSE:
     grounding: engine/src/space.js:45
     failure-world: "2026-11-20: The night-bay frame passed, so #2 shipped as advised. The top comment was 'if you can SEE it go dark, the 8 minutes are already up.' The back half played as a black bay and a dark, motionless Earth, and the average watch fell below the old uncaptioned Sun post's 13.4 s. The council logged 'Sun at 34 s doesn't hold', which poisoned the first arm of the length test."
     predictability: novel
-    status: not-defused (A1 proposed)
+    status: defused (A1 adopted)
   - by: The Tenth Man
     axis: measurement
     claim: Gate A is built not to pass. It asks moon-2x for an average watch of 18 s or more. That's above every average on record (17.8 s at most) and above the council's own 13.2–17.5 s forecast for a 66 s film. Averages also fall as a video spreads wider: A119 held 9.0 s over 7,013 views, while the Sun's 13.4 s was measured at about 820 views (3 h 04 m ÷ 13.4 s). So a 66 s film that holds viewers longer than every short still fails the gate, and a breakout fails it hardest.
     grounding: channel/analytics/2026-11-11-snapshot.md:11
     failure-world: "2027-01-15: moon-2x became the lane's first breakout and settled at 15.6 s a view, more than any short has held, so Gate A failed it. Every film since has been 34 s at 9–11 s a view. The PLAYBOOK now says 'long failed' about the channel's best film, and the promised length test never ran."
     predictability: novel
-    status: not-defused (A2 proposed)
+    status: defused (A2 adopted)
   - by: The Tenth Man
     axis: data
     claim: The packaging bet has already been tested once in this lane, and it lost. The fact-claim cover "THE DINOSAUR KILLER WAS TALLER THAN EVEREST" drew 546 views in its first week. That's about half of the uncaptioned Sun video's 1,029, and the Sun video was posted at dawn. Slot #4 re-shoots that very post.
     grounding: channel/analytics/2026-11-11-snapshot.md:27
     failure-world: "2026-11-28: #2–#5 all carried number-claim covers and landed at 400–900 views, with 0–1 follows each. Gate B fired, and two weeks of renders re-learned what the snapshot already showed. The cover, look, post slot, AI label and hashtags all changed at once, so nobody could say which one failed."
     predictability: predictable
-    status: not-defused (A3 proposed)
+    status: defused (A3 adopted)
   - by: The Data Skeptic
     axis: knowledge vs assumption
     claim: Committing a lane and a length on the strength of one viral-ish post and one retention outlier locks in a style the data can't support. Post time, hashtags and account age are all confounded.

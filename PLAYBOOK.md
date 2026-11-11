@@ -6,15 +6,18 @@ The owner is the Commander. The target is good quality, fast.
 ## 1. The creative formula (non-negotiable)
 
 ### Format
-- 61–70 s long, because Creator Rewards needs more than 60 s.
+- 30–38 s long by default. Use 61–70 s only for a flagged length test, until the Creator Rewards thresholds are verified in TikTok Studio
+  (sealed 2026-11-11 in `channel/war-room/2026-11-11-channel-strategy.md`).
 - 1080×1920, 30 fps, H.264, MP4 under 100 MB.
 - Mastered to about −14 LUFS, with peaks at or below −1 dBTP.
 
 ### Story
+- **The lane** (sealed 2026-11-11): natural-sky catastrophes built on one true number (the Sun, the Moon, stars, asteroids).
+- No real people, countries, conflicts or weapons in the cover, caption or hashtags. Never use #trump, #iran, #israel, #war or #doomsday.
 - The story is based on facts the way a Michael Bay movie is: one real fact lights the fuse, then everything goes huge.
 - There is one character, seen only from behind or in silhouette. No faces, no real people, no children, no gore.
 - One absurd change escalates in 8–12 steps (×2 or ×10 each), with a live counter on screen.
-- It ends in space, and the last frame hard-cuts to frame 1 so the video loops.
+- It ends in space, and the last frame hard-cuts to frame 1 so the video loops. (Waived once, for video #2 `sun-gone`, by the seal's amendment A1.)
 
 ### No voiceover, ever
 - Captions and sound design tell the story.
@@ -29,8 +32,10 @@ The owner is the Commander. The target is good quality, fast.
 - **Turn on TikTok's "AI-generated" label on every post.** TikTok requires a label on AI-generated or significantly edited content that shows realistic-looking scenes or people (Community Guidelines → Integrity & Authenticity, checked 2026-11-11). Our renders are realistic, synthetic scenes of events that never happened. Unlabeled posts "may be removed, restricted, or labeled by our team." The on-screen DRAMATIZATION tag does not replace the platform label.
 - No engagement bait. No fluffy smoke or fog.
 
-### Frame-1 hook
-The question on screen, the character in mid-chaos and a sound hit, all on the first frame.
+### Frame-1 hook and the first 3 seconds
+- The cover states a verifiable fact claim with a number.
+- Frame 1 has the claim on screen, the character and a sound hit.
+- A payoff or a visible escalation lands by 0:03, with no calm exposition shot before it.
 
 ### Layout (design px at 540×960)
 - Captions sit at y 230–350, over a calm, darkish background.
@@ -45,6 +50,16 @@ The question on screen, the character in mid-chaos and a sound hit, all on the f
 - It escalates.
 - It ends in space and loops.
 - It has one real fact.
+
+### Posting (sealed 2026-11-11)
+- Use one fixed post slot (about 20:00 UTC, 2 PM Central) and one fixed hashtag set across the next 5 videos, so the results can be compared.
+- Pre-publish tick-box:
+  - the AI label is on;
+  - the DRAMATIZATION tag is visible;
+  - there's no question to the viewer and no comment prompt;
+  - the cover states a verifiable fact;
+  - the fixed hashtag set and the fixed slot are used.
+- At 48 h, log the video in `channel/results.csv`, including the 3 s hold, the For You share, the traffic-source split and where the retention curve drops most.
 
 ## 2. The look bar (why v1 was rejected)
 

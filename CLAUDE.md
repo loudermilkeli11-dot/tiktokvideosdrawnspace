@@ -36,7 +36,12 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
   - Board: `script.md`. Kit: `src/kit.js`. Overlay: `overlay.js`. Score: `score.json`. Builder brief: `BUILDERS.md`. Hand-overs: `FINAL/`.
   - Known weak spots: the ring arch (s10/s11) looks like a striped beam; the chunks' inner faces are smooth; the early Moon is small (s03/s04).
 
+- `projects/sun-gone/`: video #2 (34 s), sealed in `channel/war-room/2026-11-11-channel-strategy.md` with amendment A1.
+  - It's an honest countdown: the Sun is gone, but its light is still arriving. The bay stays sunlit for the real light-travel time, then goes dark. No space ending.
+  - Board: `script.md`. Law: `src/story.js`.
+
 ## War Room
+- Sealed dossiers live in `channel/war-room/`: the first video, and the channel strategy (2026-11-11). The strategy covers the sky lane, fact-with-number covers, 34 s by default, and Gates A and B on 2026-11-13.
 - `war-room/`: Node app (Agent SDK) for the Commander's Windows PC. To install, run `war-room/War Room Setup.cmd`.
 - `.war-room/roster.yaml`: the TikTok officers for `/war-room`. Dossiers go to `channel/war-room/`.
 - `channel/results.csv`: the post-stats log.

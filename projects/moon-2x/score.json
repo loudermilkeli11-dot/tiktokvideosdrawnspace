@@ -1,25 +1,152 @@
 {
-  "_note": "moon-2x full film. Cuts every 5 s on the rungs (+ 3.0 fuse cut). Silent second 57.0-58.0, biggest hit 58.0 (space reveal).",
-  "master_peak_db": -3.0,
-  "reverb": {"decay": 3.2, "send": 0.24, "predelay": 0.02},
-  "ticks": {"t0": 6.0, "t1": 57.0, "rate": 1.0, "steps": [8, 13, 18, 23, 28, 33, 38, 43, 48], "max_rate": 24, "gain_db": -17, "pitch": 1900, "spread": 0.3},
-  "risers": [
-    {"t0": 23.5, "t1": 28.0, "gain_db": -12, "speed": 0.4, "noise": 0.45},
-    {"t0": 48.5, "t1": 57.0, "gain_db": -9, "speed": 0.5, "noise": 0.6}
+ "_note": "moon-2x full film. Cuts every 5 s on the rungs (+ 3.0 fuse cut). Silent second 57.0-58.0, biggest hit 58.0 (space reveal).",
+ "master_peak_db": -3.0,
+ "reverb": {
+  "decay": 3.2,
+  "send": 0.24,
+  "predelay": 0.02
+ },
+ "ticks": {
+  "t0": 6.0,
+  "t1": 57.0,
+  "rate": 1.0,
+  "steps": [
+   8,
+   13,
+   18,
+   23,
+   28,
+   33,
+   38,
+   43,
+   48
   ],
-  "braaams": [
-    {"t": 0.0, "gain_db": -4, "decay": 3.0, "root": 55.0},
-    {"t": 28.0, "gain_db": -2, "decay": 3.6, "root": 55.0},
-    {"t": 33.0, "gain_db": -3, "decay": 3.2, "root": 49.0},
-    {"t": 43.0, "gain_db": -3, "decay": 3.4, "root": 46.25}
-  ],
-  "cracks": [
-    {"t": 0.0, "gain_db": -3}, {"t": 3.0, "gain_db": -5}, {"t": 8.0, "gain_db": -6}, {"t": 13.0, "gain_db": -6},
-    {"t": 18.0, "gain_db": -5}, {"t": 23.0, "gain_db": -5}, {"t": 28.0, "gain_db": -3}, {"t": 33.0, "gain_db": -3},
-    {"t": 38.0, "gain_db": -4}, {"t": 43.0, "gain_db": -3}, {"t": 48.0, "gain_db": -4}, {"t": 53.0, "gain_db": -4}
-  ],
-  "impacts": [{"t": 38.0, "gain_db": -5}, {"t": 39.2, "gain_db": -6}, {"t": 40.1, "gain_db": -5}, {"t": 41.5, "gain_db": -4}],
-  "big_hit": {"t": 58.0, "gain_db": 0, "decay": 6.0, "reverb_decay": 7.0},
-  "silent": [[57.0, 58.0]],
-  "loop_silence_frames": 0
+  "max_rate": 24,
+  "gain_db": -17,
+  "pitch": 1900,
+  "spread": 0.3
+ },
+ "risers": [
+  {
+   "t0": 23.5,
+   "t1": 28.0,
+   "gain_db": -12,
+   "speed": 0.4,
+   "noise": 0.45
+  },
+  {
+   "t0": 48.5,
+   "t1": 57.0,
+   "gain_db": -9,
+   "speed": 0.5,
+   "noise": 0.6
+  }
+ ],
+ "braaams": [
+  {
+   "t": 0.0,
+   "gain_db": -4,
+   "decay": 3.0,
+   "root": 55.0
+  },
+  {
+   "t": 28.0,
+   "gain_db": -2,
+   "decay": 3.6,
+   "root": 55.0
+  },
+  {
+   "t": 33.0,
+   "gain_db": -3,
+   "decay": 3.2,
+   "root": 49.0
+  },
+  {
+   "t": 43.0,
+   "gain_db": -3,
+   "decay": 3.4,
+   "root": 46.25
+  }
+ ],
+ "cracks": [
+  {
+   "t": 0.0,
+   "gain_db": -3
+  },
+  {
+   "t": 3.0,
+   "gain_db": 0
+  },
+  {
+   "t": 8.0,
+   "gain_db": -6
+  },
+  {
+   "t": 13.0,
+   "gain_db": -6
+  },
+  {
+   "t": 18.0,
+   "gain_db": 1
+  },
+  {
+   "t": 23.0,
+   "gain_db": -5
+  },
+  {
+   "t": 28.0,
+   "gain_db": -3
+  },
+  {
+   "t": 33.0,
+   "gain_db": -3
+  },
+  {
+   "t": 38.0,
+   "gain_db": -4
+  },
+  {
+   "t": 43.0,
+   "gain_db": -3
+  },
+  {
+   "t": 48.0,
+   "gain_db": -4
+  },
+  {
+   "t": 53.0,
+   "gain_db": -4
+  }
+ ],
+ "impacts": [
+  {
+   "t": 38.0,
+   "gain_db": -5
+  },
+  {
+   "t": 39.2,
+   "gain_db": -6
+  },
+  {
+   "t": 40.1,
+   "gain_db": -5
+  },
+  {
+   "t": 41.5,
+   "gain_db": -4
+  }
+ ],
+ "big_hit": {
+  "t": 58.0,
+  "gain_db": 0,
+  "decay": 6.0,
+  "reverb_decay": 7.0
+ },
+ "silent": [
+  [
+   57.0,
+   58.0
+  ]
+ ],
+ "loop_silence_frames": 0
 }

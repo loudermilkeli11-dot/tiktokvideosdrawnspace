@@ -172,10 +172,13 @@ def main():
     cuts = (np.where(cut)[0] + 1).tolist()
     # audio onset strength at each cut: RMS 0..60 ms after vs 150..10 ms before
     mono = audio.mean(1) if len(audio) else np.zeros(1)
+    # A3 (War Room): judge cut onsets above 200 Hz, i.e. what a phone speaker can actually play
+    if len(mono) > 1:
+        sp = np.fft.rfft(mono); fq = np.fft.rfftfreq(len(mono), 1 / 48000); sp[fq < 200] = 0; mono = np.fft.irfft(sp, len(mono))
     def rms_db(a, b):
         a, b = max(0, a), min(len(mono), b)
         return 20 * np.log10(np.sqrt(np.mean(mono[a:b] ** 2)) + 1e-9) if b > a else -180.0
-    P(f"hard cuts: {len(cuts)} (confirm each lands on a sound hit; onset = dB rise after vs before)")
+    P(f"hard cuts: {len(cuts)} (confirm each lands on a sound hit; onset = dB rise after vs before, measured above 200 Hz)")
     for f in cuts:
         s = int(f / FPS * 48000)
         after, before = rms_db(s - 480, s + 2880), rms_db(s - 7200, s - 480)

@@ -1,0 +1,8 @@
+{
+  "_note": "Proof-clip cue sheet (hook only). Replaced by the full film's cue sheet once the board exists.",
+  "master_peak_db": -3.0,
+  "reverb": {"decay": 3.2, "send": 0.25, "predelay": 0.02},
+  "cracks": [{"t": 0.0, "gain_db": -3}],
+  "braaams": [{"t": 0.0, "gain_db": -4, "decay": 3.4, "root": 55.0}],
+  "risers": [{"t0": 0.4, "t1": 3.0, "gain_db": -14, "speed": 0.45, "noise": 0.4}]
+}

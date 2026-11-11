@@ -23,6 +23,7 @@ score.json schema (all keys optional; times in film seconds):
   ],
   "braaams": [{"t": 38.0, "gain_db": -2, "decay": 3.2, "root": 55.0}],   # A1/E2/A2 stack by default
   "impacts": [{"t": 12.0, "gain_db": -6}],                                # short low hits
+  "cracks": [{"t": 0.0, "gain_db": -4}],     # MID-RANGE hit (200 Hz-3 kHz): audible on phone speakers. Layer on every cut.
   "big_hit": {"t": 52.0, "gain_db": 0, "decay": 6.0},   # THE biggest moment: braaam+sub drop+noise+long tail
   "silent": [[52.0, 53.0]],      # ranges of TRUE digital silence for the whole mix
                                  # (score writes zeros; assemble.sh gates the full mix; check.py verifies)
@@ -200,6 +201,22 @@ def impact(decay=0.7):
     return s / np.abs(s).max()
 
 
+def crack(decay=0.5):
+    """Mid-range transient that survives phone speakers: band-passed noise snap + pitched thwack + metallic ring."""
+    n = int((decay + 0.4) * SR)
+    t = np.arange(n) / SR
+    nz = rng.standard_normal(n) * np.exp(-t / 0.045)
+    nz = stft_filter(nz, lambda tt, ff: np.exp(-((np.log2(np.maximum(ff, 1.0) / 1100.0)) ** 2) / (2 * 0.9 ** 2)) + 0 * tt)
+    f = 170 + 330 * np.exp(-t / 0.03)                       # thwack 500 -> 170 Hz
+    th = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.12)
+    ring = sum(a * np.sin(2 * np.pi * fr * t + ph) for a, fr, ph in [(1.0, 910, 0.3), (0.7, 1373, 1.1), (0.45, 2117, 2.0), (0.3, 2890, 0.7)])
+    ring *= np.exp(-t / (decay * 0.5)) * 0.35
+    s = 0.9 * nz / (np.abs(nz).max() + 1e-9) + 0.8 * th + ring
+    s *= np.minimum(1, t / 0.0015)
+    s = np.tanh(1.8 * s)
+    return s / np.abs(s).max()
+
+
 def big_hit(decay=6.0, root=55.0):
     b = braaam(decay, root, big=True)
     n = b.shape[1]
@@ -249,6 +266,8 @@ def build(proj, cue):
     for im in cue.get('impacts', []):
         s = impact(im.get('decay', 0.7)) * db(im.get('gain_db', -6))
         place(dry, s, im['t'])
+    for c in cue.get('cracks', []):
+        place(dry, crack(c.get('decay', 0.5)) * db(c.get('gain_db', -4)), c['t'], c.get('pan', 0.0))
     bh = cue.get('big_hit')
     if bh:
         s = big_hit(bh.get('decay', 6.0), bh.get('root', 55.0)) * db(bh.get('gain_db', 0)) * 1.4

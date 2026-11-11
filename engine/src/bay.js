@@ -222,7 +222,7 @@ export function createBay(S, o = {}) {
         mv.xy += position.xy*px*4.;
         float on = aLamp > 0.5 ? power*step(blackX, c.x)*lampI : 1.; if (aBlink > 0.5) on *= step(0.5, fract(time*0.5 + c.x*0.01));
         vC = aCol*on*(aS/px)*(aS/px); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: 'varying vec2 vUv; varying vec3 vC; void main(){ float r = length(vUv-0.5)*2.; float g = exp(-r*r*14.) + 0.08*exp(-r*r*3.); gl_FragColor = vec4(vC*g, 1.); }' });
+    fragmentShader: 'varying vec2 vUv; varying vec3 vC; void main(){ float r = length(vUv-0.5)*2.; float g = (exp(-r*r*14.) + 0.08*exp(-r*r*3.)) * smoothstep(1.0, 0.6, r); gl_FragColor = vec4(vC*g, 1.); }' });
   const glow = new THREE.InstancedMesh(gG, gMat, glowPts.length);
   const aCol = new Float32Array(glowPts.length * 3), aS = new Float32Array(glowPts.length), aBl = new Float32Array(glowPts.length), aLp = new Float32Array(glowPts.length);
   glowPts.forEach((g, i) => { aCol.set(g.c, i * 3); aS[i] = g.s; aBl[i] = g.blink || 0; aLp[i] = g.lamp || 0; m4.makeTranslation(g.p.x, g.p.y, g.p.z); glow.setMatrixAt(i, m4); });

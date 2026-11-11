@@ -1,5 +1,5 @@
 // s06_pier (film 23-28, storyT 20-25): the hook's pier from a new angle. 85 mm crane over the water just off the pier's
-// left rail, ~55-65 m behind the crowd at the pier end, rising slowly; past the crowd (all filming) and the hero to the Moon
+// right rail, ~55-65 m behind the crowd at the pier end, rising slowly; past the crowd (all filming) and the hero to the Moon
 // over the bay mouth. Opens on the s05 match cut (disc centre (270, 485), r ~125 px) and ends in the hook's state (storyT 25).
 import { THREE, createStudio } from '@engine/engine.js';
 import { applyCam, shake } from '@engine/camera.js';
@@ -20,9 +20,9 @@ const crowd = createCrowd(S, people, { poses: ['phoneUp', 'filming', 'phoneUp', 
 const hero = createHero(S, { pose: 'phoneUp', rimI: 1.4 });
 const heroW = P.toWorld(0.1, DECK, -145); hero.root.position.copy(heroW); hero.root.rotation.y = PIER_YAW;
 const birds = createBirds(S, 22, { flap: 8 });
-// crane: off the left rail over the water, behind the crowd; rises DECK+3 -> DECK+5.5 (eased), drifts 2 m toward the end
-const C0 = P.toWorld(-4.6, DECK + 3.0, -84), C1 = P.toWorld(-4.3, DECK + 5.5, -86);
-const AIM = P.toWorld(-0.9, DECK, -145);
+// crane: off the right rail over the water, behind the crowd; rises DECK+3 -> DECK+5.5 (eased), drifts 2 m toward the end
+const C0 = P.toWorld(8.0, DECK + 3.0, -84), C1 = P.toWorld(7.6, DECK + 5.5, -86);   // 8 m off-axis keeps the nearer pier lamps out of frame
+const AIM = P.toWorld(-0.6, DECK, -145);
 const PITCH = 3.4 * D2R;                       // horizon ~y 615: crowd below it, against the moon path on the water
 const STORY0 = SHOT.s06_pier - 3;
 const RPX = (st) => Math.tan(angRadius(st)) * 85 / 18 * 480;   // disc radius, design px at 85 mm

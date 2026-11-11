@@ -1,0 +1,45 @@
+{
+ "_note": "gravity-flip score (38.0 s). Times from src/story.js: flips at 3.0 / 15.0 / 24.0 (steps 1-3); gravity back 8.0; sea crash 11.590 = s05 t0 + landsAt(5) - tau0; coasts land 21.01 (lead: 21.0); s09 slow-mo from 27.5; s10 landing 34.96. Near-silence 9.0-10.4 = NO score cues there (only tails of the soft 8.0 crack, < -30 dB); the shot sound must stay quiet too. True silence 35.0-37.8 (end card). The loop hit at 38.0 is placed at 0.0 (the loop point), with a 0.2 s inhale (riser tail) at 37.8-38.0. Space shots: low rumbles/score only.",
+ "master_peak_db": -3.0,
+ "reverb": {"decay": 2.8, "send": 0.2, "predelay": 0.02},
+ "ticks": {"t0": 0.0, "t1": 3.0, "rate": 1.0, "steps": [], "max_rate": 8, "gain_db": -13, "pitch": 1800, "spread": 0.25},
+ "risers": [
+  {"_cue": "rising sub pulse into the flip", "t0": 0.0, "t1": 3.0, "gain_db": -15, "speed": 0.3, "noise": 0.25},
+  {"_cue": "out of the near-silence into the sea crash", "t0": 10.5, "t1": 11.59, "gain_db": -13, "speed": 0.6, "noise": 0.6},
+  {"_cue": "tape-rewind whoosh into step 2 (fast climb + noise sweep)", "t0": 13.5, "t1": 15.0, "gain_db": -10, "speed": 1.8, "noise": 0.85},
+  {"_cue": "into step 3", "t0": 21.3, "t1": 24.0, "gain_db": -11, "speed": 0.45, "noise": 0.5},
+  {"_cue": "meteor-storm roar build, cut dead at 35.0", "t0": 30.5, "t1": 35.0, "gain_db": -7, "speed": 0.55, "noise": 0.9},
+  {"_cue": "inhale into the loop hit: masked by the silence until 37.8", "t0": 37.3, "t1": 38.0, "gain_db": -14, "speed": 1.2, "noise": 0.8}
+ ],
+ "braaams": [
+  {"t": 3.0, "gain_db": -3, "decay": 3.0, "root": 55.0},
+  {"t": 15.0, "gain_db": -3, "decay": 3.0, "root": 49.0},
+  {"t": 24.0, "gain_db": -2, "decay": 3.4, "root": 46.25}
+ ],
+ "impacts": [
+  {"t": 0.0, "gain_db": -4},
+  {"t": 3.0, "gain_db": -2},
+  {"t": 21.0, "gain_db": -3},
+  {"t": 31.6, "gain_db": -9},
+  {"t": 32.7, "gain_db": -8},
+  {"t": 33.6, "gain_db": -7},
+  {"t": 34.3, "gain_db": -6},
+  {"t": 34.96, "gain_db": -4}
+ ],
+ "cracks": [
+  {"t": 0.0, "gain_db": 0},
+  {"t": 3.0, "gain_db": 0},
+  {"t": 8.0, "gain_db": -8},
+  {"t": 13.5, "gain_db": -5},
+  {"t": 15.0, "gain_db": -2},
+  {"t": 16.4, "gain_db": -11},
+  {"t": 20.0, "gain_db": -6},
+  {"t": 21.0, "gain_db": -4},
+  {"t": 24.0, "gain_db": -2},
+  {"t": 27.5, "gain_db": -9},
+  {"t": 30.5, "gain_db": -4}
+ ],
+ "big_hit": {"t": 11.59, "gain_db": 0, "decay": 6.0, "reverb_decay": 7.0},
+ "silent": [[35.0, 37.8]],
+ "loop_silence_frames": 0
+}

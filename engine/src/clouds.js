@@ -20,16 +20,16 @@ const GEN = `varying vec2 vUv; uniform float cover, towers, seed;
   // max of jittered hemispherical domes of random radius (cauliflower puffs)
   float domes(vec2 uv, float n){ vec2 p = uv*n, i = floor(p), f = fract(p); float h = 0.;
     for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++){ vec2 g = vec2(x, y), c = i + g; vec2 r = hp2(c, n);
-      vec2 o = g + 0.1 + 0.8*r - f; float rad = 0.5 + 0.45*hp(c + 7.7, n); float q = rad*rad - dot(o, o); if (q > 0.) h = max(h, sqrt(q)/0.95); }
+      vec2 o = g + 0.1 + 0.8*r - f; float rad = 0.5 + 0.45*hp(c + 7.7, n); float q = rad*rad - dot(o, o); if (q > 0.) h = max(h, pow(q, 0.62)/0.9); }
     return h; }
   void main(){
     vec2 uv = vUv;
     vec2 wv = uv + 0.035*vec2(fbmP(uv + 0.5, 6., 3) - 0.5, fbmP(uv + 0.17, 6., 3) - 0.5);          // gentle domain warp
     float cl = fbmP(wv, 3., 5);                                                                       // cluster field (~8 km)
-    float body = smoothstep(0.62 - cover*0.42, 0.78 - cover*0.42, cl);
-    float puff = 0.52*domes(wv, 16.) + 0.3*domes(wv + 0.31, 41.) + 0.18*domes(wv + 0.67, 103.);
-    float tw = pow(smoothstep(0.58, 0.86, fbmP(wv + 0.23, 5., 3)), 2.) * towers;                      // towering cells
-    float h = (0.22 + 0.78*puff) * (0.55 + 0.45*body) * (1. + 1.6*tw*puff) - (1. - body)*0.62;
+    float body = smoothstep(0.6 - cover*0.42, 0.8 - cover*0.42, cl);
+    float puff = 0.56*domes(wv, 14.) + 0.3*domes(wv + 0.31, 37.) + 0.14*domes(wv + 0.67, 97.);
+    float tw = pow(smoothstep(0.6, 0.88, fbmP(wv + 0.23, 5., 3)), 2.) * towers;                       // towering cells
+    float h = (0.18 + 0.82*puff) * pow(body, 0.7) * (1. + 1.1*tw*puff) - (1. - body)*0.3;              // edges sink into billows, no cliffs
     gl_FragColor = vec4(clamp(h, 0., 2.5), 0., 0., 1.); }`;
 // pass 2: height, gradient (texture units), and a blurred height for crevice occlusion
 const PACK = `varying vec2 vUv; uniform sampler2D src; uniform float px;
@@ -75,7 +75,7 @@ export function createClouds(S, o = {}) {
       void main(){
         vec3 d = normalize(vD);
         C = vec3(0., -(RE + alt), 0.); vec3 ro = cameraPosition;                    // world y = 0 is at altitude alt
-        float Rt = RE + base + thick*2.6;                                         // top of the tallest towers
+        float Rt = RE + base + thick*2.15;                                        // top of the tallest towers
         vec2 st = sph(ro, d, Rt); if (st.x < 0.) discard;                          // above the deck's horizon: the sky shows
         vec2 sb = sph(ro, d, RE + base);
         float t0 = st.x, t1 = sb.x > 0. ? sb.x : st.y;                             // march from the top shell to the cloud base (or out again)
@@ -115,7 +115,7 @@ export function createClouds(S, o = {}) {
           col = seaCol*(sunI*0.9*max(L.y, 0.)*shd + skyI*0.5) + skyCol*0.06;
         }
         // aerial perspective (the lower atmosphere between us and the deck), brighter toward the horizon
-        float f = 1. - exp(-dist/hazeL);
+        float f = 1. - exp(-pow(dist/hazeL, 1.35));
         col = mix(col, hazeCol, f);
         gl_FragColor = vec4(col*exposure, 1.);
       }`,

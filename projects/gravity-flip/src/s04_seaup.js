@@ -33,14 +33,14 @@ const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.d
 scene.fog = new THREE.Fog(0xa6cdee, 2500, 40000);
 const ocean = createOcean(S, { slab: true, amp: 0.45, level: 0, groundGLSL: GROUND_GLSL, deep: 0x0a4e66, shallow: 0x2aa5ab, amb: 0x5f93b8, reflScale: 0.2, foam: 0.9, rings: 200, segs: 320 });
 ocean.add(scene); ocean.refl.visible = false;                 // the top surface is never seen from down here
-const OU = ocean.U; OU.sunCol.value.set(0xfff4e2);
+const OU = ocean.U; OU.sunCol.value.set(0xfff4e2); OU.hazeD.value = 4000;
 const bay = createBay(S, { shadows: false, pierYaw: PIER_YAW, pierLen: 152, pierLights: 0, winI: 0.0, moonLightI: 3.0, hemiI: 1.3, beamI: 0.0, boats: 0 });
 bay.moonLight.color.set(0xfff1df); bay.hemi.color.set(0xaccbec); bay.hemi.groundColor.set(0x8c7c5c);
 bay.U.power.value = 0; bay.U.lampI.value = 0; bay.U.winI.value = 0;
 // light under the lifted sea: on the bed, the town, the pier
 patchSlab(bay.terrain.material, OU, GROUND_GLSL, { seabed: true, noLamps: true });
 patchSlab(bay.buildings.material, OU, GROUND_GLSL);
-bay.pier.group.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial && !o.material.userData.slab) { o.material.userData.slab = 1; patchSlab(o.material, OU, GROUND_GLSL); } });
+bay.pier.group.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial && !o.material.userData.slab) { o.material.userData.slab = 1; patchSlab(o.material, OU, GROUND_GLSL, { specK: 0.35, rough: 0.95 }); } });
 // the open-sea floor beyond the terrain (so the gap under the ceiling reaches the horizon)
 { const sh = new THREE.Shape(); sh.moveTo(-40000, -40000); sh.lineTo(40000, -40000); sh.lineTo(40000, 40000); sh.lineTo(-40000, 40000); sh.closePath();
   const hole = new THREE.Path(); hole.moveTo(-2590, 290); hole.lineTo(2590, 290); hole.lineTo(2590, -3390); hole.lineTo(-2590, -3390); hole.closePath(); sh.holes.push(hole);
@@ -58,11 +58,13 @@ for (let d = 20; d < 152; d += 6) for (const sx of [-2.2, 2.2]) if (RR() < 0.5) 
 const rockM = createRocks(S, rocks); patchSlab(rockM.material, OU, GROUND_GLSL);
 // boats on the lifted sea (seen from below as dark hulls through the water)
 const BR = rng(8), boatL = [];
+for (let i = 0; i < 400 && boatL.length < 13; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (BR() - 0.5) * 70), 120 + BR() * 520); if (sField(p.x, p.z) > -30) continue;   // over us, in view
+  if (boatL.some((b) => Math.hypot(b.x - p.x, b.y - p.z) < 60)) continue; boatL.push(new THREE.Vector4(p.x, p.z, BR() * 6.28, 6 + BR() * 10)); }
 while (boatL.length < 24) { const x = (BR() * 2 - 1) * 650, z = -70 - BR() * 1100; if (sField(x, z) > -30) continue; boatL.push(new THREE.Vector4(x, z, BR() * 6.28, 7 + BR() * 12)); }
 boatL.forEach((b, i) => OU.boats.value[i].copy(b));
 // the beach crowd, floating beside the ceiling's edge (they stood on the sand: s 4..28 m inland of the waterline)
 const PR = rng(31), people = [];
-for (let i = 0; i < 20000 && people.length < 170; i++) {
+for (let i = 0; i < 40000 && people.length < 320; i++) {
   const b = BEAR + (PR() - 0.5) * 120, d = 60 + PR() * 900, p = CAM.clone().addScaledVector(dirB(b), d); const s = sField(p.x, p.z);
   if (s < 3 || s > 28) continue; people.push({ x: p.x, z: p.z, y: groundH(p.x, p.z), yaw: PR() * 6.28 });
 }

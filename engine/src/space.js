@@ -137,28 +137,32 @@ export function createSpace(S, o = {}) {
 
 // signed distance to the nearest coast (km; > 0 on land, < 0 at sea) from the roughness channel of the bump/roughness/clouds
 // map (oceans are smooth there), by an exact 2-pass Euclidean distance transform (Felzenszwalb) with cos(latitude) spacing.
-// Deterministic; ~0.5 s at 2048 x 1024. Returned as a half-float red texture in the same equirect layout as the day map.
+// Deterministic; well under a second at 2048 x 1024. A half-float red texture in the same equirect layout as the day map.
 export function coastSDF(W = 2048) {
   const H = W / 2;
   return new Promise((res, rej) => { const img = new Image(); img.onerror = () => rej(new Error('coast: image failed')); img.onload = () => {
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true });
     cx.drawImage(img, 0, 0, W, H); const px = cx.getImageData(0, 0, W, H).data; const land = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) land[i] = px[i * 4 + 1] > 110 ? 1 : 0;
-    const dy = Math.PI * RE / H, INF = 1e20;
-    const edt = (inside) => {            // squared distance (km^2) from every texel to the nearest texel where land == inside
-      const D = new Float64Array(W * H), f = new Float64Array(Math.max(2 * W, H)), d = new Float64Array(Math.max(2 * W, H)), v = new Int32Array(Math.max(2 * W, H)), z = new Float64Array(Math.max(2 * W, H) + 1);
-      const pass = (n, s2) => { let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
-        for (let q = 1; q < n; q++) { let s; for (;;) { const r = v[k]; s = ((f[q] + s2 * q * q) - (f[r] + s2 * r * r)) / (2 * s2 * (q - r)); if (s <= z[k] && k > 0) k--; else break; }
-          if (s <= z[k]) { v[0] = q; z[0] = -INF; z[1] = INF; k = 0; continue; } k++; v[k] = q; z[k] = s; z[k + 1] = INF; }
-        k = 0; for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const r = v[k]; d[q] = s2 * (q - r) * (q - r) + f[r]; } };
-      for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) f[y] = land[y * W + x] === inside ? 0 : INF; pass(H, dy * dy); for (let y = 0; y < H; y++) D[y * W + x] = d[y]; }
+    const dy = Math.PI * RE / H, BIG = 1e20, N = 2 * W;
+    const f = new Float64Array(N), d = new Float64Array(N), v = new Int32Array(N), z = new Float64Array(N + 1);
+    const pass = (n, s2) => { let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+      for (let q = 1; q < n; q++) { let r = v[k], s = ((f[q] + s2 * q * q) - (f[r] + s2 * r * r)) / (2 * s2 * (q - r));
+        while (s <= z[k]) { k--; r = v[k]; s = ((f[q] + s2 * q * q) - (f[r] + s2 * r * r)) / (2 * s2 * (q - r)); }
+        k++; v[k] = q; z[k] = s; z[k + 1] = Infinity; }
+      k = 0; for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const r = v[k]; d[q] = s2 * (q - r) * (q - r) + f[r]; } };
+    const edt = (target) => {             // squared distance (km^2) from every texel to the nearest texel with land == target
+      const D = new Float64Array(W * H);
+      for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) f[y] = land[y * W + x] === target ? 0 : BIG; pass(H, dy * dy); for (let y = 0; y < H; y++) D[y * W + x] = d[y]; }
       for (let y = 0; y < H; y++) { const lat = (0.5 - (y + 0.5) / H) * Math.PI, dx = Math.max(2 * Math.PI * RE * Math.cos(lat) / W, 0.5);
-        for (let x = 0; x < 2 * W; x++) f[x] = D[y * W + ((x + W / 2) % W)]; pass(2 * W, dx * dx);
-        for (let x = 0; x < W; x++) D[y * W + ((x + W / 2) % W)] = d[x + W / 2 < 2 * W ? x + W / 2 : x]; }
+        for (let x = 0; x < N; x++) f[x] = D[y * W + ((x - W / 2 + W) % W)]; pass(N, dx * dx);   // the row plus half a row of wrap each side
+        for (let c = 0; c < W; c++) D[y * W + c] = d[c + W / 2]; }
       return D; };
     const toSea = edt(0), toLand = edt(1), out = new Uint16Array(W * H);
-    for (let i = 0; i < W * H; i++) { const sd = land[i] ? Math.sqrt(toSea[i]) - 0.5 * dy : -(Math.sqrt(toLand[i]) - 0.5 * dy); out[i] = THREE.DataUtils.toHalfFloat(Math.max(-3000, Math.min(3000, sd))); }
-    const tx = new THREE.DataTexture(out, W, H, THREE.RedFormat, THREE.HalfFloatType); tx.flipY = true;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x;      // data row 0 = south (uv.y = 0)
+      const sd = land[i] ? Math.sqrt(toSea[i]) - 0.5 * dy : -(Math.sqrt(toLand[i]) - 0.5 * dy);
+      out[(H - 1 - y) * W + x] = THREE.DataUtils.toHalfFloat(Math.max(-3000, Math.min(3000, sd))); }
+    const tx = new THREE.DataTexture(out, W, H, THREE.RedFormat, THREE.HalfFloatType);
     tx.wrapS = THREE.RepeatWrapping; tx.wrapT = THREE.ClampToEdgeWrapping; tx.magFilter = tx.minFilter = THREE.LinearFilter; tx.needsUpdate = true; res(tx); };
     img.src = texURL('earth_bump_roughness_clouds_4096.jpg'); });
 }

@@ -2,7 +2,8 @@
 
 - Decision: Which premise is Invisible Journeys' first video (remake "What if the Moon got 2× closer every 5 seconds?" to the new look bar, or a different premise), and what exactly is its frame 1?
 - Convened: 2026-11-11. Roster: tailored (Scroller with the platform seat, Fact Officer, Showrunner, Quartermaster; Marshal; Tenth Man). Depth: quick.
-- Status: AWAITING THE COMMANDER'S SEAL
+- Status: SEALED by the Commander on 2026-11-11. This dossier is now frozen.
+- Commander's call: Go with the Moon remake as video #1, with amendments A1, A2 and A3 adopted.
 - Why a war and not a check: the channel has no data yet (channel/results.csv:1), so nothing can settle it.
 
 ## Chief-of-staff verification (arithmetic and citation checks, not opinions)
@@ -29,7 +30,7 @@ BATTLE-PLAN:
   - Every rung changes a different setting in the world: sea level, blackout sweep, wet sand, sky, crowd agitation, camera (PLAYBOOK.md:55).
   - Build engine/src/audio_core.js and tools/audio.js, plus an Earth-from-space set from the existing Earth textures.
   - The loop: hard-cut from the last space frame to frame 1 on a sound hit, matched on the disc's position.
-  - Proposed amendments from the Tenth Man (they take effect only if the Commander seals with them):
+  - Amendments from the Tenth Man (ADOPTED at the seal):
     - A1: the 0:03 cut gets its own "GAP · TODAY" counter track with no pulse, a 6-frame rewind whoosh as the number spins back, and the caption "TODAY IT DRIFTS AWAY 3.8 CM A YEAR". The first change-pulse comes at rung 1.
     - A2: cut at 0:03 to rung 3 (disc about 104 px), not rung 0. Roll rungs 0–2 as a 1.5 s counter inside the fuse shot, and spend the freed time on rungs 5–8.
     - A3: every cut hits on a layered mid-range transient (200 Hz–3 kHz, such as a crack or a water slam), with the sub-bass only as a sweetener. Measure onsets after a 200 Hz high-pass, and check the mix on a phone speaker before posting.
@@ -46,21 +47,21 @@ HOW-WE-LOSE:
     grounding: tools/overlay/ov.html:133
     failure-world: "2026-11-27: Post #1 holds the first 3 s, then falls off a cliff from 0:03 to 0:06. Viewers read 'false alarm, it went back' at the exact moment they decide whether to swipe. Because results.csv is empty, this one row teaches the Analyst the wrong lesson: that the cold open or the premise doesn't work."
     predictability: predictable
-    status: not-defused
+    status: defused (A1 adopted)
   - by: The Tenth Man
     axis: refuting the consensus (promise debt in the ladder's geometry)
     claim: Once the cold open is spent, the Moon is a dot. At the frame-1 lens the disc is 15, 29, 56, 104 and 181 px for rungs 0–4, and it only gets back to frame-1 size at about 0:28. So 0:03–0:18 is a calm bay with a tiny Moon, the "empty sea" and "dark near-empty frames" v1 was rejected for. On check.py's 180×320 contact sheets the rung-0 Moon is about 5 px, so review won't catch it.
     grounding: PLAYBOOK.md:67
     failure-world: "2026-12-04: Retention bleeds steadily from 0:03 to 0:18 while viewers wait for the frame-1 Moon, which doesn't return until 0:28. Completion stays in single digits, and the Commander calls rungs 0–2 'v1 again'."
     predictability: novel
-    status: not-defused
+    status: defused (A2 adopted)
   - by: The Tenth Man
     axis: refuting the consensus (the sound hook on a phone)
     claim: The planned "sub-bass boom" sits mostly under about 110 Hz (impact 110→40 Hz, big-hit sub 80→25 Hz), which phone speakers barely play. What's left is a roughly 30 ms click under the tide roar. check.py measures cut onsets with full-band loudness, so it passes every cut anyway. With no voiceover, sound is half the hook.
     grounding: tools/score.py:191
     failure-world: "2026-12-11: Approved on the Commander's PC speakers and posted. On phones, frame 1 opens on surf hiss and a tick, so the 3 s hold misses. The 0:03 hard cut, with no audible hit, reads as the 'jumpy' edit v1 was rejected for."
     predictability: novel
-    status: not-defused
+    status: defused (A3 adopted)
   - by: The Quartermaster
     axis: feasibility
     claim: The first end-to-end render is the weakest link. Render cost has never been measured, and the bay, the biggest set, has never been test-rendered. After that, the space ending and the audio don't exist yet.
@@ -70,7 +71,7 @@ HOW-WE-LOSE:
     axis: honest science
     claim: Physics commenters will catch three things. An intact giant Moon after rung 4 is wrong. "2× every 5 s" means about 0.13 c at step 1. And a 3.8 cm/yr drift away is not a closing orbit. The NASA figures were also not fetched.
     grounding: speculative
-    status: not-defused
+    status: not-defused (re-open if the NASA figures fail verification)
   - by: The Showrunner
     axis: story shape
     claim: If the rungs only change the counter and the size of the Moon ("same bay, bigger Moon"), it repeats v1's failure.
@@ -82,5 +83,9 @@ HOW-WE-LOSE:
     grounding: speculative
     status: bet-accepted
 
-## Note to the Commander
+## Open after the seal
+- The Fact Officer's risk stays open. Verify the NASA figures, keep the DRAMATIZATION tag on everything from rung 1, and show the Roche breakup on screen.
+- The Quartermaster's and Scroller's bets were accepted as decision debt. The first gate is the half-scale bay render and the 3 s proof render.
+
+## Note to the Commander (at convening)
 The dissent includes 2 novel failure mechanisms (A2 and A3), so the council is not stuck on the obvious risks. The Tenth Man's first point is predictable, but his fix (A1) is cheap. A2 also changes the ladder's pacing, so accepting it means the board is written around rung 3 at 0:03.

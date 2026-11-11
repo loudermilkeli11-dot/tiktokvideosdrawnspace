@@ -1,0 +1,108 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Caption style lab</title>
+<style>
+@font-face { font-family: 'Anton'; src: url('fonts/anton-latin-400-normal.woff2'); }
+@font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-700-normal.woff2'); font-weight: 700; }
+@font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-500-normal.woff2'); font-weight: 500; }
+@font-face { font-family: 'Cinzel'; src: url('fonts/cinzel-latin-700-normal.woff2'); font-weight: 700; }
+@font-face { font-family: 'Cinzel'; src: url('fonts/cinzel-latin-900-normal.woff2'); font-weight: 900; }
+@font-face { font-family: 'Big Shoulders Display'; src: url('fonts/big-shoulders-display-latin-800-normal.woff2'); font-weight: 800; }
+@font-face { font-family: 'Big Shoulders Display'; src: url('fonts/big-shoulders-display-latin-900-normal.woff2'); font-weight: 900; }
+@font-face { font-family: 'Bebas Neue'; src: url('fonts/bebas-neue-latin-400-normal.woff2'); }
+@font-face { font-family: 'Inter Tight'; src: url('fonts/inter-tight-latin-600-normal.woff2'); font-weight: 600; }
+@font-face { font-family: 'Inter Tight'; src: url('fonts/inter-tight-latin-800-normal.woff2'); font-weight: 800; }
+@font-face { font-family: 'Oswald'; src: url('fonts/oswald-latin-500-normal.woff2'); font-weight: 500; }
+@font-face { font-family: 'Oswald'; src: url('fonts/oswald-latin-700-normal.woff2'); font-weight: 700; }
+body { margin: 0; background: #000; }
+</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Title packages: caption + counter + DRAMATIZATION tag, drawn in 540x960 design units (x2 for real pixels).
+// Layout (PLAYBOOK): counter y 129-210, captions y 230-350, nothing important below y 640.
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const L1 = 'WHAT IF THE MOON', L2a = 'KEPT COMING ', L2b = '2× CLOSER?';
+const LABEL = 'GAP TO THE MOON', VALUE = '11,759 KM';
+
+function spaced(ctx, t, x, y, sp, mode = 'fill') { // letter-spaced text centred at x
+  ctx.letterSpacing = sp + 'px'; const w = ctx.measureText(t).width - sp;
+  const x0 = x - w / 2; mode === 'stroke' ? ctx.strokeText(t, x0, y) : ctx.fillText(t, x0, y); ctx.letterSpacing = '0px'; return w;
+}
+function scrim(y0, y1, a) { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 540, y1); }
+
+const PACK = {
+  // A: the current spec (Anton, thick black outline, hard shadow; Azeret Mono counter panel)
+  current() {
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    // counter panel
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(80, 129, 380, 81, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ddd'; ctx.font = "500 12px 'Azeret Mono'"; spaced(ctx, LABEL, 270, 153, 2.5);
+    ctx.fillStyle = '#fff'; ctx.font = "700 34px 'Azeret Mono'"; spaced(ctx, VALUE, 270, 194, 0);
+    const line = (t, y, hl) => { ctx.font = "44px 'Anton'"; ctx.lineJoin = 'round';
+      const w = ctx.measureText(t).width; const x = 270 - w / 2;
+      ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.fillStyle = '#000'; ctx.strokeText(t, x + 3.5, y + 3.5); ctx.fillText(t, x + 3.5, y + 3.5);
+      ctx.strokeText(t, x, y); ctx.fillStyle = hl ? '#FFD23F' : '#fff'; ctx.fillText(t, x, y); };
+    line(L1, 282, false); line(L2a + L2b, 336, false);
+    ctx.font = "700 11px 'Azeret Mono'"; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'left'; ctx.letterSpacing = '2.2px'; ctx.fillText('DRAMATIZATION', 18, 110); ctx.letterSpacing = '0px';
+  },
+  // B: Blockbuster trailer: Cinzel, gold-white metallic gradient, tracking, soft shadow; minimal counter between hairlines
+  trailer() {
+    scrim(0, 380, 0.45);
+    ctx.textBaseline = 'alphabetic';
+    // counter: hairlines + label + big value
+    ctx.strokeStyle = 'rgba(232,201,138,0.7)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(150, 140); ctx.lineTo(390, 140); ctx.moveTo(150, 204); ctx.lineTo(390, 204); ctx.stroke();
+    ctx.fillStyle = 'rgba(240,226,196,0.85)'; ctx.font = "600 10px 'Inter Tight'"; spaced(ctx, LABEL, 270, 157, 4);
+    ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#fff'; ctx.font = "700 30px 'Cinzel'"; spaced(ctx, VALUE, 270, 193, 3);
+    const gold = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#fffaf0'); g.addColorStop(0.55, '#f3dfb4'); g.addColorStop(1, '#c99a52'); return g; };
+    ctx.font = "900 31px 'Cinzel'"; ctx.shadowBlur = 16; ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.fillStyle = gold(262, 288); spaced(ctx, L1, 270, 288, 3.5);
+    { let fs = 38; const t2 = L2a.trim() + ' ' + L2b; do { ctx.font = `900 ${fs}px 'Cinzel'`; ctx.letterSpacing = '1.5px'; fs -= 1; } while (ctx.measureText(t2).width > 492 && fs > 20); ctx.letterSpacing = '0px';
+      ctx.fillStyle = gold(304, 338); spaced(ctx, t2, 270, 336, 1.5); }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(240,226,196,0.65)'; ctx.font = "600 9px 'Inter Tight'"; ctx.textAlign = 'left'; ctx.letterSpacing = '4px'; ctx.fillText('DRAMATIZATION', 18, 110); ctx.letterSpacing = '0px';
+  },
+  // C: Documentary modern: Big Shoulders Display 900, huge, amber keywords, soft shadow + top scrim; clean counter
+  documentary() {
+    scrim(0, 400, 0.55);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFB347'; ctx.fillRect(252, 136, 36, 2.5);
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = "600 11px 'Inter Tight'"; spaced(ctx, LABEL, 270, 160, 3);
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 14;
+    ctx.fillStyle = '#fff'; ctx.font = "800 40px 'Inter Tight'"; spaced(ctx, VALUE, 270, 202, -0.5);
+    ctx.font = "900 50px 'Big Shoulders Display'"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = '#fff'; spaced(ctx, L1, 270, 290, 0.5);
+    const w1 = (() => { ctx.letterSpacing = '0.5px'; const a = ctx.measureText(L2a).width, b = ctx.measureText(L2b).width; ctx.letterSpacing = '0px'; return [a, b]; })();
+    const x0 = 270 - (w1[0] + w1[1]) / 2; ctx.textAlign = 'left'; ctx.letterSpacing = '0.5px';
+    ctx.fillStyle = '#fff'; ctx.fillText(L2a, x0, 342); ctx.fillStyle = '#FFB347'; ctx.fillText(L2b, x0 + w1[0], 342); ctx.letterSpacing = '0px';
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = "600 9px 'Inter Tight'"; ctx.letterSpacing = '3px'; ctx.fillText('DRAMATIZATION', 18, 110); ctx.letterSpacing = '0px';
+  },
+  // D: Punch: Bebas Neue tall, white with thin outline + hard shadow, yellow highlight block on the payoff; pill counter
+  punch() {
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(8,10,14,0.72)'; ctx.beginPath(); ctx.roundRect(150, 138, 240, 64, 32); ctx.fill();
+    ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.roundRect(150, 138, 8, 64, [32, 0, 0, 32]); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = "500 10px 'Oswald'"; spaced(ctx, LABEL, 274, 158, 2.5);
+    ctx.fillStyle = '#fff'; ctx.font = "700 30px 'Oswald'"; spaced(ctx, VALUE, 274, 192, 1);
+    let bs = 62; do { ctx.font = `${bs}px 'Bebas Neue'`; bs -= 1; } while (ctx.measureText(L2a + L2b).width + 24 > 488 && bs > 30); ctx.lineJoin = 'round';
+    const stroke = (t, x, y) => { ctx.lineWidth = 5; ctx.strokeStyle = '#000'; ctx.fillStyle = '#000'; ctx.strokeText(t, x + 3, y + 4); ctx.fillText(t, x + 3, y + 4); ctx.strokeText(t, x, y); };
+    let w = ctx.measureText(L1).width; let x = 270 - w / 2; stroke(L1, x, 286); ctx.fillStyle = '#fff'; ctx.fillText(L1, x, 286);
+    const a = ctx.measureText(L2a).width, b = ctx.measureText(L2b).width; x = 270 - (a + b + 10) / 2;
+    stroke(L2a, x, 344); ctx.fillStyle = '#fff'; ctx.fillText(L2a, x, 344);
+    ctx.save(); ctx.translate(x + a + 5 + b / 2, 326); ctx.rotate(-0.035);
+    ctx.fillStyle = '#000'; ctx.fillRect(-b / 2 - 7 + 3, -27 + 4, b + 14, 52); ctx.fillStyle = '#FFD23F'; ctx.fillRect(-b / 2 - 7, -27, b + 14, 52);
+    ctx.fillStyle = '#0b0b0b'; ctx.textAlign = 'center'; ctx.fillText(L2b, 0, 20); ctx.restore(); ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = "500 10px 'Oswald'"; ctx.letterSpacing = '3px'; ctx.fillText('DRAMATIZATION', 18, 110); ctx.letterSpacing = '0px';
+  },
+};
+window.render = async (bgURL, pack) => {
+  await document.fonts.ready;
+  for (const f of ["44px Anton", "700 12px 'Azeret Mono'", "900 30px Cinzel", "700 30px Cinzel", "900 50px 'Big Shoulders Display'", "62px 'Bebas Neue'", "800 40px 'Inter Tight'", "600 10px 'Inter Tight'", "700 30px Oswald", "500 10px Oswald"]) await document.fonts.load(f, '0123456789AZ×');
+  const img = new Image(); img.src = bgURL; await img.decode();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(img, 0, 0, 1080, 1920);
+  ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.textAlign = 'left'; PACK[pack]();
+  return cv.toDataURL('image/png').slice(22);
+};
+</script></body></html>

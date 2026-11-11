@@ -18,8 +18,11 @@ export function createMoon(S, o = {}) {
     haze: { value: 0 }, hazeLift: { value: o.hazeLift ?? 0.004 }, hazeColor: { value: new THREE.Color(0xff9a5a) }, horizonY: { value: 0 }, hazeH: { value: 50 },
     glow: { value: 0 },
   };
+  // airlight: the atmosphere in FRONT of the Moon adds sky light, so the unlit side shows sky, not a black disc.
+  // Additive blending models that (sky behind is replaced by moon + air in front ~ sky + moon). Occluders still depth-test.
+  const air = o.airlight ?? true;
   const mat = new THREE.ShaderMaterial({
-    uniforms: U,
+    uniforms: U, ...(air ? { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false } : {}),
     vertexShader: `varying vec2 vUv; varying vec3 vObj; varying vec3 vWP; varying mat3 vM;
       void main(){ vUv = uv; vObj = normalize(position); vec4 wp = modelMatrix*vec4(position,1.); vWP = wp.xyz;
         vM = mat3(normalize(modelMatrix[0].xyz), normalize(modelMatrix[1].xyz), normalize(modelMatrix[2].xyz));
@@ -54,7 +57,7 @@ export function createMoon(S, o = {}) {
           }
         }
         vec3 alb = texture2D(map, vUv).rgb * albedo * tint;
-        vec3 col = alb * brdf * vis * sunI;
+        vec3 col = alb * brdf * vis * sunI * smoothstep(-0.07, 0.03, sinE);
         // earthshine (night side), soft
         float mE = max(dot(n, normalize(earthDir)), 0.);
         col += alb * earthshine * mE/(mE+mu+1e-3) * 2. * vec3(0.75,0.85,1.0);

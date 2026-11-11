@@ -1,72 +1,49 @@
 // Featureless adult silhouettes (seen from behind / small in frame), phones with glowing screens, birds.
 // Crowd = instanced pose variants; Hero = articulated figure (arms/legs pivots) for the one character.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { castVariants, figureMaterial, figureGeometry, PALETTE, POSES } from './figure.js';
 import { rng, fbm } from './util.js';
-const C = (r1, r2, h, x, y, z, rx = 0, rz = 0, seg = 7) => { const g = new THREE.CylinderGeometry(r1, r2, h, seg); g.translate(0, -h / 2, 0); g.rotateX(rx); g.rotateZ(rz); g.translate(x, y, z); return g; };
-const Sph = (r, x, y, z, sx = 1, sy = 1, sz = 1) => { const g = new THREE.SphereGeometry(r, 9, 7); g.scale(sx, sy, sz); g.translate(x, y, z); return g; };
-const Cap = (r, l, x, y, z, sx = 1, sz = 1) => { const g = new THREE.CapsuleGeometry(r, l, 3, 8); g.scale(sx, 1, sz); g.translate(x, y, z); return g; };
-// body facing -Z (away from a camera placed at +Z). Units: metres, feet at y=0, ~1.75 m tall.
-function bodyParts() {
-  return [C(0.075, 0.06, 0.86, -0.1, 0.88, 0), C(0.075, 0.06, 0.86, 0.1, 0.88, 0), // legs
-    Cap(0.17, 0.42, 0, 1.18, 0, 1.15, 0.72), // torso
-    C(0.05, 0.05, 0.1, 0, 1.55, 0), Sph(0.105, 0, 1.66, 0, 0.92, 1.05, 1.0), // neck, head
-    Sph(0.1, 0, 1.3, 0.02, 2.0, 0.6, 1.0)]; // shoulders
-}
-const ARM = 0.62;
-function arm(side, rx, rz) { return C(0.048, 0.04, ARM, side * 0.23, 1.44, 0, rx, rz); }
-// pose variants -> { geo, phone: [x,y,z] | null }
-function poses() {
-  const P = [];
-  // 0: phone raised in front (right arm up/forward), left arm down
-  P.push({ g: [...bodyParts(), arm(1, 2.2, 0.15), arm(-1, 0.05, -0.08)], phone: [0.12, 1.66, -0.5] });
-  // 1: pointing up at the sky (right), left down
-  P.push({ g: [...bodyParts(), arm(1, 2.75, 0.3), arm(-1, 0.1, -0.1)], phone: null });
-  // 2: both hands on head
-  P.push({ g: [...bodyParts(), arm(1, 2.6, -1.0), arm(-1, 2.6, 1.0)], phone: null });
-  // 3: arms down (standing, staring)
-  P.push({ g: [...bodyParts(), arm(1, 0.05, 0.1), arm(-1, 0.05, -0.1)], phone: null });
-  // 4: phone held up with both hands (filming)
-  P.push({ g: [...bodyParts(), arm(1, 2.0, 0.55), arm(-1, 2.0, -0.55)], phone: [0, 1.6, -0.45] });
-  return P.map((p) => ({ geo: mergeGeometries(p.g.map((g) => g.toNonIndexed ? g.toNonIndexed() : g)), phone: p.phone }));
-}
 export function createCrowd(S, people, o = {}) {
-  // people: [{x, z, y?, yaw, pose?, h?, seed?}] ; yaw = facing angle (0 = facing -Z)
-  const PV = poses(); const R = rng(o.seed ?? 3);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0 });
-  const groups = PV.map(() => []);
-  people.forEach((p, i) => { const k = p.pose ?? Math.floor(R() * PV.length * 1.3) % PV.length; groups[k].push({ ...p, seed: p.seed ?? R(), h: p.h ?? 1.62 + R() * 0.28, w: 0.9 + R() * 0.25 }); });
+  // people: [{x, z, y?, yaw, pose?: name in POSES}] ; yaw = facing angle (0 = facing -Z)
+  const R = rng(o.seed ?? 3);
+  const poseNames = o.poses ?? ['phoneUp', 'phoneUp', 'filming', 'point', 'handsHead', 'stand', 'shade', 'arms', 'pocket', 'phoneUp', 'stand', 'filming'];
+  const V = castVariants(R, poseNames, o.variants ?? poseNames.length, o.res ?? 0.018);
+  const mat = figureMaterial({ instanced: true, rimI: o.rimI ?? 0.8, rimCol: o.rimCol });
+  const groups = V.map(() => []);
+  people.forEach((p) => { let k = p.pose ? poseNames.indexOf(p.pose) : -1; if (k < 0) k = Math.floor(R() * V.length);
+    groups[k].push({ ...p, seed: R(), h: 1, hair: pick(R, PALETTE.hair), top: pick(R, PALETTE.top), bot: pick(R, PALETTE.bot) }); });
   const meshes = [], phones = [];
   const phoneMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(o.phoneCol ?? 0xbfd8ff).multiplyScalar(o.phoneI ?? 6), side: THREE.DoubleSide });
   const phoneGeo = new THREE.PlaneGeometry(0.075, 0.14);
-  const palette = [0x23262b, 0x2d2a27, 0x1c2230, 0x332a2a, 0x2a2f2a, 0x3a3a3e, 0x151517, 0x40342a];
-  PV.forEach((pv, k) => {
+  V.forEach((v, k) => {
     const list = groups[k]; if (!list.length) return;
-    const m = new THREE.InstancedMesh(pv.geo, mat, list.length); m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false;
-    list.forEach((p, i) => m.setColorAt(i, new THREE.Color(palette[Math.floor(p.seed * 997) % palette.length])));
+    const geo = v.geo.clone();
+    const cols = { aHair: new Float32Array(list.length * 3), aTop: new Float32Array(list.length * 3), aBot: new Float32Array(list.length * 3) };
+    list.forEach((p, i) => { new THREE.Color(p.hair).toArray(cols.aHair, i * 3); new THREE.Color(p.top).toArray(cols.aTop, i * 3); new THREE.Color(p.bot).toArray(cols.aBot, i * 3); });
+    for (const key in cols) geo.setAttribute(key, new THREE.InstancedBufferAttribute(cols[key], 3));
+    const m = new THREE.InstancedMesh(geo, mat, list.length); m.castShadow = true; m.frustumCulled = false;
     m.userData.list = list; meshes.push(m); S.scene.add(m);
-    if (pv.phone) { const ph = new THREE.InstancedMesh(phoneGeo, phoneMat, list.length); ph.frustumCulled = false; ph.userData = { list, off: pv.phone }; phones.push(ph); S.scene.add(ph); }
+    for (const ph of v.phone) { const pm = new THREE.InstancedMesh(phoneGeo, phoneMat, list.length); pm.frustumCulled = false; pm.userData = { list, off: ph.p }; phones.push(pm); S.scene.add(pm); }
   });
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v3 = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+  const qPh = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.25, Math.PI, 0));
   return {
-    meshes, phones,
-    update(t, st = {}) { // st.agitation 0..1 (sway, bob), st.turn (extra yaw toward something)
+    meshes, phones, material: mat,
+    update(t, st = {}) { // st.agitation 0..1
       const ag = st.agitation ?? 0.2;
-      for (const m of meshes) { m.userData.list.forEach((p, i) => {
-        const sw = fbm(t * (0.5 + ag) + p.seed * 50, 3) * (0.04 + 0.1 * ag); const bob = Math.max(0, fbm(t * 2.2 + p.seed * 80, 5)) * 0.06 * ag;
-        q.setFromEuler(e.set(sw * 0.4, (p.yaw || 0) + sw, sw * 0.6, 'YXZ'));
-        const y = (p.y ?? 0) + bob; const s = p.h / 1.75; m4.compose(v.set(p.x, y, p.z), q, sc.set(s * p.w, s, s * p.w)); m.setMatrixAt(i, m4); });
-        m.instanceMatrix.needsUpdate = true; }
-      for (const ph of phones) { const off = ph.userData.off; ph.userData.list.forEach((p, i) => {
-        const sw = fbm(t * (0.5 + ag) + p.seed * 50, 3) * (0.04 + 0.1 * ag); const s = p.h / 1.75;
-        q.setFromEuler(e.set(sw * 0.4, (p.yaw || 0) + sw, sw * 0.6, 'YXZ'));
-        const o3 = new THREE.Vector3(off[0] * s * p.w, off[1] * s, off[2] * s * p.w).applyQuaternion(q);
-        q.multiply(new THREE.Quaternion().setFromEuler(e.set(-0.25, Math.PI, 0)));
-        m4.compose(v.set(p.x + o3.x, (p.y ?? 0) + o3.y, p.z + o3.z), q, sc.set(1, 1, 1)); ph.setMatrixAt(i, m4); });
-        ph.instanceMatrix.needsUpdate = true; }
+      const sway = (p) => fbm(t * (0.5 + ag) + p.seed * 50, 3) * (0.03 + 0.08 * ag);
+      for (const m of meshes) { m.userData.list.forEach((p, i) => { const sw = sway(p);
+        q.setFromEuler(e.set(sw * 0.3, (p.yaw || 0) + sw * 0.8, sw * 0.5, 'YXZ'));
+        const bob = Math.max(0, fbm(t * 2.2 + p.seed * 80, 5)) * 0.05 * ag;
+        m4.compose(v3.set(p.x, (p.y ?? 0) + bob, p.z), q, one); m.setMatrixAt(i, m4); }); m.instanceMatrix.needsUpdate = true; }
+      for (const ph of phones) { const off = ph.userData.off; ph.userData.list.forEach((p, i) => { const sw = sway(p);
+        q.setFromEuler(e.set(sw * 0.3, (p.yaw || 0) + sw * 0.8, sw * 0.5, 'YXZ'));
+        const o3 = new THREE.Vector3(...off).applyQuaternion(q);
+        m4.compose(v3.set(p.x + o3.x, (p.y ?? 0) + o3.y, p.z + o3.z), q.clone().multiply(qPh), one); ph.setMatrixAt(i, m4); }); ph.instanceMatrix.needsUpdate = true; }
     },
   };
 }
+const pick = (R, a) => a[Math.floor(R() * a.length)];
 // scatter helper: n people in a region, all facing `face` point; groundFn(x,z) gives height
 export function scatter(n, region, groundFn, face, seed = 1) {
   const R = rng(seed); const out = [];
@@ -75,29 +52,22 @@ export function scatter(n, region, groundFn, face, seed = 1) {
     const yaw = Math.atan2(-(face[0] - x), -(face[1] - z)) + (R() - 0.5) * 0.5; out.push({ x, z, y: groundFn(x, z), yaw }); }
   return out;
 }
-// Articulated hero: a small clean silhouette. Pivots: armL, armR, legL, legR, head; hoodie + backpack read as "a person", no face.
+// Hero: one detailed organic figure (res 1.1 cm). setPose(name|poseObj) rebuilds the mesh (cached per pose).
 export function createHero(S, o = {}) {
-  const mat = new THREE.MeshStandardMaterial({ color: o.color ?? 0x1b1d22, roughness: 0.8 });
-  const root = new THREE.Group(), hips = new THREE.Group(); root.add(hips); hips.position.y = 0.92;
-  const mk = (g) => { const m = new THREE.Mesh(g, mat); m.castShadow = true; return m; };
-  const torso = mk(Cap(0.18, 0.4, 0, 0.3, 0, 1.15, 0.75)); hips.add(torso);
-  const hood = mk(Sph(0.15, 0, 0.66, 0.05, 1.3, 0.55, 1.1)); hips.add(hood);
-  const bag = mk(new THREE.BoxGeometry(0.3, 0.38, 0.14).translate(0, 0.32, 0.2)); hips.add(bag);
-  const head = new THREE.Group(); head.position.y = 0.66; hips.add(head); head.add(mk(Sph(0.11, 0, 0.09, 0, 0.95, 1.08, 1.0)));
-  const limb = (r1, r2, L) => { const g = new THREE.Group(); g.add(mk(C(r1, r2, L, 0, 0, 0))); return g; };
-  const armR = limb(0.05, 0.042, 0.62), armL = limb(0.05, 0.042, 0.62); armR.position.set(0.24, 0.55, 0); armL.position.set(-0.24, 0.55, 0); hips.add(armR, armL);
-  const legR = limb(0.08, 0.062, 0.9), legL = limb(0.08, 0.062, 0.9); legR.position.set(0.1, 0, 0); legL.position.set(-0.1, 0, 0); hips.add(legR, legL);
-  const phone = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.14), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xbfd8ff).multiplyScalar(o.phoneI ?? 5), side: THREE.DoubleSide }));
-  phone.position.set(0, -0.62, -0.03); phone.rotation.x = Math.PI / 2; armR.add(phone); phone.visible = !!o.phone;
+  const look = { hair: o.hair ?? 'hood', coat: o.coat ?? 0.32, bag: o.bag ?? 'backpack', height: o.height ?? 1.74, build: o.build ?? 1.0, fem: o.fem ?? 0.2 };
+  const mat = figureMaterial({ top: o.top ?? 0x3a2a24, bot: o.bot ?? 0x1a1b20, hair: o.hairCol ?? 0x15100c, bag: o.bagCol ?? 0x5a3a1e, rimI: o.rimI ?? 1.0 });
+  const root = new THREE.Group(); const mesh = new THREE.Mesh(new THREE.BufferGeometry(), mat); mesh.castShadow = true; root.add(mesh);
+  const phoneMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.14), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xbfd8ff).multiplyScalar(o.phoneI ?? 6), side: THREE.DoubleSide }));
+  phoneMesh.rotation.set(-0.25, Math.PI, 0); root.add(phoneMesh);
+  const cache = new Map(); let cur = null;
   S.scene.add(root);
-  return { root, hips, head, armR, armL, legR, legL, phone,
-    // pose helpers (radians). run(t, speed) for a stride cycle; look(yaw, pitch)
-    pose({ armR: ar = [0, 0], armL: al = [0, 0], legR: lr = 0, legL: ll = 0, lean = 0, head: hd = [0, 0] } = {}) {
-      armR.rotation.set(ar[0], 0, ar[1]); armL.rotation.set(al[0], 0, -al[1]); legR.rotation.set(lr, 0, 0); legL.rotation.set(ll, 0, 0);
-      hips.rotation.x = lean; head.rotation.set(hd[1], hd[0], 0); },
-    run(t, f = 1.6, amp = 0.7) { const ph = t * f * Math.PI * 2; this.pose({ legR: Math.sin(ph) * amp, legL: -Math.sin(ph) * amp, armR: [-Math.sin(ph) * amp * 0.9, 0.1], armL: [Math.sin(ph) * amp * 0.9, 0.1], lean: 0.18 });
-      hips.position.y = 0.92 + Math.abs(Math.cos(ph)) * 0.05; },
-  };
+  const api = { root, mesh, material: mat, phone: phoneMesh,
+    setPose(pose) { const key = typeof pose === 'string' ? pose : JSON.stringify(pose); if (key === cur) return; cur = key;
+      if (!cache.has(key)) cache.set(key, figureGeometry({ ...look, pose: typeof pose === 'string' ? POSES[pose] : pose }, o.res ?? 0.011));
+      const g = cache.get(key); mesh.geometry = g; const ph = g.userData.phone[0];
+      phoneMesh.visible = !!ph; if (ph) phoneMesh.position.set(...ph.p); } };
+  api.setPose(o.pose ?? 'phoneUp');
+  return api;
 }
 // Birds: instanced 3-quad silhouettes with flapping wings (vertex shader), flock follows a path fn(t)->Vector3
 export function createBirds(S, n = 40, o = {}) {

@@ -61,9 +61,13 @@ export function createBay(S, o = {}) {
   // street lamps (positions also feed the fake light pools on the ground)
   const lamps = [];
   for (let a = 0; a < Math.PI * 2; a += 24 / 831) { const p = onContour(Math.sin(a) * 831, -800 + Math.cos(a) * 831, 31.5); if (p.ok && !lamps.some((l) => Math.hypot(l.x - p.x, l.z - p.z) < 12)) lamps.push(new THREE.Vector3(p.x, groundH(p.x, p.z) + 5.5, p.z)); }
-  const pierX = o.pierX ?? -60, pierLen = 170;
+  const pierX = o.pierX ?? -60, pierLen = o.pierLen ?? 170, pierYaw = o.pierYaw ?? 0; // yaw: 0 = straight out (-Z); + turns toward -X
   const pierBase = { x: pierX, z: -800 + Math.sqrt(800 * 800 - pierX * pierX) };
-  for (let d = 10; d <= pierLen; d += 20) lamps.push(new THREE.Vector3(pierX, 4.6, pierBase.z - d));
+  const pierG = new THREE.Group(); pierG.position.set(pierBase.x, 0, pierBase.z + 4); pierG.rotation.y = pierYaw; pierG.updateMatrixWorld();
+  const pierW = (lx, ly, lz) => new THREE.Vector3(lx, ly, lz).applyMatrix4(pierG.matrixWorld);   // pier-local -> world
+  const DECK = 3.375;
+  const pierLamps = [];
+  for (let d = 12, k = 0; d <= pierLen; d += 18, k++) { const side = k % 2 ? 1 : -1; const w = pierW(side * 2.25, DECK + 3.4, -d); lamps.push(w); pierLamps.push({ w, side, d }); }
   const NL = 64; const nearL = lamps.slice().sort((a, b) => a.length() - b.length()).slice(0, NL);
   while (nearL.length < NL) nearL.push(new THREE.Vector3(0, -1e4, 0));
   const tMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0 });
@@ -154,15 +158,39 @@ export function createBay(S, o = {}) {
   // ---------- street lamps & pier ----------
   const pole = new THREE.CylinderGeometry(0.07, 0.1, 5.5, 6); pole.translate(0, -2.75, 0);
   const poles = new THREE.InstancedMesh(pole, new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.6, metalness: 0.6 }), lamps.length);
-  lamps.forEach((l, i) => { m4.makeTranslation(l.x, l.y, l.z); poles.setMatrixAt(i, m4); glowPts.push({ p: l, c: [6, 3.6, 1.7], s: 0.55, lamp: 1 }); });
+  const pierSet = new Set(pierLamps.map((l) => l.w));
+  let npole = 0; lamps.forEach((l) => { if (!pierSet.has(l)) { m4.makeTranslation(l.x, l.y, l.z); poles.setMatrixAt(npole++, m4); } glowPts.push({ p: l, c: [6, 3.6, 1.7], s: pierSet.has(l) ? 0.35 : 0.55, lamp: 1 }); }); poles.count = npole;
   poles.frustumCulled = false; group.add(poles);
-  const wood = new THREE.MeshStandardMaterial({ color: 0x3a2c22, roughness: 0.85 });
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(5, 0.35, pierLen), wood); deck.position.set(pierX, 3.2, pierBase.z - pierLen / 2 + 4); deck.castShadow = deck.receiveShadow = true; group.add(deck);
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, pierLen), wood); for (const sx of [-2.4, 2.4]) { const r2 = rail.clone(); r2.position.set(pierX + sx, 4.25, deck.position.z); group.add(r2); }
+  const wood = new THREE.MeshStandardMaterial({ color: 0x4a382a, roughness: 0.8 });
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0 });
+  deckMat.onBeforeCompile = (sh) => {   // planks across the deck: per-board tone, gaps, grain, wet streaks (sheen)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLp = position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vLp; float ph(float n){ return fract(sin(n*127.1)*43758.5453); }')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        float bz = vLp.z/0.19; float id = floor(bz); float f = fract(bz);
+        float gap = smoothstep(0.0, 0.07, f) * smoothstep(1.0, 0.93, f);
+        float tone = 0.75 + 0.5*ph(id) ; float grain = 0.85 + 0.15*sin(vLp.x*(9.+6.*ph(id+3.)) + ph(id+7.)*20. + sin(vLp.x*1.7+id)*2.);
+        vec3 c = vec3(0.16,0.12,0.09)*tone*grain; c = mix(c*0.2, c, gap); diffuseColor.rgb = c;`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        { float bz = vLp.z/0.19; float id = floor(bz); float wet = smoothstep(0.7, 0.95, ph(id*1.7+11.)) * (0.5 + 0.5*sin(vLp.x*0.9 + id));
+          roughnessFactor = mix(0.8, 0.5, wet*0.8); }`);
+  };
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(5, 0.35, pierLen, 1, 1, 1), deckMat); deck.position.set(0, DECK - 0.175, -pierLen / 2); deck.castShadow = deck.receiveShadow = true; pierG.add(deck);
+  const nPost = Math.floor(pierLen / 2.2);
+  const post = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 1.1, 0.1), wood, nPost * 2); let pk = 0;
+  for (let i = 0; i < nPost; i++) for (const sx of [-2.42, 2.42]) { m4.makeTranslation(sx, DECK + 0.55, -1 - i * 2.2); post.setMatrixAt(pk++, m4); }
+  post.castShadow = true; pierG.add(post);
+  for (const [y, h] of [[DECK + 1.08, 0.09], [DECK + 0.6, 0.05]]) for (const sx of [-2.42, 2.42]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.09, h, pierLen), wood); r.position.set(sx, y, -pierLen / 2); r.castShadow = true; pierG.add(r); }
   const pyl = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.25, 34, 8), wood, Math.ceil(pierLen / 6) * 2); let pi = 0;
-  for (let d = 0; d < pierLen; d += 6) for (const sx of [-2.2, 2.2]) { m4.makeTranslation(pierX + sx, 3 - 17, pierBase.z - d); pyl.setMatrixAt(pi++, m4); }
-  pyl.count = pi; group.add(pyl);
-
+  for (let d = 0; d < pierLen; d += 6) for (const sx of [-2.2, 2.2]) { m4.makeTranslation(sx, 3 - 17, -d); pyl.setMatrixAt(pi++, m4); }
+  pyl.count = pi; pierG.add(pyl);
+  // lamp posts on alternating sides (+ head fixture); glow sprites added with the other lamps below
+  const lampPostG = new THREE.CylinderGeometry(0.06, 0.08, 3.4, 8); lampPostG.translate(0, 1.7, 0);
+  const lampPosts = new THREE.InstancedMesh(lampPostG, new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.5, metalness: 0.7 }), pierLamps.length);
+  pierLamps.forEach((l, i) => { m4.makeTranslation(l.side * 2.42, DECK, -l.d); lampPosts.setMatrixAt(i, m4); }); pierG.add(lampPosts);
+  const pierLights = [];
+  if (o.pierLights) pierLamps.slice(0, o.pierLights).forEach((l) => { const pl = new THREE.PointLight(0xffb070, o.pierLightI ?? 30, 22, 2); pl.position.copy(l.w).add(new THREE.Vector3(0, -0.3, 0)); scene.add(pl); pierLights.push(pl); });
+  group.add(pierG);
   // ---------- boats (bob on the same Gerstner waves as the ocean) ----------
   const boats = []; while (boats.length < (o.boats ?? 16)) { const x = (R() * 2 - 1) * 700, z = -60 - R() * 1500; if (sField(x, z) > -25) continue; boats.push({ x, z, yaw: R() * 6.28, L: 6 + R() * 10, ph: R() * 10, seed: R() }); }
   const hullShape = new THREE.Shape(); hullShape.moveTo(-0.5, 0.25); hullShape.lineTo(0.5, 0.25); hullShape.lineTo(0.38, -0.2); hullShape.quadraticCurveTo(0, -0.45, -0.38, -0.2); hullShape.closePath();
@@ -208,7 +236,7 @@ export function createBay(S, o = {}) {
   const hemi = new THREE.HemisphereLight(0x22334f, 0x0c0a08, o.hemiI ?? 0.25); scene.add(hemi);
 
   const api = {
-    group, U, lamps, boats, terrain, buildings: bMesh, glow, moonLight, hemi, beam, ground: groundH,
+    group, U, lamps, boats, pier: { group: pierG, toWorld: pierW, deckY: DECK, len: pierLen, base: pierBase, yaw: pierYaw, lamps: pierLamps, lights: pierLights }, terrain, buildings: bMesh, glow, moonLight, hemi, beam, ground: groundH,
     update(S, t, st = {}) {
       U.time.value = t; const amp = st.waveAmp ?? 0.6, level = st.level ?? 0;
       // moonlight follows the moon direction; shadow box centred on the camera's focus area

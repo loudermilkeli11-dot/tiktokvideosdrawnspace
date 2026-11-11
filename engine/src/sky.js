@@ -11,13 +11,13 @@ export function createSky(S, o = {}) {
     duskCol: { value: new THREE.Color(o.duskCol ?? 0xff7a3a) }, dayZen: { value: new THREE.Color(0x2a62c4) }, dayHor: { value: new THREE.Color(0x9cc4ec) },
     lpDir: { value: new THREE.Vector3(-1, 0, -0.3).normalize() }, lpCol: { value: new THREE.Color(o.lpCol ?? 0xff9a50) }, lp: { value: o.lp ?? 0.35 },
     mwN: { value: new THREE.Vector3(0.45, 0.35, 0.82).normalize() }, exposure: { value: o.exposure ?? 1 },
-    tintAll: { value: new THREE.Color(0xffffff) },
+    tintAll: { value: new THREE.Color(0xffffff) }, beltCol: { value: new THREE.Color(o.beltCol ?? 0xc98a96) }, beltI: { value: o.beltI ?? 0.35 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false,
     vertexShader: `varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }`,
     fragmentShader: `${NOISE}
-      uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure;
+      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure;
       varying vec3 vD;
       vec3 starLayer(vec3 d, float sc, float dens, float bright){
         vec3 p = d*sc; vec3 c = floor(p); float h = h13(c);
@@ -39,7 +39,14 @@ export function createSky(S, o = {}) {
         vec2 dh = normalize(d.xz+1e-5), sh = normalize(sunDir.xz+1e-5);
         float az = max(dot(dh, sh), 0.);
         col += duskCol * tw * (0.25 + 1.6*pow(az, 4.)) * exp(-yc*7.) * 1.2;
-        col += vec3(0.25,0.35,0.7) * tw * 0.35 * exp(-yc*2.);
+        col += vec3(0.20,0.30,0.65) * tw * 0.22 * exp(-yc*3.5);
+        // anti-twilight: Belt of Venus (pink band) over Earth's shadow (dark blue) opposite the sun
+        float anti = pow(max(dot(dh, -sh), 0.), 1.5) * smoothstep(-0.3, -0.04, sy) * smoothstep(0.08, -0.06, sy);
+        float elev = asin(clamp(y, -1., 1.)) * 57.2958;
+        float belt = smoothstep(1.5, 5.5, elev) * smoothstep(14.0, 7.0, elev);
+        float shadowB = smoothstep(4.5, 0.5, elev) * step(-0.5, elev);
+        col += beltCol * belt * anti * beltI;
+        col = mix(col, col*vec3(0.55,0.62,0.85), shadowB * anti * 0.7 * beltI);
         // day
         float dy = smoothstep(-0.02, 0.25, sy);
         col = mix(col, mix(dayHor, dayZen, pow(yc, 0.5)) * 1.5, dy);

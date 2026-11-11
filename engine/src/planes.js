@@ -1,4 +1,4 @@
-// Low-poly airliner: a generic twin-engine jet in a white/blue livery (NO real airline names or logos). About 3k triangles.
+// Low-poly airliner: a generic twin-engine jet in a white/blue livery (NO real airline names or logos). About 2.1k triangles (2.7k with gear down).
 // Units: metres. Plane space: nose toward -Z, up +Y, right wing +X, origin at the middle of the fuselage.
 //
 //   import { createPlane, createPlanes } from '@engine/planes.js';

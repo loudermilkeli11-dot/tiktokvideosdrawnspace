@@ -17,14 +17,14 @@ export function createShell(S, SP, o = {}) {
     h: { value: 0 }, cloudH: { value: o.cloudH ?? 4 }, airH: { value: o.airH ?? 70 }, time: { value: 0 },
     waterI: { value: o.waterI ?? 1 }, cloudI: { value: o.cloudI ?? 1 }, airI: { value: o.airI ?? 1 }, glint: { value: o.glint ?? 1 },
     clear: { value: o.clear ?? 0 }, clearDir: { value: new THREE.Vector3(0, 1, 0) }, clearR: { value: 0.02 },   // keep a cloud-free patch (e.g. around a station)
-    toLocal: { value: new THREE.Matrix3() },
+    toLocal: { value: new THREE.Matrix3() }, fresh: { value: 0 },   // fresh 1: the sheet still looks exactly like the sea it was
   };
   const mat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, transparent: false, depthTest: false, depthWrite: false,
     blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
     vertexShader: `varying vec3 vW; void main(){ vW = (modelMatrix*vec4(position,1.)).xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
     fragmentShader: `${NOISE}
       uniform sampler2D brc, day; uniform vec3 sunDir, clearDir; uniform mat3 toLocal;
-      uniform float sunI, h, cloudH, airH, time, waterI, cloudI, airI, glint, clear, clearR; varying vec3 vW;
+      uniform float sunI, h, cloudH, airH, time, waterI, cloudI, airI, glint, clear, clearR, fresh; varying vec3 vW;
       const float RE = ${RE.toFixed(1)};
       vec2 hitS(vec3 C, vec3 d, float R){ float b = dot(C, d), c = dot(C, C) - R*R, disc = b*b - c; if (disc < 0.) return vec2(1e9, -1e9); float s = sqrt(disc); return vec2(-b - s, -b + s); }
       vec2 dirUV(vec3 l){ return vec2(fract(atan(l.z, -l.x)*0.15915494), 1. - acos(clamp(l.y, -1., 1.))*0.31830989); }
@@ -35,26 +35,28 @@ export function createShell(S, SP, o = {}) {
       // one water crossing at P (normal n points out of the planet; front = seen from above)
       vec4 water(vec3 P, vec3 d, float fp, float front){
         vec3 l = toLocal * normalize(P); vec2 uv = dirUV(l); vec3 q = l*RE;
-        float g = texS(brc, uv).g; float e = dfbm(q, 18., fp*0.6);
-        float m = 1. - smoothstep(0.40, 0.60, g + e*0.55);                 // the ocean, with a fractal coast edge
+        float g = texS(brc, uv).g; float e = dfbm(q, 14., fp*0.6);
+        float m = mix(1. - smoothstep(0.40, 0.60, g + e*0.55), 1. - smoothstep(0.15, 0.5, g), fresh);   // the ocean, with a fractal coast edge
         if (m < 0.002) return vec4(0.);
         vec3 n = normalize(P), L = normalize(sunDir);
         // ripples: layered noise slopes animate (the shimmer); finer ones fade with distance
         vec3 rq = q + vec3(0., time*3., time*2.);
         float r1 = dfbm(rq, 6., fp), r2 = dfbm(rq + 17., 6., fp);
         vec3 t1 = normalize(cross(n, vec3(0.31, 0.93, 0.17))), t2 = cross(n, t1);
-        vec3 nn = normalize(n + (t1*r1 + t2*r2)*0.22);
+        vec3 nn = normalize(n + (t1*r1 + t2*r2)*0.32);
         float mu = dot(n, L), lit = smoothstep(-0.15, 0.25, mu);
-        vec3 deep = vec3(0.012, 0.06, 0.16), shallow = vec3(0.05, 0.22, 0.32);
+        vec3 deep = vec3(0.006, 0.05, 0.19), shallow = vec3(0.03, 0.2, 0.32);
         vec3 oc = texS(day, uv).rgb;                                          // the sea's own tint where it used to be
         float shelf = smoothstep(0.05, 0.16, oc.g);
         vec3 body = mix(deep, shallow, shelf*0.6 + 0.15*(dfbm(q + 40., 60., fp) + 0.5)) * (0.25 + 1.6*max(mu, 0.)) * sunI;
         float vdn = abs(dot(nn, -d)); float fr = 0.02 + 0.98*pow(1. - vdn, 5.);
         vec3 rf = reflect(d, nn); float sp = pow(max(dot(rf, L), 0.), 260.) * 6. + pow(max(dot(rf, L), 0.), 18.) * 0.12;
-        float edge = smoothstep(0.0, 0.25, m) * (1. - smoothstep(0.35, 0.9, m));   // foam along the sheet's torn edges
+        float edge = smoothstep(0.0, 0.12, m) * (1. - smoothstep(0.22, 0.5, m));   // foam along the sheet's torn edges
         vec3 c = body * (front > 0.5 ? 1. : 0.6) + vec3(1.0, 0.93, 0.82) * sp * sunI * glint * step(0., mu) * front + vec3(0.4, 0.6, 0.8) * fr * lit * 0.25 * sunI;
-        c += vec3(0.85, 0.92, 1.0) * edge * 0.8 * max(mu, 0.05) * sunI;
-        float a = clamp((0.62 + 0.35*fr + 0.6*edge) * m, 0., 1.) * waterI;
+        c += vec3(0.85, 0.92, 1.0) * edge * 1.3 * max(mu, 0.05) * sunI * (1. - fresh);
+        float a = clamp((0.5 + 0.45*fr + 0.7*edge*(1. - fresh)) * m, 0., 1.) * waterI;
+        if (fresh > 0.) { vec3 H2 = normalize(L - d); vec3 sea = oc * max(mu, 0.) * sunI + vec3(1.0, 0.9, 0.75) * pow(max(dot(n, H2), 0.), 900.) * sunI * 0.5 * step(0., mu);
+          c = mix(c, sea, fresh); a = mix(a, m, fresh) * waterI; }
         return vec4(c * a, a); }
       vec4 cloud(vec3 P, vec3 d, float fp){
         vec3 l = toLocal * normalize(P); vec2 uv = dirUV(l); vec3 q = l*RE;
@@ -69,7 +71,7 @@ export function createShell(S, SP, o = {}) {
       void main(){
         vec3 C = cameraPosition, d = normalize(vW - C);
         float tP = hitS(C, d, RE).x; float tEnd = tP > 0. ? tP : 1e9;
-        float Rw = RE + h, Rc = Rw + cloudH, Ra = Rw + airH;
+        float Rw = RE + h + 0.03, Rc = Rw + cloudH, Ra = Rw + airH;
         vec2 tw = hitS(C, d, Rw), tc = hitS(C, d, Rc), ta = hitS(C, d, Ra);
         // pixel footprint (km per pixel) at the near water crossing
         float tn = tw.x > 0. ? tw.x : max(tw.y, 1.); float fp = max(tn * length(fwidth(d)), 1e-3);
@@ -88,7 +90,8 @@ export function createShell(S, SP, o = {}) {
           vec3 M = normalize(C + d*(a0 + a1)*0.5); float mu = dot(M, normalize(sunDir));
           vec3 ac = mix(vec3(1.0, 0.42, 0.18), vec3(0.28, 0.52, 1.0), smoothstep(-0.12, 0.25, mu)) * smoothstep(-0.35, 0.05, mu);
           float glow = 1. - exp(-ch / (airH * 9.));
-          acc.rgb += (1. - acc.a*0.6) * ac * glow * sunI * 0.55 * airI; }
+          float inside = 1. - smoothstep(Ra - 2., Ra + 2., length(C));             // the camera is in the air: dark sky overhead
+          acc.rgb += (1. - acc.a*0.6) * ac * glow * sunI * mix(0.42, 0.12, inside) * airI; }
         gl_FragColor = acc; }`,
   });
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), mat); mesh.frustumCulled = false; mesh.renderOrder = 1; S.scene.add(mesh);

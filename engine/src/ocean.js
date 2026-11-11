@@ -50,16 +50,18 @@ const SLAB_FS = `
           float sd = vSurge; if (sd < -0.05 && vDepth < 0.) discard;
           float fl = fbm2(vFlat*vec2(0.09, 0.05) + vec2(time*0.6, -time*1.1));
           float fr = smoothstep(0.0, 1.2, sd)*smoothstep(3.5, 1.0, sd);
-          vec3 mud = mix(vec3(0.20,0.19,0.15), vec3(0.32,0.36,0.33), fl)*(amb*1.4 + sunCol*sunI*0.35);
-          float wf = clamp(smoothstep(0.42, 0.62, fl + 0.25*fbm2(vFlat*0.35 - time*0.9)) + fr*0.9, 0., 1.);
-          vec3 sc = mix(mud, foamLit*1.08, wf);
+          vec3 mud = mix(vec3(0.10,0.22,0.20), vec3(0.26,0.34,0.27), fl)*(amb*1.5 + sunCol*sunI*0.45) + R*F*0.5;
+          float wf = clamp(smoothstep(0.6, 0.74, fl + 0.3*fbm2(vFlat*0.35 - time*0.9))*0.75 + fr*0.95, 0., 1.);
+          vec3 sc = mix(mud, foamLit*1.05, wf);
           float land = smoothstep(0.3, -0.3, vDepth);
           col = mix(col, sc, land); a = mix(a, smoothstep(-0.05, 0.25, sd), land);
         }
         if (churn > 0.) {                           // the impact: the bay smashed into white water
-          float c1 = fbm2(vWP.xz*0.045 + vec2(time*0.35, time*0.2)), c2 = fbm2(vWP.xz*0.19 - vec2(time*0.8, -time*0.5));
-          float wc = churn*clamp(smoothstep(0.32, 0.6, c1*0.75 + c2*0.45) + 0.25, 0., 1.);
-          col = mix(col, foamLit*(0.95 + 0.25*c2), wc*0.92);
+          float c1 = fbm2(vWP.xz*0.035 + vec2(time*0.35, time*0.2)), c2 = fbm2(vWP.xz*0.16 - vec2(time*0.8, -time*0.5)), c3 = fbm2(vWP.xz*0.6 + time*1.3);
+          float wc = churn*smoothstep(0.56, 0.72, c1*0.6 + c2*0.45 + 0.18*c3);
+          float streak = churn*smoothstep(0.62, 0.7, fbm2(vWP.xz*vec2(0.05, 0.3) + c1*2.))*0.7;
+          vec3 wfc = vec3(0.93, 0.96, 0.98)*(0.38 + 0.62*sunI*max(sunDir.y, 0.1))*(0.85 + 0.25*c3);
+          col = mix(col*vec3(0.7, 1.05, 1.1) + shallow*0.18*churn, wfc, clamp(wc + streak, 0., 1.)*0.95);
         }`;
 // underside of the lifted sea, seen from below: the seabed's shape + lift. Sky and sun through the water (refracted twice,
 // Beer-Lambert per channel), single scattering (turquoise -> deep blue with thickness), caustic shimmer, boats as dark

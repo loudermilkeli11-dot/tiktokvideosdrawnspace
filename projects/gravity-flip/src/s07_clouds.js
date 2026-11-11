@@ -19,14 +19,14 @@ PALETTE.top.splice(0, PALETTE.top.length, 0xd94a3d, 0xf0b23a, 0x3a78d0, 0x2f9e68
 PALETTE.bot.splice(0, PALETTE.bot.length, 0x2d3d5c, 0xd9cfb6, 0x3e3e3e, 0x5b7fa8, 0xebe6da, 0x6d5539, 0x1c1c22);
 PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a5a, 0x1a1410, 0x8a6a48, 0xd8c08a);
 const PASS = 2.4;                                                    // shot time of the jet's closest pass
-const S = createStudio({ samples: (t) => (Math.abs(t - 4 - PASS) < 0.9 ? 4 : 2), far: 4e5,
+const S = createStudio({ samples: (t) => (Math.abs(t - 4 - PASS) < 0.8 ? 4 : 2), far: 4e5,
   post: { exposure: 1.0, bloom: 0.09, bloomThreshold: 2.4, bloomRadius: 0.6, vignette: 0.2, grain: 0.012, ca: 0.0008, sat: 1.12, contrast: 1.06 } });
 const { scene, camera } = S;
 S.hdri('hdri_day_1k.hdr', 0.45);
-const SUN = new THREE.Vector3(Math.sin(28 * D2R) * Math.cos(40 * D2R), Math.sin(40 * D2R), -Math.cos(28 * D2R) * Math.cos(40 * D2R)).normalize();
+const SUN = new THREE.Vector3(Math.sin(24 * D2R) * Math.cos(41 * D2R), Math.sin(41 * D2R), -Math.cos(24 * D2R) * Math.cos(41 * D2R)).normalize();
 const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky);
 sky.U.dayZen.value.set(0x0d2f86); sky.U.dayHor.value.set(0x8fb4e6); sky.U.altI.value = 1; sky.U.sunDisc.value = 1;
-const CL = createClouds(S, { base: 2400, thick: 1350, cover: 0.7, hazeL: 210e3, sunI: 1.5, skyI: 0.6, seed: 3 });
+const CL = createClouds(S, { base: 2400, thick: 1450, cover: 0.8, hazeL: 175e3, sunI: 1.5, skyI: 0.6, seed: 3 });
 CL.U.hazeCol.value.copy(sky.U.dayHor.value).multiplyScalar(1.5 * 1.35);
 const sun = new THREE.DirectionalLight(0xfff3e2, 3.2); scene.add(sun); scene.add(sun.target);
 const hemi = new THREE.HemisphereLight(0x6f9be0, 0xf4f6ff, 1.1); scene.add(hemi);   // blue sky above, the bright deck below
@@ -36,15 +36,15 @@ const jet = createPlane(S, { len: 62, span: 58, gear: true });
 // the air at ~110 m/s and its lift bends the path into a loop, carrying it up past us and away. Integrated once, deterministic.
 const JP = [], JDT = 0.01, J0 = -1, JV = 100;
 { let p = new THREE.Vector3(); for (let t = J0; t <= 6.01; t += JDT) { const th = (44 - 15.5 * (t + 1)) * D2R;      // heading: up and toward us -> up and away
-    const v = new THREE.Vector3(0.2, Math.cos(th), Math.sin(th)).normalize().multiplyScalar(JV * (1 + 0.04 * t)); JP.push({ p: p.clone(), v }); p.addScaledVector(v, JDT); }
-  const k = Math.round((PASS - J0) / JDT), off = new THREE.Vector3(14, -6, -58).sub(JP[k].p); JP.forEach((e) => e.p.add(off)); }
+    const v = new THREE.Vector3(-0.16, Math.cos(th), Math.sin(th)).normalize().multiplyScalar(JV * (1 + 0.04 * t)); JP.push({ p: p.clone(), v }); p.addScaledVector(v, JDT); }
+  const k = Math.round((PASS - J0) / JDT), off = new THREE.Vector3(26, -6, -64).sub(JP[k].p); JP.forEach((e) => e.p.add(off)); }
 function jetAt(tt) {
   const i = clamp((tt - J0) / JDT, 0, JP.length - 1.001), k = Math.floor(i), u = i - k, A = JP[k], B = JP[k + 1];
   const p = A.p.clone().lerp(B.p, u), v = A.v.clone().lerp(B.v, u).normalize();
   // nose along the flight path, rolling (the crew has lost it), with a slow yaw wobble: it tumbles as it climbs
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), v);
-  q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, -1), 2.2 + 0.75 * tt));
-  q.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12 * Math.sin(tt * 1.3), 0.18 * Math.sin(tt * 0.9 + 1), 0)));
+  q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, -1), 2.0 + 0.95 * tt));
+  q.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2 * Math.sin(tt * 1.3), 0.28 * Math.sin(tt * 0.9 + 1), 0)));
   return { p, q, v };
 }
 const distToPath = (x) => { let m = 1e9; for (let k = 0; k < JP.length; k += 10) m = Math.min(m, JP[k].p.distanceTo(x)); return m; };
@@ -52,9 +52,10 @@ const distToPath = (x) => { let m = 1e9; for (let k = 0; k < JP.length; k += 10)
 function camAt(tt) {
   const pos = new THREE.Vector3(0.4 * tt, 0.25 * tt, -0.3 * tt), J = jetAt(tt);
   const jd = J.p.clone().sub(pos), elJ = Math.atan2(jd.y, Math.hypot(jd.x, jd.z)) / D2R, azJ = Math.atan2(jd.x, -jd.z) / D2R;
-  const pitch = clamp(elJ * 0.62 + 2, -30, 30) * D2R, yaw = clamp(azJ * 0.5, -10, 14) * D2R;
+  const soft = (x, lo, hi) => { const m = (lo + hi) / 2, h = (hi - lo) / 2; return m + h * Math.tanh((x - m) / h); };   // eases in and out of the limits
+  const pitch = soft(elJ * 0.58 + 2, -31, 33) * D2R, yaw = soft(azJ * 0.3, -9, 10) * D2R;
   const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-  return { pos, look: pos.clone().add(dir), mm: +(Q.get('mm') ?? 20), roll: keyed([[0, -6], [5, 5, 'inOutSine']], tt) };
+  return { pos, look: pos.clone().add(dir), mm: +(Q.get('mm') ?? 20), roll: -6 + 2.3 * tt };
 }
 // does a point moving as p0 + v*t ever cross the counter block (design px x 0-290, y 350-520) during the shot?
 const tcam = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 1e5), tv = new THREE.Vector3();
@@ -65,7 +66,7 @@ const R = rng(707), people = [];
 for (let i = 0; i < 5000 && people.length < 46; i++) {
   const az = (R() - 0.5) * 80 * D2R, el = (R() * 2 - 1) * 62 * D2R, d = 10 + Math.pow(R(), 1.6) * 60;
   const x = Math.sin(az) * Math.cos(el) * d, y = Math.sin(el) * d, z = -Math.cos(az) * Math.cos(el) * d;
-  if (distToPath(new THREE.Vector3(x, y, z)) < 26) continue;                                    // nobody in the jet's way
+  if (distToPath(new THREE.Vector3(x, y, z)) < 40) continue;                                    // nobody near the jet's way
   const pp = { x, y, z, yaw: R() * 6.28, vx: (R() - 0.5) * 1.0, vy: (R() - 0.5) * 1.2, vz: (R() - 0.5) * 1.0 };
   if (d < 30 && hitsCounter(new THREE.Vector3(x, y, z), new THREE.Vector3(pp.vx, pp.vy, pp.vz))) continue;   // keep the counter block calm
   people.push(pp);
@@ -99,15 +100,16 @@ const PROPS = [
 const propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, side: THREE.DoubleSide });
 const UCOL = [0xd23b2f, 0xf2efe6, 0x2a6fb0, 0xf0b23a], deb = [], RD = rng(91);
 for (let i = 0, n = 0; i < 400 && n < 26; i++) {
-  const az = (RD() - 0.5) * 80 * D2R, el = (RD() * 2 - 1) * 60 * D2R, d = 14 + RD() * 50, p = new THREE.Vector3(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
+  const az = (RD() - 0.5) * 80 * D2R, el = (RD() * 2 - 1) * 60 * D2R, d = 24 + RD() * 46, p = new THREE.Vector3(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d);
   const v = new THREE.Vector3((RD() - 0.5) * 1.5, (RD() - 0.5) * 1.5, (RD() - 0.5) * 1.5), k = n % PROPS.length;
   if (distToPath(p) < 22 || (d < 30 && hitsCounter(p, v))) continue;
   const m = new THREE.Mesh(PROPS[k](UCOL[n % UCOL.length]), propMat); scene.add(m); n++;
   deb.push({ m, p, v, w: new THREE.Vector3((RD() - 0.5) * 1.6, (RD() - 0.5) * 1.6, (RD() - 0.5) * 1.6), e: new THREE.Euler(RD() * 6, RD() * 6, RD() * 6) });
 }
 const NP = 40, paper = [], papM = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.3, 0.42), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.8, side: THREE.DoubleSide }), NP);
-for (let i = 0; i < NP; i++) { const az = (RD() - 0.5) * 80 * D2R, el = (RD() * 2 - 1) * 60 * D2R, d = 4 + RD() * 22;
-  paper.push({ p: new THREE.Vector3(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d), w: new THREE.Vector3((RD() - 0.5) * 6, (RD() - 0.5) * 6, (RD() - 0.5) * 6), e: new THREE.Euler(RD() * 6, RD() * 6, RD() * 6) }); }
+for (let i = 0; i < 400 && paper.length < NP; i++) { const az = (RD() - 0.5) * 80 * D2R, el = (RD() * 2 - 1) * 60 * D2R, d = 8 + RD() * 24;
+  const p = new THREE.Vector3(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d); if (d < 18 && hitsCounter(p, new THREE.Vector3())) continue;
+  paper.push({ p, w: new THREE.Vector3((RD() - 0.5) * 6, (RD() - 0.5) * 6, (RD() - 0.5) * 6), e: new THREE.Euler(RD() * 6, RD() * 6, RD() * 6) }); }
 papM.frustumCulled = false; scene.add(papM);
 const birds = createBirds(S, 14, { flap: 12, seed: 8, color: 0x4a505c });
 const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), ee = new THREE.Euler(), vv = new THREE.Vector3(), sc = new THREE.Vector3();
@@ -122,7 +124,7 @@ S.run((t) => {
   for (const d of deb) { d.m.position.copy(d.p).addScaledVector(d.v, tt); d.m.rotation.set(d.e.x + d.w.x * tt, d.e.y + d.w.y * tt, d.e.z + d.w.z * tt); }
   paper.forEach((d, i) => { qq.setFromEuler(ee.set(d.e.x + d.w.x * tt, d.e.y + d.w.y * tt, d.e.z + d.w.z * tt)); vv.copy(d.p).add(sc.set(Math.sin(tt * 1.3 + i) * 0.6, Math.sin(tt * 0.9 + i * 2) * 0.6, 0)); papM.setMatrixAt(i, m4.compose(vv, qq, sc.set(1, 1, 1))); });
   papM.instanceMatrix.needsUpdate = true;
-  birds.update(t, (x) => new THREE.Vector3(-30 + (x - 4) * 6, -12 + (x - 4) * 6.5 + Math.sin(x * 0.7) * 2, -19), 4.5, 1.5);
+  birds.update(t, (x) => new THREE.Vector3(-13 + (x - 4) * 4.2, -15 + (x - 4) * 5 + Math.sin(x * 0.7) * 1.5, -15), 3.5, 1.0);   // pigeons flap across, rising past us
   const C = camAt(tt), pos = C.pos;
   applyCam(camera, C, shake(t, 0.25 + 0.5 * Math.exp(-((tt - PASS) ** 2) / 0.3), 1.4, 7));
   sun.position.copy(SUN).multiplyScalar(500).add(pos); sun.target.position.copy(pos);

@@ -127,10 +127,10 @@ export function createSpray(S, parts, o = {}) {
   g.setAttribute('aP', new THREE.InstancedBufferAttribute(aP, 3)); g.setAttribute('aV', new THREE.InstancedBufferAttribute(aV, 3)); g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4));
   g.instanceCount = N;
   const U = { time: { value: 0 }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color(1, 0.97, 0.9) }, sunI: { value: 1 }, amb: { value: new THREE.Color(0x6f8fb0) },
-    streak: { value: 1 / 45 }, res: { value: new THREE.Vector2(S.W, S.H) }, op: { value: o.opacity ?? 1 }, hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: o.hazeD ?? 9000 }, exposure: { value: 1 } };
-  const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false,
+    streak: { value: 1 / 26 }, res: { value: new THREE.Vector2(S.W, S.H) }, op: { value: o.opacity ?? 1 }, hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: o.hazeD ?? 9000 }, exposure: { value: 1 } };
+  const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     vertexShader: `attribute vec3 aP; attribute vec3 aV; attribute vec4 aT; uniform float time, streak; uniform vec2 res;
-      varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit;
+      varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit; varying float vH;
       uniform vec3 sunDir;
       vec3 at(float a, float k){ vec3 vt = vec3(0., -9.81/k, 0.); return aP + (aV - vt)*(1. - exp(-k*a))/k + vt*a; }
       void main(){ float age = time - aT.x; float kind = floor(aT.w + 0.001); float life = fract(aT.w + 0.0001)*100.; vK = kind; vSeed = fract(aT.x*13.7 + aP.x*0.37 + aP.z*0.11);
@@ -140,26 +140,27 @@ export function createSpray(S, parts, o = {}) {
         float sz = aT.y*(kind > 1.5 ? (0.6 + 0.9*min(age/0.8, 1.)) : kind > 0.5 ? (0.7 + 0.5*min(age/0.6, 1.)) : 1.);
         vec4 c1 = projectionMatrix*viewMatrix*vec4(p1, 1.), c0 = projectionMatrix*viewMatrix*vec4(p0, 1.);
         vec2 s1 = c1.xy/c1.w*res*0.5, s0 = c0.xy/c0.w*res*0.5;
-        vec2 dv = s1 - s0; float len = length(dv); vec2 ax = len > 0.5 ? dv/len : vec2(0., 1.); vec2 ay = vec2(-ax.y, ax.x);
+        vec2 dv = s1 - s0; float len = length(dv); vec2 ax = len > 0.5 ? dv/len : vec2(0., 1.); vec2 ay = vec2(ax.y, -ax.x);
         float wpx = sz/max(c1.w, 0.1)*projectionMatrix[1][1]*res.y*0.5;
         float lpx = max(len, wpx);
         vec2 sp = mix(s0, s1, 0.5) + ax*position.y*(lpx + wpx*0.5) + ay*position.x*wpx;
-        vUv = uv; vDist = c1.w;
+        vUv = uv; vDist = c1.w; vH = clamp((p1.y - aP.y)/max(length(aV)*0.9, 4.), 0., 1.);
         vA = smoothstep(0., 0.06, age)*(1. - smoothstep(life*0.6, life, age))*clamp(wpx*wpx/max(wpx*lpx, 1e-3), 0.12, 1.);
         vec3 vel = (aV - vec3(0., -9.81/k, 0.))*exp(-k*age) + vec3(0., -9.81/k, 0.);
         vLit = 0.6 + 0.4*dot(normalize(vel + vec3(0., 0.001, 0.)), normalize(sunDir));
         gl_Position = vec4(sp/(res*0.5)*c1.w, c1.z, c1.w); }`,
     fragmentShader: `${NOISE}
-      uniform vec3 sunCol, amb, hazeCol; uniform float sunI, op, hazeD, exposure, time; varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit;
+      uniform vec3 sunCol, amb, hazeCol; uniform float sunI, op, hazeD, exposure, time; varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit; varying float vH;
       void main(){ vec2 d = vUv - 0.5; float r = length(d)*2.;
         float n = fbm2(vUv*vec2(3., 6.) + vSeed*40.);
         float m;
-        if (vK < 0.5) m = smoothstep(1., 0.35, r);
-        else if (vK < 1.5) m = smoothstep(0.75, 0.25, r + (n - 0.5)*0.9) * (0.75 + 0.25*n);
+        if (vK < 0.5) m = smoothstep(1., 0.2, length(d*vec2(2.2, 1.))*2.);
+        else if (vK < 1.5) { float f1 = fbm2(vec2(vUv.x*7. + vSeed*31., vUv.y*1.6 - vSeed*7.)); float rr = length(d*vec2(1.6, 1.))*2.;
+          m = smoothstep(0.95, 0.35, rr + (n - 0.5)*1.1) * smoothstep(0.38, 0.62, f1 + 0.25*(1. - rr)) * (0.7 + 0.5*f1); }
         else m = smoothstep(1., 0.0, r + (n - 0.5)*0.7) * (0.35 + 0.65*fbm2(vec2(vUv.x*9. + vSeed*20., vUv.y*2.))) * 0.45;
         float a = m*vA*op; if (a < 0.004) discard;
-        float sh = 0.82 + 0.18*(vUv.y);
-        vec3 c = vec3(0.93, 0.96, 1.0)*(amb*1.1 + sunCol*sunI*0.75*vLit*sh) * (vK > 1.5 ? 0.92 : 1.);
+        float sh = (0.5 + 0.5*vH)*(0.72 + 0.4*vSeed)*(0.75 + 0.35*n);
+        vec3 c = vec3(0.95, 0.97, 1.0)*(amb*0.8 + sunCol*sunI*0.95*vLit*sh);
         c = mix(c, hazeCol*1.1, 1. - exp(-vDist/hazeD));
         gl_FragColor = vec4(c*exposure, min(a, 1.)); }` });
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = o.renderOrder ?? 30; S.scene.add(mesh);

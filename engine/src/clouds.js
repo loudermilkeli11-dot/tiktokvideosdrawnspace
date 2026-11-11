@@ -20,14 +20,15 @@ const GEN = `varying vec2 vUv; uniform float cover, towers, seed;
   // max of jittered hemispherical domes of random radius (cauliflower puffs)
   float domes(vec2 uv, float n){ vec2 p = uv*n, i = floor(p), f = fract(p); float h = 0.;
     for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++){ vec2 g = vec2(x, y), c = i + g; vec2 r = hp2(c, n);
-      vec2 o = g + 0.1 + 0.8*r - f; float rad = 0.5 + 0.45*hp(c + 7.7, n); float q = rad*rad - dot(o, o); if (q > 0.) h = max(h, pow(q, 0.62)/0.9); }
+      vec2 o = g + 0.1 + 0.8*r - f; float rad = 0.38 + 0.6*hp(c + 7.7, n); float q = rad*rad - dot(o, o); if (q > 0.) h = max(h, pow(q, 0.62)/0.9); }
     return h; }
   void main(){
     vec2 uv = vUv;
     vec2 wv = uv + 0.035*vec2(fbmP(uv + 0.5, 6., 3) - 0.5, fbmP(uv + 0.17, 6., 3) - 0.5);          // gentle domain warp
     float cl = fbmP(wv, 3., 5);                                                                       // cluster field (~8 km)
     float body = smoothstep(0.6 - cover*0.42, 0.8 - cover*0.42, cl);
-    float puff = 0.56*domes(wv, 14.) + 0.3*domes(wv + 0.31, 37.) + 0.14*domes(wv + 0.67, 97.);
+    vec2 wv2 = wv + 0.007*vec2(fbmP(uv + 0.3, 40., 2) - 0.5, fbmP(uv + 0.8, 40., 2) - 0.5);           // irregular small puffs
+    float puff = 0.6*domes(wv, 13.) + 0.3*domes(wv2 + 0.31, 37.) + 0.1*domes(wv2 + 0.67, 97.) + 0.12*(fbmP(wv + 0.9, 60., 3) - 0.5);
     float tw = pow(smoothstep(0.6, 0.88, fbmP(wv + 0.23, 5., 3)), 2.) * towers;                       // towering cells
     float h = (0.18 + 0.82*puff) * pow(body, 0.7) * (1. + 1.1*tw*puff) - (1. - body)*0.3;              // edges sink into billows, no cliffs
     gl_FragColor = vec4(clamp(h, 0., 2.5), 0., 0., 1.); }`;
@@ -59,7 +60,7 @@ export function createClouds(S, o = {}) {
     sunDir: { value: new THREE.Vector3(0.5, 0.6, 0.3).normalize() }, sunCol: { value: new THREE.Color(o.sunCol ?? 0xfff3e2) }, sunI: { value: o.sunI ?? 1.45 },
     skyCol: { value: new THREE.Color(o.skyCol ?? 0x5d8fe0) }, skyI: { value: o.skyI ?? 0.55 }, hazeCol: { value: new THREE.Color(o.hazeCol ?? 0xc9dcf5) }, hazeL: { value: o.hazeL ?? 170e3 },
     seaCol: { value: new THREE.Color(o.seaCol ?? 0x0a2a4a) }, pxAng: { value: 0.0007 }, texel: { value: P / N }, offset: { value: new THREE.Vector2(o.ox ?? 0, o.oz ?? 0) },
-    regional: { value: o.regional ?? 0.35 }, exposure: { value: 1 }, steps: { value: o.steps ?? 28 },
+    regional: { value: o.regional ?? 0.35 }, exposure: { value: 1 }, steps: { value: o.steps ?? 20 },
   };
   const mat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false, transparent: false,
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }',
@@ -71,6 +72,12 @@ export function createClouds(S, o = {}) {
       vec4 tex(vec2 xz, float lod){ return textureLod(hTex, (xz + offset)/period, lod); }
       float topAt(vec2 xz, float lod, out vec4 T){ T = tex(xz, lod); float h = max(T.r - reg, 0.)/(1. - reg + 1e-3); return h > 0.002 ? base + h*thick : -1.; }
       float altOf(vec3 p){ return length(p - C) - RE; }
+      vec3 seaAt(vec3 ro, vec3 d, float tFar, out float dist){
+        vec2 sg; { vec3 oc = ro - C; float b = dot(oc, d), c = dot(oc, oc) - RE*RE, h = b*b - c; sg = h < 0. ? vec2(-1.) : vec2(-b - sqrt(h), -b + sqrt(h)); }
+        dist = sg.x > 0. ? sg.x : tFar; vec3 p = ro + d*dist; vec3 L = normalize(sunDir);
+        vec3 q = p + L*((base + thick*0.45)/max(L.y, 0.2)); vec4 Tq;
+        float shd = topAt(q.xz, log2(max(dist*lodK, 1.)), Tq) > 0. ? 0.25 : 1.;
+        return seaCol*(sunI*1.3*max(L.y, 0.)*shd + skyI*0.35) + skyCol*0.03*(0.5 + 0.5*shd); }
       vec2 sph(vec3 ro, vec3 rd, float r){ vec3 oc = ro - C; float b = dot(oc, rd), c = dot(oc, oc) - r*r, h = b*b - c; if (h < 0.) return vec2(-1.); h = sqrt(h); return vec2(-b - h, -b + h); }
       void main(){
         vec3 d = normalize(vD);
@@ -91,31 +98,30 @@ export function createClouds(S, o = {}) {
         vec3 col; float dist;
         if (tHit > 0.){
           float a = tPrev, b = tHit;
-          for (int k = 0; k < 5; k++){ float m = 0.5*(a + b); vec3 p = ro + d*m; float top = topAt(p.xz, log2(max(m*lodK, 1.)), T); if (top > 0. && altOf(p) <= top) b = m; else a = m; }
+          for (int k = 0; k < 4; k++){ float m = 0.5*(a + b); vec3 p = ro + d*m; float top = topAt(p.xz, log2(max(m*lodK, 1.)), T); if (top > 0. && altOf(p) <= top) b = m; else a = m; }
           dist = b; vec3 p = ro + d*b; float lod = log2(max(b*lodK, 1.));
           float top = topAt(p.xz, lod, T); float h01 = (top - base)/thick;
           // normal from the stored gradient (texture units -> metres)
           vec2 g = T.gb*1000.*thick/period/(1. - reg + 1e-3); vec3 nrm = normalize(vec3(-g.x, 1., -g.y));
           vec3 L = normalize(sunDir);
-          float wrap = clamp((dot(nrm, L) + 0.45)/1.45, 0., 1.);
+          float wrap = clamp((dot(nrm, L) + 0.22)/1.22, 0., 1.);
           // soft self-shadow: march toward the sun across the heightfield
           float sh = 1., ts = 60.;
-          for (int k = 0; k < 7; k++){ vec3 q = p + L*ts; vec4 Tq; float tq = topAt(q.xz, lod + 0.5, Tq); if (tq > 0.) sh = min(sh, clamp(1. - (tq - altOf(q))/220., 0., 1.)); ts *= 1.75; }
+          for (int k = 0; k < 5; k++){ vec3 q = p + L*ts; vec4 Tq; float tq = topAt(q.xz, lod + 0.5, Tq); if (tq > 0.) sh = min(sh, clamp(1. - (tq - altOf(q))/220., 0., 1.)); ts *= 2.2; }
           float occ = clamp(0.55 + (T.r - T.a)*2.2, 0., 1.) * (0.7 + 0.3*clamp(h01, 0., 1.));     // crevices darker, high tops open
           vec3 sunL = sunCol*sunI*wrap*sh;
           vec3 fill = skyCol*skyI*(0.45 + 0.55*occ) + vec3(0.9, 0.93, 1.0)*0.12*occ;              // blue sky fill + bounce
           col = (sunL + fill)*(0.92 + 0.08*vn3(p*0.004));
           // sunward edges glow when the light comes through (silver lining)
           col += sunCol*sunI*0.18*pow(max(dot(d, L), 0.), 6.)*(1. - wrap);
+          // thin cloud at the edges lets the sea through: soft, slightly grey-blue rims instead of cut-outs
+          float edgeA = smoothstep(0.0, 0.1, h01);
+          if (edgeA < 0.999) { float ds; vec3 sea = seaAt(ro, d, t1, ds); col = mix(sea, col*mix(0.8, 1., edgeA), edgeA); }
         } else {
-          // through a gap: the sea below, with the deck's shadows on it
-          vec2 sg = sph(ro, d, RE); dist = sg.x > 0. ? sg.x : t1; vec3 p = ro + d*dist; vec3 L = normalize(sunDir);
-          vec3 q = p + L*((base + thick*0.45)/max(L.y, 0.2)); vec4 Tq; float lod = log2(max(dist*lodK, 1.));
-          float shd = topAt(q.xz, lod, Tq) > 0. ? 0.35 : 1.;
-          col = seaCol*(sunI*0.9*max(L.y, 0.)*shd + skyI*0.5) + skyCol*0.06;
+          float ds; col = seaAt(ro, d, t1, ds); dist = ds;                    // through a gap: the sea, with the deck's shadows on it
         }
         // aerial perspective (the lower atmosphere between us and the deck), brighter toward the horizon
-        float f = 1. - exp(-pow(dist/hazeL, 1.35));
+        float f = 1. - exp(-dist/hazeL);
         col = mix(col, hazeCol, f);
         gl_FragColor = vec4(col*exposure, 1.);
       }`,

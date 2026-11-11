@@ -2,8 +2,8 @@
 // falling up around us; then the jet: a turbofan scream rising from below, roaring past at 2.4 s (Doppler drop: we and the
 // air fall together, the jet flies through that air at ~100 m/s) and wobbling as it tumbles away upward.
 function SOUND(ctx, out, dur) {
-  const rv = verb(ctx, out, 2.4, 0.22), PASS = 2.4, V = 100, D0 = 58, C = 343;
-  hit(ctx, out, { t: 0, gain: -7 });
+  const rv = verb(ctx, out, 2.4, 0.22), PASS = 2.4, V = 100, D0 = 66, C = 343;
+  hit(ctx, out, { t: 0, gain: -8 });
   // thin high-altitude wind: two narrow high bands, slow gusts
   wind(ctx, out, { t0: 0, t1: dur, gain: -23, f: 2600 });
   wind(ctx, out, { t0: 0, t1: dur, gain: -27, f: 5200 });
@@ -13,11 +13,11 @@ function SOUND(ctx, out, dur) {
   // the jet: distance, radial speed -> level and Doppler factor
   const dist = (t) => Math.hypot(D0, V * (t - PASS)), vr = (t) => (V * V * (t - PASS)) / dist(t), dop = (t) => C / (C + vr(t));
   const lvl = (t) => Math.min(1, D0 / dist(t)) * sstep(-0.2, 0.8, t), wob = (t) => 0.72 + 0.28 * Math.sin(t * 4.7 + Math.sin(t * 1.9) * 2);   // tumbling: the intake swings to and from us
-  const pan = (t) => clamp(0.15 + 0.012 * V * (t - PASS) / 10, -0.6, 0.7);
-  const P = panner(ctx, 0); P.connect(out); const Pv = ctx.createGain(); Pv.gain.value = 0.35; P.connect(Pv); Pv.connect(rv);
+  const pan = (t) => clamp(0.05 - 0.011 * V * (t - PASS) / 10, -0.65, 0.45);   // lower right -> up and away to the left
+  const P = panner(ctx, 0), Pg = ctx.createGain(); Pg.gain.value = db(-2.5); P.connect(Pg); Pg.connect(out); const Pv = ctx.createGain(); Pv.gain.value = 0.3; P.connect(Pv); Pv.connect(rv);
   const parts = [];
   // fan whine: two blade-pass tones
-  for (const [f, g] of [[2150, -19], [3240, -25]]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.start(0); o.stop(dur); const bp = filt(ctx, 'bandpass', f, 6); const G = ctx.createGain(); G.gain.value = 0; chain(o, bp, G, P); parts.push({ f, g, o, bp, G }); }
+  for (const [f, g] of [[2150, -13], [3240, -19]]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.start(0); o.stop(dur); const bp = filt(ctx, 'bandpass', f, 6); const G = ctx.createGain(); G.gain.value = 0; chain(o, bp, G, P); parts.push({ f, g, o, bp, G }); }
   // buzz-saw (supersonic fan tips) and the broadband roar
   const bz = ctx.createOscillator(); bz.type = 'sawtooth'; bz.start(0); bz.stop(dur); const bzF = filt(ctx, 'bandpass', 420, 1.2), bzG = ctx.createGain(); bzG.gain.value = 0; chain(bz, bzF, bzG, P);
   const ns = src(ctx, noiseBuf(ctx, 'pink', 4, 707), 0, dur), nF = filt(ctx, 'lowpass', 1400, 0.6), nG = ctx.createGain(); nG.gain.value = 0; chain(ns, nF, nG, P);
@@ -25,10 +25,10 @@ function SOUND(ctx, out, dur) {
   for (let t = 0; t <= dur; t += 0.02) {
     const k = dop(t), L = lvl(t), w = wob(t);
     for (const p of parts) { p.o.frequency.linearRampToValueAtTime(p.f * k, t); p.bp.frequency.linearRampToValueAtTime(p.f * k, t); p.G.gain.linearRampToValueAtTime(db(p.g) * L * w, t); }
-    bz.frequency.linearRampToValueAtTime(140 * k, t); bzF.frequency.linearRampToValueAtTime(420 * k, t); bzG.gain.linearRampToValueAtTime(db(-21) * L * (0.6 + 0.4 * w), t);
-    nF.frequency.linearRampToValueAtTime(900 + 2200 * L * k, t); nG.gain.linearRampToValueAtTime(db(-9) * Math.pow(L, 1.15), t);
-    hF.frequency.linearRampToValueAtTime(3000 * k, t); hG.gain.linearRampToValueAtTime(db(-20) * L * L * w, t);
+    bz.frequency.linearRampToValueAtTime(140 * k, t); bzF.frequency.linearRampToValueAtTime(420 * k, t); bzG.gain.linearRampToValueAtTime(db(-15) * L * (0.6 + 0.4 * w), t);
+    nF.frequency.linearRampToValueAtTime(900 + 2200 * L * k, t); nG.gain.linearRampToValueAtTime(db(-3) * Math.pow(L, 1.15), t);
+    hF.frequency.linearRampToValueAtTime(3000 * k, t); hG.gain.linearRampToValueAtTime(db(-14) * L * L * w, t);
     P.pan.linearRampToValueAtTime(pan(t), t);
   }
-  whoosh(ctx, out, { t: PASS - 0.45, dur: 0.9, gain: -11, f0: 250, f1: 2600, pan0: -0.2, pan1: 0.6 });
+  whoosh(ctx, out, { t: PASS - 0.45, dur: 0.9, gain: -8, f0: 250, f1: 2600, pan0: 0.4, pan1: -0.5 });
 }

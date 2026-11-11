@@ -19,8 +19,8 @@ const { scene, camera } = S;
 S.hdri('hdri_day_1k.hdr', 0.55);
 const T = SHOT.s05_crash.T, TAU0 = SHOT.s05_crash.tau0, LAND = landsAt(T), T_IMP = LAND - TAU0;   // impact at shot time ~1.09 s
 const dirB = (b) => new THREE.Vector3(Math.sin(b * D2R), 0, -Math.cos(b * D2R));
-const CAM = new THREE.Vector3(qn('cx', 130), 0, qn('cz', 80)); const G0 = groundH(CAM.x, CAM.z); CAM.y = G0 + qn('cy', 38);
-const BEAR = qn('b', -10), PITCH = qn('pd', -9), MM = qn('mm', 24);
+const CAM = new THREE.Vector3(qn('cx', 92), 0, qn('cz', 62)); const G0 = groundH(CAM.x, CAM.z); CAM.y = G0 + qn('cy', 14);
+const BEAR = qn('b', -30), PITCH = qn('pd', 5), MM = qn('mm', 24);
 const sunB = BEAR + qn('sb', 70), sunE = qn('se', 48);
 const SUN = dirB(sunB).multiplyScalar(Math.cos(sunE * D2R)).setY(Math.sin(sunE * D2R)).normalize();
 const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(0x2f6fd0); sky.U.dayHor.value.set(0xa6cdee);
@@ -34,33 +34,53 @@ bay.U.power.value = 0; bay.U.lampI.value = 0; bay.U.winI.value = 0;
 patchSlab(bay.terrain.material, OU, GROUND_GLSL, { seabed: true, noLamps: true });
 patchSlab(bay.buildings.material, OU, GROUND_GLSL);
 bay.pier.group.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial && !o.material.userData.slab) { o.material.userData.slab = 1; patchSlab(o.material, OU, GROUND_GLSL, { specK: 0.35, rough: 0.95 }); } });
-// clear the sight line: drop buildings standing between the rooftop and the promenade inside the view wedge
+// clear the sight line: drop only the buildings that would hide the beach in the middle of the frame
 { const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), M = bay.buildings;
   for (let i = 0; i < M.count; i++) { M.getMatrixAt(i, m4); m4.decompose(p, q, sc); const dx = p.x - CAM.x, dz = p.z - CAM.z, d = Math.hypot(dx, dz);
-    const b = Math.atan2(dx, -dz) / D2R - BEAR; if ((d < 14) || (d < 260 && Math.abs(b) < 34 && p.y + sc.y > CAM.y - 26 - d * 0.32)) { m4.makeScale(0, 0, 0); M.setMatrixAt(i, m4); } }
+    const b = Math.atan2(dx, -dz) / D2R - BEAR; let D = 60; for (; D < 400; D += 4) { const w = CAM.clone().addScaledVector(dirB(BEAR + b), D); if (sField(w.x, w.z) < 0) break; }
+    const yl = CAM.y - (CAM.y - 2) * d / D; if (d < 12 || (d < D && Math.abs(b) < 26 && p.y + sc.y > yl - 3)) { m4.makeScale(0, 0, 0); M.setMatrixAt(i, m4); } }
   M.instanceMatrix.needsUpdate = true; }
+// our roof's edge: a concrete parapet and a steel rail just below the lens (it's a rooftop webcam)
+{ const fw = dirB(BEAR), rt = new THREE.Vector3(-fw.z, 0, fw.x), c0 = CAM.clone().addScaledVector(fw, 4.6).setY(CAM.y - 3.3);
+  const conc = new THREE.MeshStandardMaterial({ color: 0x9a948a, roughness: 0.9 }), steel = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.45, metalness: 0.7 });
+  const par = new THREE.Mesh(new THREE.BoxGeometry(40, 1.1, 0.45), conc); par.position.copy(c0); par.rotation.y = Math.atan2(-fw.x, -fw.z); scene.add(par);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(40, 0.08, 0.55), steel); cap.position.copy(c0).setY(c0.y + 0.59); cap.rotation.y = par.rotation.y; scene.add(cap);
+  for (let k = -8; k <= 8; k++) { const po = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), steel); po.position.copy(c0).addScaledVector(rt, k * 1.6).setY(c0.y + 0.85); scene.add(po); }
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(40, 0.06, 0.06), steel); rail.position.copy(c0).setY(c0.y + 1.1); rail.rotation.y = par.rotation.y; scene.add(rail); }
 // boats: on the falling sea in view; the ones near our shore get picked up by the surge and carried into the streets
 const BR = rng(14), boats = [];
-for (let i = 0; i < 3000 && boats.length < 18; i++) { const near = boats.length < 8; const p = CAM.clone().addScaledVector(dirB(BEAR + (BR() - 0.5) * (near ? 40 : 56)), near ? 150 + BR() * 120 : 260 + BR() * 900);
-  const s = sField(p.x, p.z); if (s > (near ? -12 : -30) || (near && s < -95)) continue; if (boats.some((b) => Math.hypot(b.x - p.x, b.z - p.z) < 35)) continue;
+for (let i = 0; i < 6000 && boats.length < 20; i++) { const near = boats.length < 9; const p = CAM.clone().addScaledVector(dirB(BEAR + (BR() - 0.5) * (near ? 34 : 50)), near ? 110 + BR() * 140 : 250 + BR() * 900);
+  const s = sField(p.x, p.z); if (s > (near ? -14 : -30) || (near && s < -90)) continue; if (boats.some((b) => Math.hypot(b.x - p.x, b.z - p.z) < 35)) continue;
   boats.push({ x: p.x, z: p.z, s0: s, yaw: BR() * 6.28, L: 7 + BR() * 9, carry: near, spin: (BR() - 0.5) * 2.4, roll: (BR() - 0.5) * 1.6, ph: BR() * 6 }); }
 const BT = createBoats(S, boats.length, { seed: 9 }); BT.materials.forEach((m) => patchSlab(m, OU, GROUND_GLSL));
 // ---------- spray (all born at the impact or after it; ballistic with drag, gravity back to normal) ----------
 const SR = rng(77), parts = [];
 const shore = []; for (let a = -168; a <= 168; a += 0.9) { const c = onContour(800 * Math.sin(a * D2R), -800 + 800 * Math.cos(a * D2R), 0); if (!c.ok) continue; const [gx, gz] = sGrad(c.x, c.z), gl = Math.hypot(gx, gz) || 1; shore.push({ x: c.x, z: c.z, nx: gx / gl, nz: gz / gl }); }
 const camD = (x, z) => Math.hypot(x - CAM.x, z - CAM.z);
-for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 400 ? 1 : 0; const n = nearK ? 70 : 16;   // the wall along every shore (denser on ours)
-  for (let k = 0; k < n; k++) { const j = (SR() - 0.5) * (nearK ? 7 : 12), vv = 22 + Math.pow(SR(), 0.7) * 50, vh = 4 + SR() * 26, kind = SR() < 0.55 ? 1 : (SR() < 0.75 ? 0 : 2);
-    parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 6 - 8), 0.5 + SR() * 2, sp.z - sp.nx * j + sp.nz * (SR() * 6 - 8)], v: [sp.nx * vh + (SR() - 0.5) * 6, vv, sp.nz * vh + (SR() - 0.5) * 6],
-      t0: T_IMP + 4 + SR() * 0.22, size: kind === 2 ? 14 + SR() * 18 : kind === 1 ? 5 + SR() * 9 : 1.2 + SR() * 1.8, drag: kind === 2 ? 0.9 : kind === 1 ? 0.35 : 0.12, life: 8, kind }); } }
-for (let i = 0; i < 9000; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 70), 140 + Math.pow(SR(), 0.8) * 1500); if (sField(p.x, p.z) > -15) continue;   // the bay smashed white
-  const kind = SR() < 0.6 ? 1 : (SR() < 0.6 ? 0 : 2), vv = 8 + Math.pow(SR(), 1.5) * 40;
-  parts.push({ p: [p.x, 0.5, p.z], v: [(SR() - 0.5) * 10, vv, (SR() - 0.5) * 10], t0: T_IMP + 4 + SR() * 0.18, size: kind === 2 ? 18 + SR() * 22 : kind === 1 ? 6 + SR() * 10 : 1.5 + SR() * 2, drag: kind === 2 ? 1.0 : 0.3, life: 8, kind }); }
+const lump = (a) => 0.55 + 0.45 * Math.sin(a * 0.11 + 1.3) * Math.sin(a * 0.037 + 0.4) + 0.25 * Math.sin(a * 0.53);   // the wall is ragged: some sections shoot higher
+for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 420 ? 1 : 0, L = lump(Math.atan2(sp.x, sp.z + 800) / D2R * 3);   // the wall along every shore:
+  const vk = nearK ? 0.8 + 0.2 * sstep(60, 400, d) : 1, J = nearK ? 4 : 2, per = nearK ? 16 : 7;                                   // coherent jets + a dense low base
+  for (let jn = 0; jn < J; jn++) { const vv = vk * (20 + Math.pow(SR(), 0.6) * 46) * (0.55 + 0.6 * L), vh = 4 + SR() * 22, side = (SR() - 0.5) * 8, j0 = (SR() - 0.5) * (nearK ? 7 : 12);
+    for (let k = 0; k < per; k++) { const u = 0.55 + 0.5 * SR(), kind = SR() < 0.55 ? 1 : 0, j = j0 + (SR() - 0.5) * 3;
+      parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 4 - 6), 0.5 + SR() * 2, sp.z - sp.nx * j + sp.nz * (SR() * 4 - 6)], v: [(sp.nx * vh + sp.nz * side) * u + (SR() - 0.5) * 1.5, vv * u, (sp.nz * vh - sp.nx * side) * u + (SR() - 0.5) * 1.5],
+        t0: T_IMP + 4 + SR() * 0.16, size: kind === 1 ? (nearK ? 2.5 + SR() * 4 : 4 + SR() * 8) : 0.6 + SR() * 1.2, drag: kind === 1 ? 0.3 : 0.1, life: 8, kind }); } }
+  for (let k = 0; k < (nearK ? 8 : 6); k++) { const j = (SR() - 0.5) * (nearK ? 8 : 12), vv = 3 + SR() * 12;
+    parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 6 - 6), 0.5, sp.z - sp.nx * j + sp.nz * (SR() * 6 - 6)], v: [sp.nx * (6 + SR() * 14), vv, sp.nz * (6 + SR() * 14)],
+      t0: T_IMP + 4 + SR() * 0.25, size: nearK ? 2.5 + SR() * 3 : 6 + SR() * 9, drag: 0.5, life: 8, kind: 1 }); }
+  if (!nearK && SR() < 0.5) parts.push({ p: [sp.x, 1, sp.z], v: [sp.nx * 8, 25 + SR() * 25, sp.nz * 8], t0: T_IMP + 4 + SR() * 0.2, size: 14 + SR() * 12, drag: 0.9, life: 8, kind: 2 }); }
+for (let i = 0, np = 0; i < 4000 && np < 70; i++) { const c = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 160 + Math.pow(SR(), 0.9) * 1500); if (sField(c.x, c.z) > -25) continue; np++;   // plumes across the bay
+  const tall = 0.5 + SR(), m = 70 + Math.floor(SR() * 60);
+  const far = camD(c.x, c.z) > 600;
+  for (let k = 0; k < m; k++) { const a = SR() * 6.283, rr = Math.sqrt(SR()) * (6 + 10 * tall), cone = 0.08 + 0.3 * SR(), vv = (14 + Math.pow(SR(), 0.5) * 36) * tall, r = SR(), kind = r < 0.55 ? 1 : (r < 0.97 || !far ? 0 : 2);
+    parts.push({ p: [c.x + Math.cos(a) * rr, 0.5, c.z + Math.sin(a) * rr], v: [Math.cos(a) * vv * cone, vv, Math.sin(a) * vv * cone], t0: T_IMP + 4 + SR() * 0.15,
+      size: kind === 2 ? 14 + SR() * 14 : kind === 1 ? 5 + SR() * 8 : 1.4 + SR() * 2, drag: kind === 2 ? 1.0 : 0.28, life: 8, kind }); } }
+for (let i = 0; i < 2500; i++) { const p = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 64), 140 + Math.pow(SR(), 0.8) * 1500); if (sField(p.x, p.z) > -15) continue;   // and low white water between them
+  parts.push({ p: [p.x, 0.3, p.z], v: [(SR() - 0.5) * 8, 4 + SR() * 12, (SR() - 0.5) * 8], t0: T_IMP + 4 + SR() * 0.2, size: 5 + SR() * 8, drag: 0.4, life: 8, kind: 1 }); }
 // spray off the surge front as it runs inland (our shore only)
 for (let k = 0; k < 40; k++) { const ts = 0.05 + k * 0.05, front = OU.surgeR.value * (1 - Math.exp(-ts * OU.surgeV.value / OU.surgeR.value)), fv = OU.surgeV.value * Math.exp(-ts * OU.surgeV.value / OU.surgeR.value);
-  for (const sp of shore) { if (camD(sp.x, sp.z) > 360 || SR() > 0.55) continue; const x = sp.x + sp.nx * front, z = sp.z + sp.nz * front, g = groundH(x, z);
+  for (const sp of shore) { if (camD(sp.x, sp.z) > 360 || SR() > 0.3) continue; const x = sp.x + sp.nx * front, z = sp.z + sp.nz * front, g = groundH(x, z);
     parts.push({ p: [x + (SR() - 0.5) * 4, g + 1 + SR() * 3, z + (SR() - 0.5) * 4], v: [sp.nx * fv * 0.7 + (SR() - 0.5) * 5, 5 + SR() * 12, sp.nz * fv * 0.7 + (SR() - 0.5) * 5],
-      t0: T_IMP + 4 + ts, size: SR() < 0.5 ? 3 + SR() * 5 : 1 + SR() * 1.5, drag: 0.5, life: 3, kind: SR() < 0.5 ? 1 : 0 }); } }
+      t0: T_IMP + 4 + ts, size: SR() < 0.4 ? 1.5 + SR() * 2.5 : 0.5 + SR() * 0.8, drag: 0.5, life: 2, kind: SR() < 0.4 ? 1 : 0 }); } }
 const spray = createSpray(S, parts);
 spray.U.sunDir.value.copy(SUN); spray.U.hazeD.value = 4000;
 console.log('spray particles', parts.length, 'boats', boats.length, 'impact at shot t', T_IMP.toFixed(3));

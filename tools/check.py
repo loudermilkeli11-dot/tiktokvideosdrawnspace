@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """check.py — QC for a finished film.
 
-usage: python3 tools/check.py projects/<slug>/out/final.mp4 [--score projects/<slug>/score.json] [--frames N]
+usage: python3 tools/check.py projects/<slug>/out/final.mp4 [--score projects/<slug>/score.json] [--frames N] [--overlay ov.mov]
+       python3 tools/check.py --contrast OVERLAY --bg BACKGROUND [--every 0.5]     (text contrast only, before assembly)
+         OVERLAY = an overlay.mov or a dir of render_ov.js PNGs (ov_NNNNN.png); BACKGROUND = a video (frame-matched) or a still.
+         The overlay is composited over the background and sent through a yuv420p round-trip first.
 
 Writes next to the video: <name>.check.txt (report) and <name>.contact_NN.jpg (1 fps contact sheets).
 Expected frame count: --frames, else sum of ../shots.txt if the video sits in projects/<slug>/out/.
 score.json defaults to ../score.json likewise (silent ranges + loop_silence_frames).
+Text contrast (amendment A4): with ../out/overlay.mov (or --overlay), every 0.5 s the overlay's text pixels are measured
+against the composited pixels around them in the final (yuv420p) video; WARN below 3:1.
 Exit code 1 on hard failures: frame count, size >= 100 MB, loudness off -14 LUFS by > 1 LU, white flashes.
 """
 import json, os, re, subprocess, sys, time

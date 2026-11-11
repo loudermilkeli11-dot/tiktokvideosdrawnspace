@@ -61,16 +61,21 @@ function camAt(tt) {
 const tcam = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 1e5), tv = new THREE.Vector3();
 function hitsCounter(p0, v) { for (let tt = 0; tt <= 5; tt += 0.25) { applyCam(tcam, camAt(tt)); tcam.updateMatrixWorld();
   tv.copy(p0).addScaledVector(v, tt).project(tcam); const x = (tv.x + 1) * 270, y = (1 - tv.y) * 480; if (tv.z < 1 && x > -10 && x < 300 && y > 345 && y < 525) return true; } return false; }
+// does it ever line up with the jet as seen from the camera (no figure may appear to touch the jet)?
+function nearJetOnScreen(p0, v) { for (let tt = 0; tt <= 5; tt += 0.1) { const c = camAt(tt).pos, J = jetAt(tt).p, P = p0.clone().addScaledVector(v, tt);
+  const a = J.clone().sub(c), b = P.clone().sub(c), ang = a.angleTo(b), jr = Math.atan(33 / a.length()); if (ang < jr + 0.045 && b.length() > a.length() - 30) return true; } return false; }
 // ---- people: the plaza crowd falling up around us, 10-70 m away, spread around the directions the camera sweeps ----
 const R = rng(707), people = [];
-for (let i = 0; i < 5000 && people.length < 46; i++) {
-  const az = (R() - 0.5) * 80 * D2R, el = (R() * 2 - 1) * 62 * D2R, d = 10 + Math.pow(R(), 1.6) * 60;
+for (let i = 0; i < 20000 && people.length < 62; i++) {
+  const az = (R() - 0.5) * 64 * D2R, el = (R() * 2 - 1) * 64 * D2R, d = 10 + Math.pow(R(), 1.4) * 55;
   const x = Math.sin(az) * Math.cos(el) * d, y = Math.sin(el) * d, z = -Math.cos(az) * Math.cos(el) * d;
   if (distToPath(new THREE.Vector3(x, y, z)) < 40) continue;                                    // nobody near the jet's way
   const pp = { x, y, z, yaw: R() * 6.28, vx: (R() - 0.5) * 1.0, vy: (R() - 0.5) * 1.2, vz: (R() - 0.5) * 1.0 };
-  if (d < 30 && hitsCounter(new THREE.Vector3(x, y, z), new THREE.Vector3(pp.vx, pp.vy, pp.vz))) continue;   // keep the counter block calm
+  const P0 = new THREE.Vector3(x, y, z), V0 = new THREE.Vector3(pp.vx, pp.vy, pp.vz);
+  if ((d < 30 && hitsCounter(P0, V0)) || nearJetOnScreen(P0, V0)) continue;                     // keep the counter block calm; nobody seems to touch the jet
   people.push(pp);
 }
+window.PEOPLE = people.length;
 const crowd = createCrowd(S, people, { poses: ['handsHead', 'point', 'phoneUp', 'arms', 'filming', 'handsHead', 'stand', 'point', 'shade', 'phoneUp'], rimI: 0.35, seed: 17 });
 for (const m of crowd.meshes) for (const p of m.userData.list) { p.x0 = p.x; p.y0 = p.y; p.z0 = p.z; }
 // ---- cars ----

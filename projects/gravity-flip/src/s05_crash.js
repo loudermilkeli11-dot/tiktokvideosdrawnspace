@@ -59,11 +59,11 @@ const shore = []; for (let a = -168; a <= 168; a += 0.9) { const c = onContour(8
 const camD = (x, z) => Math.hypot(x - CAM.x, z - CAM.z);
 const lump = (a) => 0.55 + 0.45 * Math.sin(a * 0.11 + 1.3) * Math.sin(a * 0.037 + 0.4) + 0.25 * Math.sin(a * 0.53);   // the wall is ragged: some sections shoot higher
 for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 420 ? 1 : 0, L = lump(Math.atan2(sp.x, sp.z + 800) / D2R * 3);   // the wall along every shore:
-  const vk = nearK ? 0.8 + 0.2 * sstep(60, 400, d) : 1, J = nearK ? 4 : 2, per = nearK ? 16 : 7;                                   // coherent jets + a dense low base
+  const vk = nearK ? 0.8 + 0.2 * sstep(60, 400, d) : 1, J = nearK ? 5 : 2, per = nearK ? 26 : 7;                                   // coherent jets + a dense low base
   for (let jn = 0; jn < J; jn++) { const vv = vk * (20 + Math.pow(SR(), 0.6) * 46) * (0.55 + 0.6 * L), vh = 4 + SR() * 22, side = (SR() - 0.5) * 8, j0 = (SR() - 0.5) * (nearK ? 7 : 12);
     for (let k = 0; k < per; k++) { const u = 0.55 + 0.5 * SR(), kind = SR() < 0.55 ? 1 : 0, j = j0 + (SR() - 0.5) * 3;
       parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 4 - 6), 0.5 + SR() * 2, sp.z - sp.nx * j + sp.nz * (SR() * 4 - 6)], v: [(sp.nx * vh + sp.nz * side) * u + (SR() - 0.5) * 1.5, vv * u, (sp.nz * vh - sp.nx * side) * u + (SR() - 0.5) * 1.5],
-        t0: T_IMP + 4 + SR() * 0.16, size: kind === 1 ? (nearK ? 2.5 + SR() * 4 : 4 + SR() * 8) : 0.6 + SR() * 1.2, drag: kind === 1 ? 0.3 : 0.1, life: 8, kind }); } }
+        t0: T_IMP + 4 + SR() * 0.16, size: kind === 1 ? (nearK ? 1.4 + SR() * 2.4 : 4 + SR() * 8) : (nearK ? 0.35 + SR() * 0.6 : 0.6 + SR() * 1.2), drag: kind === 1 ? 0.3 : 0.1, life: 8, kind }); } }
   for (let k = 0; k < (nearK ? 8 : 6); k++) { const j = (SR() - 0.5) * (nearK ? 8 : 12), vv = 3 + SR() * 12;
     parts.push({ p: [sp.x + sp.nz * j + sp.nx * (SR() * 6 - 6), 0.5, sp.z - sp.nx * j + sp.nz * (SR() * 6 - 6)], v: [sp.nx * (6 + SR() * 14), vv, sp.nz * (6 + SR() * 14)],
       t0: T_IMP + 4 + SR() * 0.25, size: nearK ? 2.5 + SR() * 3 : 6 + SR() * 9, drag: 0.5, life: 8, kind: 1 }); }

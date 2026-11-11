@@ -80,13 +80,27 @@ const crowd = createCrowd(S, people, { poses: ['handsHead', 'point', 'phoneUp', 
 for (const m of crowd.meshes) for (const p of m.userData.list) { p.x0 = p.x; p.y0 = p.y; p.z0 = p.z; }
 // ---- cars ----
 const carCols = [0xb21d1d, 0xf2f2ee, 0x2a4f9a, 0xe0b23a, 0x1d1f24, 0x2f6b4a, 0xd96a2b, 0x8a8f96];
-const unit = new THREE.BoxGeometry(1, 1, 1), wheelG = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14).rotateZ(Math.PI / 2);
+const wheelG = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14).rotateZ(Math.PI / 2);
 const glassM = new THREE.MeshStandardMaterial({ color: 0x0e1418, roughness: 0.06, metalness: 0.9 }), tyreM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+// side profiles (length along z, height y) extruded across the width with rounded edges: sedans and one bus
+function extrudeProfile(pts, width, bevel = 0.06) {
+  const sh = new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y)));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: width - 2 * bevel, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.8, bevelSegments: 2, curveSegments: 4 });
+  g.translate(0, 0, -(width - 2 * bevel) / 2); g.rotateY(Math.PI / 2); return g;
+}
+const SEDAN = { body: [[-2.25, 0.3], [2.25, 0.3], [2.25, 0.74], [2.12, 0.92], [1.6, 0.97], [-0.62, 0.95], [-1.25, 0.88], [-2.15, 0.78], [-2.25, 0.62]],
+  glass: [[-0.62, 0.94], [1.62, 0.96], [1.08, 1.37], [0.02, 1.37]], roof: [[0.0, 1.33], [1.1, 1.33], [1.07, 1.41], [0.03, 1.41]], W: 1.82, wz: 1.38 };
+const BUS = { body: [[-4.5, 0.32], [4.5, 0.32], [4.5, 2.75], [4.35, 2.92], [-4.3, 2.92], [-4.5, 2.7]], glass: [[-4.47, 1.35], [4.47, 1.35], [4.47, 2.42], [-4.47, 2.42]], W: 2.5, wz: 3.1, bus: true };
+function makeCar(col, M) {
+  const g = new THREE.Group(), paint = new THREE.MeshStandardMaterial({ color: col, roughness: 0.28, metalness: 0.45 });
+  g.add(new THREE.Mesh(extrudeProfile(M.body, M.W), paint));
+  g.add(new THREE.Mesh(extrudeProfile(M.glass, M.bus ? M.W + 0.03 : M.W * 0.86, 0.04), glassM));
+  if (M.roof) g.add(new THREE.Mesh(extrudeProfile(M.roof, M.W * 0.84, 0.03), paint));
+  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(wheelG, tyreM); w.position.set(sx * (M.W / 2 - 0.1), 0.34, sz * M.wz); g.add(w); }
+  return g;
+}
 const cars = [[-30, -38, -48], [34, 14, -52], [52, -64, -80], [-55, 40, -70], [8, -80, -30], [-34, 66, -40], [70, 50, -95]].map(([x, y, z], i) => {
-  const g = new THREE.Group(), L = i === 3 ? 9 : 4.5, W = i === 3 ? 2.5 : 1.85, H = i === 3 ? 2.9 : 1.45;
-  const body = new THREE.Mesh(unit, new THREE.MeshStandardMaterial({ color: carCols[i % carCols.length], roughness: 0.3, metalness: 0.5 })); body.scale.set(W, H * 0.55, L); body.position.y = 0.32 + H * 0.275; g.add(body);
-  const cab = new THREE.Mesh(unit, glassM); cab.scale.set(W * 0.86, H * 0.45, L * (i === 3 ? 0.9 : 0.5)); cab.position.set(0, 0.32 + H * 0.55 + H * 0.225, -L * 0.06); g.add(cab);
-  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(wheelG, tyreM); w.position.set(sx * W * 0.45, 0.34, sz * L * 0.33); g.add(w); }
+  const g = makeCar(carCols[i % carCols.length], i === 3 ? BUS : SEDAN);
   const r = rng(40 + i); g.userData = { p: new THREE.Vector3(x, y, z), w: new THREE.Vector3((r() - 0.5) * 0.9, (r() - 0.5) * 0.7, (r() - 0.5) * 0.9), e0: new THREE.Euler(r() * 6, r() * 6, r() * 6), v: new THREE.Vector3((r() - 0.5) * 2, (r() - 0.5) * 2, (r() - 0.5) * 2) };
   scene.add(g); return g;
 });

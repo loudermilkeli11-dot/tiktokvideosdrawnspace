@@ -80,7 +80,7 @@ export function createSpace(S, o = {}) {
         if (scar > 0.) { float em = smoothstep(0.62, 0.8, fbm3(vO*0.0035 + 2.)) * fbm3(vO*0.03); col += vec3(1.0, 0.32, 0.06) * em * scar * 0.5 * (1. - ocean) * (1. - dayF*0.85); }
         if (glowI > 0.) { float g = fbm3(vO*0.0012 + 4.); g = 0.25 + 2.2*g*g*g + 0.6*fbm3(vO*0.006); col += glowCol * glowI * g * (1. - dayF) * (0.6 + 0.4*(1. - ocean)); }
         // twilight band (reddened)
-        col += vec3(1.0,0.45,0.2) * exp(-mu*mu*1400.) * 0.035 * sunI * (1. - clouds*0.5) * atmI;
+        col += vec3(1.0,0.45,0.2) * exp(-mu*mu*1400.) * 0.035 * sunI * (1. - clouds*0.5) * atmI * (1. - 0.85*scar);
         // ring shadow on Earth's day side: ray from surface to the sun crosses the ring plane inside ring radii
         if (ringShadowI > 0.) { float dn = dot(L, ringN); if (abs(dn) > 1e-3) { float tt = -dot(vW, ringN)/dn; if (tt > 0.) { vec3 hp = vW + L*tt; float r = length(hp);
               float band = 0.6 + 0.4*sin(r*0.004); if (r > ringR.x && r < ringR.y) col *= 1. - ringShadowI*band; } } }

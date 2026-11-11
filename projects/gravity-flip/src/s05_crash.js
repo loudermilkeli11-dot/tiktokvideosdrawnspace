@@ -89,7 +89,7 @@ for (let k = 0; k < 40; k++) { const ts = 0.05 + k * 0.05, front = OU.surgeR.val
       t0: T_IMP + 4 + ts, size: SR() < 0.4 ? 1.5 + SR() * 2.5 : 0.5 + SR() * 0.8, drag: 0.5, life: 2, kind: SR() < 0.4 ? 1 : 0 }); } }
 const spray = createSpray(S, parts);
 { const ob = ocean.refl.onBeforeRender; ocean.refl.onBeforeRender = (r, sc, cam) => { spray.mesh.visible = false; ob(r, sc, cam); spray.mesh.visible = true; }; }   // no spray in the mirror
-spray.U.sunDir.value.copy(SUN); spray.U.hazeD.value = 4000;
+spray.U.sunDir.value.copy(SUN); spray.U.hazeD.value = 4000; spray.U.streak.value = +(Q.get("stk") ?? 1 / 15);   // long streaks: jets of water, not flakes
 console.log('spray particles', parts.length, 'boats', boats.length, 'impact at shot t', T_IMP.toFixed(3));
 const q = new THREE.Quaternion(), e = new THREE.Euler(), bp = new THREE.Vector3();
 S.run((t) => {

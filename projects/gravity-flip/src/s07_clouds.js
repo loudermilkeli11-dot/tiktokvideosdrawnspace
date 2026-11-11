@@ -81,7 +81,7 @@ for (const m of crowd.meshes) for (const p of m.userData.list) { p.x0 = p.x; p.y
 // ---- cars ----
 const carCols = [0xb21d1d, 0xf2f2ee, 0x2a4f9a, 0xe0b23a, 0x1d1f24, 0x2f6b4a, 0xd96a2b, 0x8a8f96];
 const wheelG = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14).rotateZ(Math.PI / 2);
-const glassM = new THREE.MeshStandardMaterial({ color: 0x0e1418, roughness: 0.06, metalness: 0.9 }), tyreM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+const glassM = new THREE.MeshStandardMaterial({ color: 0x0e1418, roughness: 0.06, metalness: 0.9 }), tyreM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }), chassisM = new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.9 });
 // side profiles (length along z, height y) extruded across the width with rounded edges: sedans and one bus
 function extrudeProfile(pts, width, bevel = 0.06) {
   const sh = new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y)));
@@ -96,6 +96,7 @@ function makeCar(col, M) {
   g.add(new THREE.Mesh(extrudeProfile(M.body, M.W), paint));
   g.add(new THREE.Mesh(extrudeProfile(M.glass, M.bus ? M.W + 0.03 : M.W * 0.86, 0.04), glassM));
   if (M.roof) g.add(new THREE.Mesh(extrudeProfile(M.roof, M.W * 0.84, 0.03), paint));
+  const under = new THREE.Mesh(new THREE.BoxGeometry(M.W * 0.92, 0.12, (M.bus ? 8.6 : 4.1)), chassisM); under.position.y = 0.27; g.add(under);   // dark underbody
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(wheelG, tyreM); w.position.set(sx * (M.W / 2 - 0.1), 0.34, sz * M.wz); g.add(w); }
   return g;
 }
@@ -105,7 +106,7 @@ const cars = [[-30, -38, -48], [34, 14, -52], [52, -64, -80], [-55, 40, -70], [8
   scene.add(g); return g;
 });
 // one car was still driving when gravity flipped: it keeps its road speed (~36 km/h) relative to us and tumbles across the top of frame
-{ const hc = cars[0]; hc.userData.hero = true; hc.userData.p.set(40, 1.2, -22); hc.userData.v.set(-10, 0.3, 0); hc.userData.w.set(0.7, 0.4, 1.1); }
+{ const hc = cars[0]; hc.userData.hero = true; hc.userData.p.set(40, 1.2, -22); hc.userData.v.set(-10, 0.3, 0); hc.userData.w.set(0.18, 0.75, 0.32); hc.userData.e0.set(0.55, -1.4, 0.2); }
 // ---- plaza furniture falling up with us: cafe umbrellas, benches, bins, planters, cafe tables ----
 function part(g, col, m) { g = g.index ? g.toNonIndexed() : g; if (m) g.applyMatrix4(m); g.deleteAttribute('uv'); const c = new THREE.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) c.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }
@@ -145,7 +146,7 @@ S.run((t) => {
   for (const d of deb) { d.m.position.copy(d.p).addScaledVector(d.v, tt); d.m.rotation.set(d.e.x + d.w.x * tt, d.e.y + d.w.y * tt, d.e.z + d.w.z * tt); }
   paper.forEach((d, i) => { qq.setFromEuler(ee.set(d.e.x + d.w.x * tt, d.e.y + d.w.y * tt, d.e.z + d.w.z * tt)); vv.copy(d.p).add(sc.set(Math.sin(tt * 1.3 + i) * 0.6, Math.sin(tt * 0.9 + i * 2) * 0.6, 0)); papM.setMatrixAt(i, m4.compose(vv, qq, sc.set(1, 1, 1))); });
   papM.instanceMatrix.needsUpdate = true;
-  birds.update(t, (x) => new THREE.Vector3(-13 + (x - 4) * 4.2, -15 + (x - 4) * 5 + Math.sin(x * 0.7) * 1.5, -15), 3.5, 1.0);   // pigeons flap across, rising past us
+  birds.update(t, (x) => new THREE.Vector3(-26 + (x - 4) * 8, -30 + (x - 4) * 10 + Math.sin(x * 0.7) * 2, -32), 6, 1.2);   // pigeons flap across, rising past us
   const C = camAt(tt), pos = C.pos;
   applyCam(camera, C, shake(t, 0.25 + 0.5 * Math.exp(-((tt - PASS) ** 2) / 0.3), 1.4, 7));
   sun.position.copy(SUN).multiplyScalar(500).add(pos); sun.target.position.copy(pos);

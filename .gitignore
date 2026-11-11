@@ -5,3 +5,4 @@ engine/node_modules/
 node_modules/
 projects/*/dist/
 projects/*/out/
+tools/_*

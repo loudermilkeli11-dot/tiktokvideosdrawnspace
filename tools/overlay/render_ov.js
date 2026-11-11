@@ -32,7 +32,7 @@ function validate(caps, total) {
   const dur = total / FPS;
   const sorted = [...caps].sort((a, b) => a.t0 - b.t0);
   sorted.forEach((c, i) => {
-    const n = c.text.trim().split(/\s+/).length;
+    const n = c.text.replace(/\|/g, ' ').trim().split(/\s+/).length;
     const tag = `caption @${c.t0.toFixed(2)}s "${c.text}"`;
     if (n > 8) warns.push(`${tag}: ${n} words (> 8)`);
     if (c.t1 - c.t0 < 2.8) warns.push(`${tag}: on screen ${(c.t1 - c.t0).toFixed(2)}s (< 2.8s)`);

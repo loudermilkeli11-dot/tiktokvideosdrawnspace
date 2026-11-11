@@ -1,0 +1,3 @@
+# moon-2x: first video (sealed dossier channel/war-room/2026-11-11-first-video.md). Board in progress; only the hook exists.
+# <name> <frames>
+s01_hook 90

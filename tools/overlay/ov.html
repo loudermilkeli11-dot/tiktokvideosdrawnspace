@@ -4,6 +4,10 @@
 @font-face { font-family: 'Anton'; src: url('fonts/anton-latin-400-normal.woff2') format('woff2'); font-weight: 400; }
 @font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-500-normal.woff2') format('woff2'); font-weight: 500; }
 @font-face { font-family: 'Azeret Mono'; src: url('fonts/azeret-mono-latin-700-normal.woff2') format('woff2'); font-weight: 700; }
+@font-face { font-family: 'Big Shoulders Display'; src: url('fonts/big-shoulders-display-latin-800-normal.woff2') format('woff2'); font-weight: 800; }
+@font-face { font-family: 'Big Shoulders Display'; src: url('fonts/big-shoulders-display-latin-900-normal.woff2') format('woff2'); font-weight: 900; }
+@font-face { font-family: 'Inter Tight'; src: url('fonts/inter-tight-latin-600-normal.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: 'Inter Tight'; src: url('fonts/inter-tight-latin-800-normal.woff2') format('woff2'); font-weight: 800; }
 html, body { margin: 0; background: transparent; }
 canvas { display: block; }
 </style></head>
@@ -16,11 +20,17 @@ const FPS = 30, S = 2;
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
+// Channel look (Commander's pick 2026-11-11): 'documentary' = Big Shoulders Display 900 captions, amber payoff words,
+// soft shadow + top scrim, boxless Inter Tight counter. 'classic' = the original Anton/Azeret Mono look.
+const LOOKS = {
+  documentary: { look: 'documentary', accent: '#FFB347', capFont: "'Big Shoulders Display'", capWeight: 900, capSize: 50, capMinSize: 30,
+    capStroke: 0, capShadow: 0, capBlur: 18, capShadowCol: 'rgba(0,0,0,0.85)', capTrack: 0.5, scrim: 0.55, scrimY: 400 },
+  classic: { look: 'classic', accent: '#FFD23F', capFont: 'Anton', capWeight: 400, capSize: 46, capMinSize: 26, capStroke: 8, capShadow: 3.5, capBlur: 0, capTrack: 0, scrim: 0 },
+};
 const DEFAULT_STYLE = {
-  accent: '#FFD23F',
-  capFont: 'Anton', capSize: 46, capMinSize: 26, capMaxW: 480, capY0: 230, capY1: 350,
-  capStroke: 8,          // design px lineWidth (=> ~8 real px outline outside glyph)
-  capShadow: 3.5,        // design px hard shadow offset (=> 7 real px)
+  ...LOOKS.documentary,
+  capMaxW: 480, capY0: 230, capY1: 350,
+  // capStroke: design px outline (classic); capShadow: hard shadow offset (classic); capBlur: soft shadow (documentary)
   capLineGap: 1.02,
   capPunchFrames: 4, capPunchScale: 1.12, capOutFrames: 2,
   panelY0: 129, panelY1: 210, panelW: 380,
@@ -39,8 +49,18 @@ const fmtThousands = v => {
 const fr = t => Math.round(t * FPS);   // seconds -> frame
 
 // ---------------- captions ----------------
+const capFontStr = (size) => `${ST.capWeight || 400} ${size}px ${ST.capFont}`;
 function layoutCaption(text, hl, size, force) {
-  ctx.font = `${size}px ${ST.capFont}`;
+  ctx.font = capFontStr(size); ctx.letterSpacing = (ST.capTrack || 0) + 'px';
+  // explicit line break: "first line | second line"
+  if (text.includes('|')) {
+    const parts = text.split('|').map((t) => t.trim()).filter(Boolean).slice(0, 2);
+    const space = ctx.measureText(' ').width * 1.15 + ST.capStroke * 0.35;
+    const lines = parts.map((t) => t.toUpperCase().split(/\s+/).filter(Boolean).map((w) => ({ w, width: ctx.measureText(w).width, hl: hl.includes(w.replace(/[^A-Z0-9×%]/g, '')) })));
+    const widths = lines.map((l) => l.reduce((a, b) => a + b.width, 0) + space * (l.length - 1));
+    if (Math.max(...widths) <= ST.capMaxW || force) return { lines, widths, size, space };
+    return null;
+  }
   const words = text.toUpperCase().split(/\s+/).filter(Boolean);
   const space = ctx.measureText(' ').width * 1.15 + ST.capStroke * 0.35; // outline eats the gap
   const ws = words.map(w => ({ w, width: ctx.measureText(w).width,
@@ -59,6 +79,11 @@ function layoutCaption(text, hl, size, force) {
   }
   if (best.m <= ST.capMaxW || force) return { lines: best.lines, widths: best.widths, size, space };
   return null;
+}
+function drawScrim() { // top darkening so captions and counter sit on a calm, dark background
+  if (!ST.scrim) return; ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, ST.scrimY); g.addColorStop(0, `rgba(0,0,0,${ST.scrim})`); g.addColorStop(0.6, `rgba(0,0,0,${ST.scrim * 0.45})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 540, ST.scrimY); ctx.restore();
 }
 const capCache = new Map();
 function fitCaption(text, hl) {
@@ -84,7 +109,7 @@ function drawCaption(c, f) {
   if (fromEnd <= ST.capOutFrames && c.cutOut !== false) {
     if (fromEnd === 1) return;     // final frame: gone (hard cut out)
   }
-  const L = fitCaption(c.text, (c.hl || []).map(w => w.toUpperCase()));
+  const L = fitCaption(c.text, (c.hl || []).map(w => w.toUpperCase().replace(/[^A-Z0-9×%]/g, '')));
   const k = (f - f0) / ST.capPunchFrames;
   let sc = c.punch === false ? 1 : ST.capPunchScale + (1 - ST.capPunchScale) * easeOut(k);
   if (fromEnd === 2 && c.cutOut !== false) sc *= 0.96;
@@ -94,7 +119,7 @@ function drawCaption(c, f) {
   ctx.save();
   ctx.setTransform(S * sc, 0, 0, S * sc, S * 270 * (1 - sc) + 0, S * cy * (1 - sc));
   // after transform, coordinates are design px scaled about (270, cy)
-  ctx.font = `${L.size}px ${ST.capFont}`;
+  ctx.font = capFontStr(L.size); ctx.letterSpacing = (ST.capTrack || 0) + 'px';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round'; ctx.miterLimit = 2;
   const drawPass = (pass) => {
@@ -102,11 +127,15 @@ function drawCaption(c, f) {
       let x = 270 - L.widths[i] / 2;
       const y = cy - blockH / 2 + lh * (i + 0.5) + L.size * 0.04;
       for (const w of line) {
-        if (pass === 'shadow') {
+        if (pass === 'shadow' && ST.capBlur) {
+          ctx.save(); ctx.shadowColor = ST.capShadowCol; ctx.shadowBlur = ST.capBlur * S; ctx.shadowOffsetY = 2 * S;
+          ctx.fillStyle = '#000'; ctx.fillText(w.w, x, y); ctx.restore();
+        } else if (pass === 'shadow') {
           ctx.lineWidth = ST.capStroke; ctx.strokeStyle = '#000'; ctx.fillStyle = '#000';
           ctx.strokeText(w.w, x + ST.capShadow, y + ST.capShadow);
           ctx.fillText(w.w, x + ST.capShadow, y + ST.capShadow);
         } else if (pass === 'stroke') {
+          if (!ST.capStroke) { x += w.width + L.space; continue; }
           ctx.lineWidth = ST.capStroke; ctx.strokeStyle = '#000';
           ctx.strokeText(w.w, x, y);
         } else {
@@ -118,6 +147,7 @@ function drawCaption(c, f) {
     });
   };
   drawPass('shadow'); drawPass('stroke'); drawPass('fill');
+  ctx.letterSpacing = '0px';
   ctx.restore();
 }
 
@@ -147,6 +177,19 @@ function drawCounter(cn, f) {
   const cy = (y0 + y1) / 2;
   ctx.save();
   ctx.setTransform(S * inSc, 0, 0, S * inSc, S * 270 * (1 - inSc), S * cy * (1 - inSc));
+  if (ST.look === 'documentary') {   // boxless: amber rule, tracked label, big Inter Tight value with soft shadow
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = cn.accent || ST.accent; ctx.fillRect(252, y0 + 6, 36, 2.5);
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 10 * S;
+    ctx.font = `600 11px 'Inter Tight'`; ctx.letterSpacing = '3px'; ctx.fillStyle = 'rgba(255,255,255,0.78)';
+    ctx.fillText(String(cn.label).toUpperCase(), 270 + 1.5, y0 + 24); ctx.letterSpacing = '0px';
+    let vs = cn.valueSize || 40; ctx.font = `800 ${vs}px 'Inter Tight'`;
+    while (ctx.measureText(txt).width > w + 60 && vs > 16) { vs -= 1; ctx.font = `800 ${vs}px 'Inter Tight'`; }
+    const ps = 1 + (ST.pulseScale - 1) * pulse;
+    ctx.translate(270, y0 + 60); ctx.scale(ps, ps); ctx.shadowBlur = 14 * S;
+    ctx.fillStyle = pulse > 0 ? (cn.accent || ST.accent) : '#FFFFFF'; ctx.fillText(txt, 0, 0);
+    ctx.restore(); return;
+  }
   ctx.beginPath(); ctx.roundRect(270 - w / 2, y0, w, h, 14);
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
   ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.stroke(); // 1 design = 2 real px
@@ -171,6 +214,9 @@ function drawCounter(cn, f) {
 function drawTag(tg, f) {
   if (f < fr(tg.t0) || f >= fr(tg.t1)) return;
   ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0);
+  if (ST.look === 'documentary') { ctx.font = `600 9px 'Inter Tight'`; ctx.letterSpacing = '3px'; ctx.textBaseline = 'middle'; ctx.textAlign = tg.align || 'left';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6 * S; ctx.fillStyle = 'rgba(255,255,255,0.68)';
+    ctx.fillText(String(tg.text).toUpperCase(), tg.x ?? ST.tagX, tg.y ?? ST.tagY); ctx.restore(); return; }
   ctx.font = `700 11px 'Azeret Mono'`; ctx.letterSpacing = '2.2px';
   ctx.textBaseline = 'middle';
   const align = tg.align || 'left';
@@ -198,12 +244,14 @@ window.ov = {
     await document.fonts.load(`46px Anton`);
     await document.fonts.load(`500 12px 'Azeret Mono'`);
     await document.fonts.load(`700 12px 'Azeret Mono'`);
+    for (const f of [`900 50px 'Big Shoulders Display'`, `800 50px 'Big Shoulders Display'`, `600 11px 'Inter Tight'`, `800 40px 'Inter Tight'`]) await document.fonts.load(f, '0123456789AZ×');
     TOTAL = info.total;
     const mod = await import(overlayUrl);
     let raw = mod.default;
     if (typeof raw === 'function') raw = await raw(info);
     SPEC = normalizeSpec(raw);
-    ST = Object.assign({}, DEFAULT_STYLE, SPEC.style || {});
+    const st = SPEC.style || {};
+    ST = Object.assign({}, DEFAULT_STYLE, LOOKS[st.look] || {}, st);
     return {
       captions: SPEC.captions.map(c => ({ t0: c.t0, t1: c.t1, text: c.text })),
       fonts: [...document.fonts].map(f => f.family + ':' + f.status),
@@ -214,6 +262,8 @@ window.ov = {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const t = f / FPS;
     let n = 0;
+    const anyText = SPEC.captions.some((c) => f >= fr(c.t0) && f < fr(c.t1)) || SPEC.counter.some((c) => f >= fr(c.t0) && f < fr(c.t1));
+    if (anyText) drawScrim();
     for (const tg of SPEC.tags) { if (f >= fr(tg.t0) && f < fr(tg.t1)) { drawTag(tg, f); n++; } }
     for (const cn of SPEC.counter) { if (f >= fr(cn.t0) && f < fr(cn.t1)) { drawCounter(cn, f); n++; } }
     for (const c of SPEC.captions) { if (f >= fr(c.t0) && f < fr(c.t1)) { drawCaption(c, f); n++; } }

@@ -19,7 +19,12 @@ The owner is the Commander. The target is good quality, fast.
 ### No voiceover, ever
 - Captions and sound design tell the story.
 - Captions are 8 words or fewer and stay on screen for at least 2.8 s.
-- Captions use Anton with a thick black outline and a hard shadow. The counter uses Azeret Mono.
+- Look: **Documentary** (the Commander's choice, 2026-11-11).
+  - Captions are Big Shoulders Display 900, uppercase, with the payoff words in amber (#FFB347).
+  - They get a soft shadow and a dark top scrim, not a cartoon outline.
+  - The counter is boxless: an amber rule, a tracked Inter Tight label and a big Inter Tight 800 value.
+  - It's the default in `tools/overlay/ov.html`. `style: { look: 'classic' }` restores the old Anton / Azeret Mono look.
+  - Use `|` in a caption to choose the line break.
 - Speculative shots are tagged `DRAMATIZATION`.
 - No engagement bait. No fluffy smoke or fog.
 
@@ -68,6 +73,10 @@ bland transitions, jumpy animation." Every shot must clear this bar.
    - an all-night-side Earth;
    - "rain" streak textures on water;
    - big blocky hero figures. Keep the character a small, clean silhouette.
+7. **People** come from `engine/src/figure.js`: smooth posed bodies with real proportions, hair, coats and bags, never primitives.
+   Pose them with `POSES` (hand targets), and keep the hero at about 55–80 design px tall.
+8. **Lenses:** for a giant body in the sky, use a long lens (70–135 mm) from low and far away. This compresses the hero against the disc.
+   Leading lines (a pier, a road, rails) point at the hero.
 
 ## 3. Production targets
 

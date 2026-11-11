@@ -130,10 +130,150 @@ def analyze_motion(g):
     return luma, lapvar, shifts, peak, mad, local, hcorr
 
 
+# ---------------------------------------------------------------- text contrast (A4)
+_V = np.arange(256) / 255.0
+_LIN = np.where(_V <= 0.04045, _V / 12.92, ((_V + 0.055) / 1.055) ** 2.4)
+CT_MIN = 3.0      # luminance contrast floor (WCAG ratio)
+CT_TILE = 48      # analysis tile, px of 1080x1920 (= 24 design px)
+
+
+def rel_lum(rgb):
+    """sRGB uint8 (..., 3) -> WCAG relative luminance."""
+    return _LIN[rgb[..., 0]] * 0.2126 + _LIN[rgb[..., 1]] * 0.7152 + _LIN[rgb[..., 2]] * 0.0722
+
+
+def box_any(m, r):
+    """dilate a bool mask by a (2r+1)^2 square (integral image, O(N))."""
+    c = np.pad(m.astype(np.int32), ((r + 1, r), (r + 1, r))).cumsum(0).cumsum(1)
+    k = 2 * r + 1
+    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) > 0
+
+
+def contrast_frame(ov, img):
+    """ov: overlay RGBA uint8 (straight alpha); img: the composited frame (RGB uint8) after yuv420p.
+    Text = opaque, bright overlay pixels (glyph cores; bands and shadows are dark and translucent, so they are not text).
+    Surround = composited pixels in a ring 3-12 px around the glyphs (bands and shadows included: what the eye sees).
+    Per 48 px tile and per class (white / accent-coloured): median text luminance vs the 90th and 10th percentile of the
+    surround within +-24 px; the worse ratio counts. -> [(ratio, x, y, cls)] in 1080x1920 px."""
+    a = ov[..., 3]
+    yl = rel_lum(ov[..., :3])
+    core = (a >= 230) & (yl >= 0.3)
+    if core.sum() < 20:
+        return []
+    anyt = (a >= 90) & (yl >= 0.2)
+    ys, xs = np.nonzero(anyt)
+    y0, y1 = max(0, ys.min() - 40), min(ov.shape[0], ys.max() + 41)
+    x0, x1 = max(0, xs.min() - 40), min(ov.shape[1], xs.max() + 41)
+    core, anyt = core[y0:y1, x0:x1], anyt[y0:y1, x0:x1]
+    ring = box_any(anyt, 12) & ~box_any(anyt, 3)
+    L = rel_lum(img[y0:y1, x0:x1])
+    rgb = ov[y0:y1, x0:x1, :3].astype(np.int16)
+    accent = (rgb.max(-1) - rgb.min(-1)) > 40
+    out, (H, W), T = [], core.shape, CT_TILE
+    for ty in range(0, H, T):
+        for tx in range(0, W, T):
+            c = core[ty:ty + T, tx:tx + T]
+            if c.sum() < 12:
+                continue
+            by0, by1, bx0, bx1 = max(0, ty - T // 2), min(H, ty + T + T // 2), max(0, tx - T // 2), min(W, tx + T + T // 2)
+            rb = L[by0:by1, bx0:bx1][ring[by0:by1, bx0:bx1]]
+            if rb.size < 30:
+                continue
+            hi, lo = np.percentile(rb, 90), np.percentile(rb, 10)
+            acc = accent[ty:ty + T, tx:tx + T]
+            for cls, m in (('white', c & ~acc), ('accent', c & acc)):
+                if m.sum() < 12:
+                    continue
+                tl = float(np.median(L[ty:ty + T, tx:tx + T][m]))
+                cr = min((max(tl, b) + 0.05) / (min(tl, b) + 0.05) for b in (hi, lo))
+                out.append((cr, x0 + tx + T // 2, y0 + ty + T // 2, cls))
+    return out
+
+
+def probe_wh(path):
+    w, h = run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0',
+                path]).stdout.decode().strip().split(',')[:2]
+    return int(w), int(h)
+
+
+def read_frames(path, step, pix, ch):
+    """every `step`-th frame (n = 0, step, 2*step, ...) of a video as uint8 arrays (streamed)."""
+    w, h = probe_wh(path)
+    p = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', path, '-an', '-vf', f"select='not(mod(n\\,{step}))'", '-fps_mode', 'passthrough',
+                          '-f', 'rawvideo', '-pix_fmt', pix, '-'], stdout=subprocess.PIPE)
+    n = w * h * ch
+    while True:
+        buf = p.stdout.read(n)
+        if len(buf) < n:
+            break
+        yield np.frombuffer(buf, np.uint8).reshape(h, w, ch)
+    p.stdout.close(); p.wait()
+
+
+def contrast_report(rows, P, warns, step):
+    """rows: [(frame, tiles)]; appends the report lines (P) and a WARN when any sampled frame is below CT_MIN."""
+    rows = [(f, t) for f, t in rows if t]
+    if not rows:
+        P("text contrast (A4): no overlay text in the sampled frames"); return
+    def fmt(r): return f"{r[0]:.2f}:1 {r[3]} text at design ({r[1] / 2:.0f},{r[2] / 2:.0f})"
+    worst = {cls: min(((min(x for x in t if x[3] == cls), f) for f, t in rows if any(x[3] == cls for x in t)), default=None)
+             for cls in ('white', 'accent')}
+    bad = [(f, min(t)) for f, t in rows if min(t)[0] < CT_MIN]
+    P(f"text contrast (A4, after yuv420p; every {step / FPS:.2f} s, {len(rows)} sampled frames with text):"
+      + "".join(f"  worst {cls} {fmt(w[0])} @ f{w[1]} {tc(w[1])};" for cls, w in worst.items() if w)
+      + f"  {len(bad)} frames below {CT_MIN:.0f}:1" + (" — OK" if not bad else ""))
+    for f, r in bad[:40]:
+        P(f"  f{f} {tc(f)}  {fmt(r)}   <- below {CT_MIN:.0f}:1")
+    if bad:
+        warns.append(f"text contrast below {CT_MIN:.0f}:1 in {len(bad)} sampled frames (worst {min(r for _, r in bad)[0]:.2f}:1)")
+
+
+def contrast_only(args):
+    """--contrast OVERLAY --bg BACKGROUND [--every S]: composite, yuv420p round-trip, measure. Exit 0 (warnings only)."""
+    opt = lambda k: args[args.index(k) + 1] if k in args else None
+    ovp, bgp, step = opt('--contrast'), opt('--bg'), max(1, round(float(opt('--every') or 0.5) * FPS))
+    if not bgp:
+        print("usage: check.py --contrast OVERLAY(.mov | png dir) --bg BACKGROUND(video | image) [--every 0.5]"); sys.exit(2)
+    t0 = time.time()
+    if os.path.isdir(ovp):        # render_ov.js --png output: ov_NNNNN.png
+        files = {int(re.sub(r'\D', '', f) or -1): os.path.join(ovp, f) for f in os.listdir(ovp) if re.fullmatch(r'ov_\d+\.png', f)}
+        keep = sorted(n for n in files if n % step == 0) or sorted(files)
+        ovs = [(n, np.asarray(Image.open(files[n]).convert('RGBA'))) for n in keep]
+    else:
+        ovs = list(enumerate(read_frames(ovp, step, 'rgba', 4)))
+        ovs = [(k * step, o) for k, o in ovs]
+    H, W = ovs[0][1].shape[:2]
+    if os.path.splitext(bgp)[1].lower() in ('.png', '.jpg', '.jpeg', '.webp'):
+        still = np.asarray(Image.open(bgp).convert('RGB').resize((W, H), Image.LANCZOS))
+        bgs = {n: still for n, _ in ovs}
+    else:
+        want = {n for n, _ in ovs}
+        p = subprocess.run(['ffmpeg', '-v', 'error', '-i', bgp, '-an', '-vf', f'scale={W}:{H},format=rgb24', '-f', 'rawvideo', '-'],
+                           capture_output=True, check=True).stdout
+        allf = np.frombuffer(p, np.uint8).reshape(-1, H, W, 3)
+        bgs = {n: allf[min(n, len(allf) - 1)] for n in want}
+    comp = []
+    for n, o in ovs:
+        a = o[..., 3:4].astype(np.float32) / 255
+        comp.append((o[..., :3] * a + bgs[n] * (1 - a)).round().astype(np.uint8))
+    rt = subprocess.run(['ffmpeg', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-i', '-',
+                         '-vf', 'format=yuv420p,format=rgb24', '-f', 'rawvideo', '-'],
+                        input=np.stack(comp).tobytes(), capture_output=True, check=True).stdout
+    rt = np.frombuffer(rt, np.uint8).reshape(-1, H, W, 3)
+    out, warns = [], []
+    contrast_report([(n, contrast_frame(o, rt[k])) for k, (n, o) in enumerate(ovs)], out.append, warns, step)
+    for w in warns:
+        out.append(f"WARN: {w}")
+    out.append(f"({len(ovs)} frames, {time.time() - t0:.1f}s)")
+    print("\n".join(out))
+
+
 def main():
     args = sys.argv[1:]
     if not args:
         print(__doc__); sys.exit(2)
+    if '--contrast' in args:
+        return contrast_only(args)
     t_start = time.time()
     video = os.path.abspath(args[0])
     opt = lambda k: args[args.index(k) + 1] if k in args else None
@@ -225,6 +365,16 @@ def main():
         ok = pk <= -60
         P(f"silence {a:.3f}-{b:.3f}s: peak {pk:.1f} dBFS {'OK' if ok else 'FAIL (> -60)'}")
         if not ok: warns.append(f"silent range {a:.2f}-{b:.2f}s peak {pk:.1f} dBFS")
+
+    # text contrast (A4): overlay text vs the composited pixels around it, in the final (yuv420p) frames, every 0.5 s
+    ovp = opt('--overlay') or os.path.join(projdir, 'out', 'overlay.mov')
+    if os.path.exists(ovp) and probe_wh(ovp) == probe_wh(video):
+        step = round(0.5 * FPS)
+        rows = [(k * step, contrast_frame(o, im)) for k, (im, o) in
+                enumerate(zip(read_frames(video, step, 'rgb24', 3), read_frames(ovp, step, 'rgba', 4)))]
+        contrast_report(rows, P, warns, step)
+    else:
+        P(f"text contrast (A4): skipped ({'no ' + ovp if not os.path.exists(ovp) else 'overlay size differs from the video'})")
 
     # loop check
     if n > 1:

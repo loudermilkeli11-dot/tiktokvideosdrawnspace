@@ -1,5 +1,5 @@
-// s07_clouds sound (5.0 s + 0.6 tail): cut hit; a thin, high wind 13 km up; pigeons flapping; far-off cries from the crowd
-// falling up around us; then the jet: a turbofan scream rising from below, roaring past at 2.4 s (Doppler drop: we and the
+// s07_clouds sound (5.0 s + 0.6 tail): cut hit; a thin, high wind 13 km up; far-off cries from the crowd falling up around
+// us; pigeons and a tumbling car drifting past late in the shot; and the jet: a turbofan scream rising from below, roaring past at 2.4 s (Doppler drop: we and the
 // air fall together, the jet flies through that air at ~100 m/s) and wobbling as it tumbles away upward.
 function SOUND(ctx, out, dur) {
   const rv = verb(ctx, out, 2.4, 0.22), PASS = 2.4, V = 100, D0 = 66, C = 343;
@@ -9,7 +9,8 @@ function SOUND(ctx, out, dur) {
   wind(ctx, out, { t0: 0, t1: dur, gain: -27, f: 5200 });
   rumble(ctx, out, { t0: 0, t1: dur, gain: -26, level: (t) => 0.5 + 0.5 * Math.exp(-((t - PASS) ** 2) / 0.6), sub: 38 });
   crowd(ctx, rv, { t0: 0, t1: dur, gain: -33, voices: 8, excite: () => 0.9, seed: 7, pan: -0.2 });
-  flutter(ctx, out, { t: 0.3, dur: 2.2, gain: -27, pan0: -0.7, pan1: 0.1 });
+  flutter(ctx, out, { t: 2.8, dur: 2.2, gain: -27, pan0: -0.5, pan1: 0.4 });                  // the pigeon flock crossing, left to right
+  whoosh(ctx, out, { t: 3.5, dur: 1.3, gain: -22, f0: 200, f1: 900, pan0: 0.7, pan1: -0.7 });  // the tumbling car drifting past below us, right to left
   // the jet: distance, radial speed -> level and Doppler factor
   const dist = (t) => Math.hypot(D0, V * (t - PASS)), vr = (t) => (V * V * (t - PASS)) / dist(t), dop = (t) => C / (C + vr(t));
   const lvl = (t) => Math.min(1, D0 / dist(t)) * sstep(-0.2, 0.8, t), wob = (t) => 0.72 + 0.28 * Math.sin(t * 4.7 + Math.sin(t * 1.9) * 2);   // tumbling: the intake swings to and from us

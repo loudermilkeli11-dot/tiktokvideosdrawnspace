@@ -247,13 +247,17 @@ const V2 = {
   fade: 0.15,
   title: { font: "'Instrument Serif'", size: 47, lh: 0.98, top: 170, maxW: 492, minSize: 34, shadow: [2, 16, 0.55] },
   cap: { font: "'Instrument Serif'", size: 34, lh: 1.0, top: 590, maxW: 430, minSize: 26, shadow: [2, 14, 0.65] },
-  // CSS radial-gradient(ellipse rx% ry% at cx% cy%, rgba(6,10,18,a), transparent stop%) on box x,y,w,h
-  titleBand: { x: 0, y: 120, w: 540, h: 230, cx: 0.5, cy: 0.5, rx: 0.70, ry: 0.60, stop: 0.72, a: 0.55 },
-  ctrBand: { x: 0, y: 360, w: 320, h: 150, cx: 0.2, cy: 0.5, rx: 0.80, ry: 0.70, stop: 0.75, a: 0.5 },
-  capBand: { a: 0.5, padX: 115, minRX: 190, padY: 40, plateau: [0.6, 0.75] },   // sized to the caption; flat core, soft edge
+  // bands: rgba(6,10,18,a) ellipses around each text block with a flat core and a soft edge (the mock-up's pure radial
+  // fades left the line ends and the fact line at ~0.1 alpha: < 3:1 on a noon sky after yuv420p, A4)
+  titleBand: { a: 0.6, padX: 150, padY: 64, minRX: 200, plateau: [0.68, 0.85] },
+  tagBand: { a: 0.55, padX: 40, padY: 16, plateau: [0.65, 0.85] },
+  ctrBand: { a: 0.55, padX: 70, padY: 55, plateau: [0.65, 0.85] },        // fixed size (block width = ctr.maxW): no jitter
+  capBand: { a: 0.6, padX: 110, padY: 42, minRX: 190, plateau: [0.62, 0.85] },
+  tight: [0, 2.5, 0.6],   // + a tight dark halo under all text [offsetY, blur, opacity] (tiny type + accent on bright skies)
+  emHalo: [0, 7, 0.75],   // + a soft dark halo under accent words only (A4: "a darker key word"; amber needs bg L <= 0.165)
   ctr: { x: 22, y: 384, bar: 3, pad: 12, lab: { size: 9.5, ls: 2.6, op: 0.95 }, val: { size: 52, ls: -1 }, fact: { size: 8.5, ls: 2, op: 0.92 },
     gap: [5, 6], shadow: [2, 10, 0.6], maxW: 236 },
-  tag: { x: 22, y: 118, size: 8, ls: 2.2, op: 0.8, shadow: [1, 4, 0.6] },
+  tag: { x: 22, y: 118, size: 8, ls: 2.2, op: 0.9, shadow: [1, 4, 0.6] },
 };
 const V2M = {};              // DOM-measured line boxes: key -> { lh, base } (design px), tab -> tabular digit width per font
 let SCR = null, sctx = null; // scratch layer: text is drawn here, then composited with ONE shadow (as CSS text-shadow)
@@ -324,8 +328,20 @@ function v2Layout(text, hl, kind) {     // fit: explicit lines; a too-wide singl
   ctx.restore(); v2Cache.set(key, L); return L;
 }
 // draw a laid-out title/caption onto the scratch layer; returns the block's design-px box
-function v2DrawText(L, kind, top) {
-  const P = V2[kind], k = L.size / P.size, lh = V2M[kind].lh * k, base = V2M[kind].base * k;
+function v2DrawText(L, kind, top, alpha = 1) {
+  const P = V2[kind], k = L.size / P.size, lh = V2M[kind].lh * k, base = V2M[kind].base * k, EH = V2.emHalo, OFF = 4096;
+  if (EH) {                     // accent halo straight onto the canvas (shadow-only pass), under the composited text
+    ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); ctx.globalAlpha = alpha; ctx.letterSpacing = '0px'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = `rgba(0,0,0,${EH[2]})`; ctx.shadowBlur = EH[1] * S; ctx.shadowOffsetX = OFF; ctx.shadowOffsetY = EH[0] * S; ctx.fillStyle = '#000';
+    L.lines.forEach((ln, i) => {
+      let x = 270 - ln.w / 2; const y = top + i * lh + base;
+      ln.words.forEach((segs, j) => {
+        for (const g of segs) { ctx.font = v2Font[kind](L.size, g.em); if (g.em) ctx.fillText(g.t, x - OFF / S, y); x += ctx.measureText(g.t).width; }
+        if (j < ln.sp.length) x += ln.sp[j];
+      });
+    });
+    ctx.restore();
+  }
   sctx.save(); sctx.setTransform(S, 0, 0, S, 0, 0); sctx.textBaseline = 'alphabetic'; sctx.textAlign = 'left'; sctx.letterSpacing = '0px';
   let maxW = 0;
   L.lines.forEach((ln, i) => {
@@ -345,10 +361,16 @@ function v2Composite(box, shadow, alpha) {
   const w = Math.min(canvas.width, Math.ceil((box.x + box.w + m) * S)) - x, h = Math.min(canvas.height, Math.ceil((box.y + box.h + m) * S)) - y;
   if (w <= 0 || h <= 0) return;
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = alpha;
-  ctx.shadowColor = `rgba(0,0,0,${shadow[2]})`; ctx.shadowBlur = shadow[1] * S; ctx.shadowOffsetY = shadow[0] * S;
+  const TS = V2.tight, OFF = 4096;   // shadow-only pass: the glyphs land off-canvas, their shadow is offset back in place
+  if (TS) { ctx.shadowColor = `rgba(0,0,0,${TS[2]})`; ctx.shadowBlur = TS[1] * S; ctx.shadowOffsetX = OFF; ctx.shadowOffsetY = TS[0] * S; ctx.drawImage(SCR, x, y, w, h, x - OFF, y, w, h); }
+  ctx.shadowColor = `rgba(0,0,0,${shadow[2]})`; ctx.shadowBlur = shadow[1] * S; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = shadow[0] * S;
   ctx.drawImage(SCR, x, y, w, h, x, y, w, h);
   ctx.restore();
   sctx.save(); sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(x, y, w, h); sctx.restore();
+}
+function v2BandAt(cx, cy, RX, RY, B, alpha) {   // flat-core ellipse band centred on a text block
+  v2Band({ x: cx - RX - 2, y: cy - RY - 2, w: 2 * RX + 4, h: 2 * RY + 4, cx: 0.5, cy: 0.5, rx: RX / (2 * RX + 4), ry: RY / (2 * RY + 4), stop: 1, a: B.a },
+    alpha, [[0, 1], [B.plateau[0], B.plateau[1]], [1, 0]]);
 }
 function v2Band(b, alpha, stops) {      // b as V2.titleBand; stops: [[pos 0..1 of the ramp, rel. alpha]...]
   if (alpha <= 0.001) return;
@@ -412,6 +434,7 @@ function v2Tag(tg, f) {
   const s = String(tg.text).toUpperCase(), x = tg.x ?? T.x, y = (tg.y ?? T.y) + V2M.tag.base;
   const w = v2Tab(sctx, s, x, y, v2Font.tag(), T.ls, V2M.tag.tab);
   sctx.restore();
+  const B = V2.tagBand; v2BandAt(x + w / 2, (tg.y ?? T.y) + V2M.tag.lh / 2, w / 2 + B.padX, V2M.tag.lh / 2 + B.padY, B, 1);
   v2Composite({ x, y: tg.y ?? T.y, w, h: V2M.tag.lh }, T.shadow, T.op);
 }
 function drawV2(f) {
@@ -423,20 +446,20 @@ function drawV2(f) {
   const titleL = titles.map((tt) => ({ tt, L: v2Layout(tt.text, tt.hl, 'title'), a: v2Alpha(tt, f) }));
   const capL = caps.map((c) => ({ c, L: v2Layout(c.text, c.hl, 'cap'), a: v2Alpha(c, f) }));
   // bands first, under all text
-  for (const { a } of titleL) v2Band(V2.titleBand, a);
-  ctrA.forEach((a) => v2Band(V2.ctrBand, a));
+  const blockBand = (L, kind, top, B, a) => {
+    const lh = V2M[kind].lh * L.size / V2[kind].size, h = L.lines.length * lh, W = Math.max(...L.lines.map((l) => l.w));
+    v2BandAt(270, top + h / 2, Math.max(B.minRX, W / 2 + B.padX), h / 2 + B.padY, B, a);
+  };
+  for (const { tt, L, a } of titleL) blockBand(L, 'title', tt.y ?? V2.title.top, V2.titleBand, a);
+  const C = V2.ctr, cw = C.bar + C.pad + C.maxW, ch = V2M.lab.lh + C.gap[0] + V2M.val.lh + C.gap[1] + V2M.fact.lh;
+  ctrA.forEach((a) => v2BandAt(C.x + cw / 2, C.y + ch / 2, cw / 2 + V2.ctrBand.padX, ch / 2 + V2.ctrBand.padY, V2.ctrBand, a));
   const capTop = (L) => { const lh = V2M.cap.lh * L.size / V2.cap.size; return V2.cap.top + lh / 2 - (L.lines.length * lh) / 2; };
-  for (const { c, L, a } of capL) {
-    const B = V2.capBand, lh = V2M.cap.lh * L.size / V2.cap.size, h = L.lines.length * lh, top = c.y ?? capTop(L), cy = top + h / 2;
-    const W = Math.max(...L.lines.map((l) => l.w)), RX = Math.max(B.minRX, W / 2 + B.padX), RY = h / 2 + B.padY;
-    v2Band({ x: 0, y: cy - RY - 2, w: 540, h: 2 * RY + 4, cx: 270 / 540, cy: 0.5, rx: RX / 540, ry: RY / (2 * RY + 4), stop: 1, a: B.a }, a,
-      [[0, 1], [B.plateau[0], B.plateau[1]], [1, 0]]);
-  }
+  for (const { c, L, a } of capL) blockBand(L, 'cap', c.y ?? capTop(L), V2.capBand, a);
   let n = 0;
   for (const tg of SPEC.tags) if (vis(tg)) { v2Tag(tg, f); n++; }
   ctrs.forEach(({ cn }, k) => { if (ctrA[k] > 0) { v2Counter(cn, f, ctrA[k]); n++; } });
-  for (const { tt, L, a } of titleL) { if (a <= 0) continue; const box = v2DrawText(L, 'title', tt.y ?? V2.title.top); v2Composite(box, V2.title.shadow, a); n++; }
-  for (const { c, L, a } of capL) { if (a <= 0) continue; const box = v2DrawText(L, 'cap', c.y ?? capTop(L)); v2Composite(box, V2.cap.shadow, a); n++; }
+  for (const { tt, L, a } of titleL) { if (a <= 0) continue; const box = v2DrawText(L, 'title', tt.y ?? V2.title.top, a); v2Composite(box, V2.title.shadow, a); n++; }
+  for (const { c, L, a } of capL) { if (a <= 0) continue; const box = v2DrawText(L, 'cap', c.y ?? capTop(L), a); v2Composite(box, V2.cap.shadow, a); n++; }
   if (SPEC.draw) { ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); if (SPEC.draw(ctx, f / FPS, f) !== false) n++; ctx.restore(); }
   return n;
 }

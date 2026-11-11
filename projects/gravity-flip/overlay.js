@@ -20,7 +20,8 @@ const HEIGHT = (m) => (m < 999.95 ? `${m.toFixed(1)} M` : m < 99950 ? `${(m / 10
 const COUNTDOWN = (s) => { const ms = Math.round(Math.max(0, s) * 1000); return `${String(Math.floor(ms / 1000)).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`; };
 const CLOCK = (s) => { s = Math.max(0, Math.floor(s + 1e-6)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const MMSS = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-const sig2 = (x) => { if (x < 10) return x.toFixed(1); const p = Math.pow(10, Math.floor(Math.log10(x)) - 1); return n0(Math.round(x / p) * p); };
+// 2 significant figures; toPrecision first so rateAt's 9.9999 reads 10, not 10.0
+const sig2 = (x) => { x = +x.toPrecision(3); if (x < 10) return x.toFixed(1); const p = Math.pow(10, Math.floor(Math.log10(x)) - 1); return n0(Math.round(x / p) * p); };
 // honest clock-rate label (story seconds per film second, from rateAt)
 const RATE = (r) => (r >= 1.5 ? `TIME-LAPSE ×${sig2(r)}` : r >= 0.8 ? 'REAL TIME' : `SLOW-MO ×${r.toFixed(1)}`);
 

@@ -149,6 +149,16 @@ def box_any(m, r):
     return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) > 0
 
 
+def run_len(m, axis):
+    """length of the straight run of True pixels each pixel belongs to, along axis (0 = vertical)."""
+    m = np.moveaxis(m, axis, 0); up = np.zeros(m.shape, np.int32); dn = np.zeros(m.shape, np.int32)
+    for i in range(1, m.shape[0]): up[i] = (up[i - 1] + 1) * m[i]
+    up[0] = m[0]
+    for i in range(m.shape[0] - 2, -1, -1): dn[i] = (dn[i + 1] + 1) * m[i]
+    dn[-1] = m[-1]; up[1:] = np.where(m[1:], up[1:], 0)
+    return np.moveaxis(np.where(m, up + dn - 1, 0), 0, axis)
+
+
 def contrast_frame(ov, img):
     """ov: overlay RGBA uint8 (straight alpha); img: the composited frame (RGB uint8) after yuv420p.
     Text = opaque, bright overlay pixels (glyph cores; bands and shadows are dark and translucent, so they are not text).
@@ -157,7 +167,7 @@ def contrast_frame(ov, img):
     surround within +-24 px; the worse ratio counts. -> [(ratio, x, y, cls)] in 1080x1920 px."""
     a = ov[..., 3]
     yl = rel_lum(ov[..., :3])
-    core = (a >= 230) & (yl >= 0.3)
+    core = (a >= 215) & (yl >= 0.4)        # full-coverage glyph pixels (0.9-opacity tags count; AA edges, dark halos and bands do not)
     if core.sum() < 20:
         return []
     anyt = (a >= 90) & (yl >= 0.2)
@@ -165,7 +175,13 @@ def contrast_frame(ov, img):
     y0, y1 = max(0, ys.min() - 40), min(ov.shape[0], ys.max() + 41)
     x0, x1 = max(0, xs.min() - 40), min(ov.shape[1], xs.max() + 41)
     core, anyt = core[y0:y1, x0:x1], anyt[y0:y1, x0:x1]
-    ring = box_any(anyt, 12) & ~box_any(anyt, 3)
+    # rules and bars are not text: drop straight runs taller than any glyph (> 110 px) or long thin horizontal rules
+    rule = (run_len(anyt, 0) > 110) | ((run_len(anyt, 1) > 60) & (run_len(anyt, 0) <= 7))
+    rule = box_any(rule, 2) & anyt
+    core, anyt = core & ~rule, anyt & ~rule
+    if core.sum() < 20:
+        return []
+    ring = box_any(anyt, 12) & ~box_any(anyt | rule, 3)
     L = rel_lum(img[y0:y1, x0:x1])
     rgb = ov[y0:y1, x0:x1, :3].astype(np.int16)
     accent = (rgb.max(-1) - rgb.min(-1)) > 40

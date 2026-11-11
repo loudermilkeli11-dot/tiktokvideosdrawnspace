@@ -4,6 +4,10 @@
 // info = { fps, total, duration, shots: [{name, frames, start, end, t0, t1}], byName: {name: shot} }.
 
 // caption: cap(t0, t1, 'TEXT here', ['HERE'])  (hl words matched case-insensitively, punctuation ignored)
+// Look 'v2' (style: { look: 'v2' }) also reads inline accents: cap(t0, t1, 'Everything loose falls *up*.') -> 'up' italic in
+// the accent colour ('*' toggles; spans may cover several words and cross a '|' break). Text without '*' falls back to hl.
+// v2 extras: titles: [cap(...)], counter segments with label/fact as strings or (t) => string, and per item
+// { fadeIn, fadeOut } in seconds (default 0.15; 0 = hard). See tools/overlay/ov.html, section "v2 look".
 export const cap = (t0, t1, text, hl = [], extra = {}) => ({ t0, t1, text, hl, ...extra });
 
 // sequential captions: seq(start, [[dur, text, hl?], ...], gap=0) -> back-to-back captions

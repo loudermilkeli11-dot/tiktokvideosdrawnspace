@@ -1,0 +1,1 @@
+/tmp/claude-0/-home-user-tiktokvideosdrawnspace/a22c5d53-e94e-57e9-85ae-e4f50a1d5190/scratchpad/type/v2_overlay_test.jpg — v2 overlay (overlay.js, all 38 s) composited at 0.5/2.9/4/8.2/13.8/17/25/28/36 s over lead/SKY/OCEAN plates + synthetic space and noon-sky/cloud stress plates; all >= 3:1 by check.py --contrast.

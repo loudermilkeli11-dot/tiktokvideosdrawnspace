@@ -128,13 +128,46 @@ PLAYBOOK CHANGES (proposed; applied only on seal):
   - **Add:** keep the hashtag set and the post slot constant across the next 5 videos.
   - **Keep line 29 (AI label)** and add a pre-publish tick-box.
 
+AMENDMENTS (from the Tenth Man; adopted only if sealed):
+  - **A1: video #2 obeys its own fact.**
+    - On frame 1 the Sun is still up, under a claim like "THE SUN IS GONE. | ITS LIGHT ISN'T."
+    - The counter runs down the real light-travel time for the post date (8 min 13 s in mid-November).
+    - The blackout is the climax near 0:28, followed by a hard loop back to sunlight.
+    - Drop "TO LIVE" and the space ending. This is a one-off waiver of "ends in space" (PLAYBOOK.md:17).
+    - The bet left: a countdown in which nothing on Earth visibly changes.
+  - **A2: a gate that can pass.** Gate A passes if moon-2x's average watch beats 13.4 s, the best 34 s average on record, whatever its views. In that case #4 is the 64 s length test.
+  - **A3: judge each remake against its own original.**
+    - Before #2, log the dinosaur post's full analytics (average watch and For You share).
+    - Judge #2 against the old Sun post (1,029 views, 13.4 s) and #4 against the old dinosaur post (546 views).
+    - Gate B then fires only if the remakes don't beat their originals, not on a flat 2,000 views.
+
 BASELINE:
   - The sample is too small (a handful of posts, 0–4 follows each) to justify a 5-video plan and a lane switch. The only reach winners came from the Trump/nuke framing being dropped.
   - Dropping the controversial hashtags and framing will probably cut reach. The Sun video got only 1,029 views despite strong retention, and retention doesn't fix weak distribution.
   - Going to 34 s abandons the possible 61 s+ Creator Rewards threshold before it's checked, because verification on 11-18 comes after #2 and #3 are committed. The length test is also confounded, since topic and length change at once and 2–3 day cadence gives too few data points.
 
 HOW-WE-LOSE:
-<<TENTH>>
+  - by: The Tenth Man
+    axis: premise physics, the hook rule and the look bar
+    claim: Video #2 as advised has no honest board the rules allow. Frame 1 shows the Sun's disc going out while the counter reads "LIGHT LEFT 8:20". But nothing visible changes until that light runs out, so the picture contradicts the very number the new cover rule calls verifiable. Rendered honestly, the back half is two images the look bar bans (PLAYBOOK.md:73–74). The first is a bay with no twilight, whose Moon goes dark 1–3 s later. The second is a sunless Earth, which space.js draws half pitch-black, because its city lights only appear on the side facing away from the Sun. Earth "leaving on a straight line" can't be seen either: it strays only about 38 km from its orbit in an hour. The only gate, one night-bay frame, tests neither the hook nor the space ending.
+    grounding: engine/src/space.js:45
+    failure-world: "2026-11-20: The night-bay frame passed, so #2 shipped as advised. The top comment was 'if you can SEE it go dark, the 8 minutes are already up.' The back half played as a black bay and a dark, motionless Earth, and the average watch fell below the old uncaptioned Sun post's 13.4 s. The council logged 'Sun at 34 s doesn't hold', which poisoned the first arm of the length test."
+    predictability: novel
+    status: not-defused (A1 proposed)
+  - by: The Tenth Man
+    axis: measurement
+    claim: Gate A is built not to pass. It asks moon-2x for an average watch of 18 s or more. That's above every average on record (17.8 s at most) and above the council's own 13.2–17.5 s forecast for a 66 s film. Averages also fall as a video spreads wider: A119 held 9.0 s over 7,013 views, while the Sun's 13.4 s was measured at about 820 views (3 h 04 m ÷ 13.4 s). So a 66 s film that holds viewers longer than every short still fails the gate, and a breakout fails it hardest.
+    grounding: channel/analytics/2026-11-11-snapshot.md:11
+    failure-world: "2027-01-15: moon-2x became the lane's first breakout and settled at 15.6 s a view, more than any short has held, so Gate A failed it. Every film since has been 34 s at 9–11 s a view. The PLAYBOOK now says 'long failed' about the channel's best film, and the promised length test never ran."
+    predictability: novel
+    status: not-defused (A2 proposed)
+  - by: The Tenth Man
+    axis: data
+    claim: The packaging bet has already been tested once in this lane, and it lost. The fact-claim cover "THE DINOSAUR KILLER WAS TALLER THAN EVEREST" drew 546 views in its first week. That's about half of the uncaptioned Sun video's 1,029, and the Sun video was posted at dawn. Slot #4 re-shoots that very post.
+    grounding: channel/analytics/2026-11-11-snapshot.md:27
+    failure-world: "2026-11-28: #2–#5 all carried number-claim covers and landed at 400–900 views, with 0–1 follows each. Gate B fired, and two weeks of renders re-learned what the snapshot already showed. The cover, look, post slot, AI label and hashtags all changed at once, so nobody could say which one failed."
+    predictability: predictable
+    status: not-defused (A3 proposed)
   - by: The Data Skeptic
     axis: knowledge vs assumption
     claim: Committing a lane and a length on the strength of one viral-ish post and one retention outlier locks in a style the data can't support. Post time, hashtags and account age are all confounded.
@@ -162,4 +195,37 @@ HOW-WE-LOSE:
     status: defused (the safe-lane rule and the pre-publish tick-box)
 
 ## Open after the seal
-<<OPEN>>
+- **Gate 0 (before any #2 shots):** a half-scale frame test of the bay after the blackout, using the Producer's risk (PLAYBOOK.md:73).
+  - The frame has lamps, windows, the lighthouse, the crowd's phone screens and the full Milky Way.
+  - With A1 there is no space ending, so the dark-Earth problem in engine/src/space.js:45 only needs fixing if a sunless Earth is ever shown.
+- **2026-11-13 15:30 UTC:** read moon-2x at 48 h, then decide Gate A. Collect:
+  - views, average watch and completion;
+  - 3 s hold;
+  - the retention curve;
+  - the traffic-source split;
+  - the account's follower total.
+- **Before #2 posts:**
+  - Match the countdown to the post date: about 8 min 13 s in mid-November. 8 min 20 s is the yearly average.
+  - Log the dinosaur post's full analytics (A3).
+- **Before #3:** check whether T CrB has erupted. The old cover said it was "about to".
+- **By 2026-11-18:** check the Creator Rewards thresholds in TikTok Studio.
+- **At the seal:** apply the PLAYBOOK changes (plus any adopted amendments) and commit.
+
+## Process note: the baseline was not blind
+- **What happened:**
+  - The Tenth Man read this dossier while it was being drafted: it was saved in the repo, and his entries cite it.
+  - The draft already contained the chief-of-staff notes and the BASELINE, so he could see the baseline.
+  - His two "novel" scores are therefore weaker evidence than usual. He may have steered around the baseline rather than found mechanisms outside it on his own.
+- **What still holds:** his mechanisms were checked separately.
+  - The citations open.
+  - The 38 km orbit drift (38.4 km in 1 h at 29.8 km/s) and the ~820-view figure (11,040 s ÷ 13.4 s) are correct.
+  - space.js does gate city lights by the Sun's direction.
+- **Why no push-back on the third objection:** he wasn't sent back on the predictable one. Two of his three objections were already novel, and a second pass could not be blind.
+- **Fix for next time:** drafts stay in the scratchpad until the Tenth Man has reported.
+
+## Note to the Commander
+- **The dissent:**
+  - Two failure mechanisms are outside the baseline. Video #2 contradicts its own fact (A1), and Gate A can't pass (A2).
+  - The third (A3) is the obvious risk, now with evidence: a fact-claim cover in this lane has already lost to no cover.
+  - All three fixes are cheap.
+- **A1 is a real creative change.** Video #2 becomes a suspense countdown ("the Sun is gone; its light isn't"), not an escalation ladder. For one video it also waives "ends in space".

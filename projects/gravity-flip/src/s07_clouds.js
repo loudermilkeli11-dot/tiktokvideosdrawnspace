@@ -1,7 +1,8 @@
 // s07_clouds (film 15.0–20.0, step 2: the 1-minute flip, story tau 50 -> 55): 12-15 km up, above the cloud deck.
 // The camera falls up with everyone (people, cars, pigeons, plaza debris) at ~1,800-1,940 km/h. A jet that was on
 // approach when gravity flipped also has its own lift: it surges up past us, tumbling, gear still down, into the deep
-// blue toward the Sun. Altitude and speed come ONLY from story.js (heightAt / speedAt, T = 60).
+// blue toward the Sun. Altitude comes ONLY from story.js (heightAt(tau, 60), tau = tauAt('s07_clouds', tt)): the deck
+// below recedes at the law's speed (speedAt ~ 490-540 m/s here) as we rise from 12.3 to 14.8 km.
 // ?tt=shot seconds (scrub), ?mm=lens
 import { createStudio, THREE } from '@engine/engine.js';
 import { createSky } from '@engine/sky.js';
@@ -11,7 +12,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { createCrowd, createBirds } from '@engine/crowd.js';
 import { PALETTE } from '@engine/figure.js';
 import { applyCam, shake } from '@engine/camera.js';
-import { rng, ease, clamp, lerp, keyed } from '@engine/util.js';
+import { rng, clamp } from '@engine/util.js';
 import { heightAt, tauAt } from './story.js';
 const D2R = Math.PI / 180, Q = new URLSearchParams(location.search), SHOT = 's07_clouds';
 // daywear palette (as in look.js)
@@ -33,7 +34,7 @@ const hemi = new THREE.HemisphereLight(0x6f9be0, 0xf4f6ff, 1.1); scene.add(hemi)
 // ---- the jet (on approach when it flipped: gear down) ----
 const jet = createPlane(S, { len: 62, span: 58, gear: true });
 // Its path relative to us (we and the air fall up together, so in our frame there is no weight): it keeps flying through
-// the air at ~110 m/s and its lift bends the path into a loop, carrying it up past us and away. Integrated once, deterministic.
+// the air at ~100 m/s and its lift bends the path into a loop, carrying it up past us and away. Integrated once, deterministic.
 const JP = [], JDT = 0.01, J0 = -1, JV = 100;
 { let p = new THREE.Vector3(); for (let t = J0; t <= 6.01; t += JDT) { const th = (44 - 15.5 * (t + 1)) * D2R;      // heading: up and toward us -> up and away
     const v = new THREE.Vector3(-0.16, Math.cos(th), Math.sin(th)).normalize().multiplyScalar(JV * (1 + 0.04 * t)); JP.push({ p: p.clone(), v }); p.addScaledVector(v, JDT); }
@@ -48,7 +49,7 @@ function jetAt(tt) {
   return { p, q, v };
 }
 const distToPath = (x) => { let m = 1e9; for (let k = 0; k < JP.length; k += 10) m = Math.min(m, JP[k].p.distanceTo(x)); return m; };
-// camera: drifting with the crowd; it tilts to follow the jet (clamped) as it surges up past us
+// camera: drifting with the crowd; it tilts to follow the jet (soft-limited) as it surges up past us
 function camAt(tt) {
   const pos = new THREE.Vector3(0.4 * tt, 0.25 * tt, -0.3 * tt), J = jetAt(tt);
   const jd = J.p.clone().sub(pos), elJ = Math.atan2(jd.y, Math.hypot(jd.x, jd.z)) / D2R, azJ = Math.atan2(jd.x, -jd.z) / D2R;
@@ -62,7 +63,7 @@ const tcam = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 1e5), tv = new THREE.V
 function hitsCounter(p0, v) { for (let tt = 0; tt <= 5; tt += 0.25) { applyCam(tcam, camAt(tt)); tcam.updateMatrixWorld();
   tv.copy(p0).addScaledVector(v, tt).project(tcam); const x = (tv.x + 1) * 270, y = (1 - tv.y) * 480; if (tv.z < 1 && x > -10 && x < 300 && y > 345 && y < 525) return true; } return false; }
 // does it ever line up with the jet as seen from the camera (no figure may appear to touch the jet)?
-function nearJetOnScreen(p0, v) { for (let tt = 1.8; tt <= 3.0; tt += 0.06) { const c = camAt(tt).pos, J = jetAt(tt).p, P = p0.clone().addScaledVector(v, tt);
+function nearJetOnScreen(p0, v) { for (let tt = 1.8; tt <= 5.0; tt += 0.06) { const c = camAt(tt).pos, J = jetAt(tt).p, P = p0.clone().addScaledVector(v, tt);
   const a = J.clone().sub(c), b = P.clone().sub(c), ang = a.angleTo(b), jr = Math.atan(33 / a.length()); if (ang < jr + 0.03) return true; } return false; }
 // ---- people: the plaza crowd falling up around us, 10-70 m away, spread around the directions the camera sweeps ----
 const R = rng(707), people = [];
@@ -75,7 +76,6 @@ for (let i = 0; i < 20000 && people.length < 62; i++) {
   if ((d < 30 && hitsCounter(P0, V0)) || nearJetOnScreen(P0, V0)) continue;                     // keep the counter block calm; nobody seems to touch the jet
   people.push(pp);
 }
-window.PEOPLE = people.length;
 const crowd = createCrowd(S, people, { poses: ['handsHead', 'point', 'phoneUp', 'arms', 'filming', 'handsHead', 'stand', 'point', 'shade', 'phoneUp'], rimI: 0.35, seed: 17 });
 for (const m of crowd.meshes) for (const p of m.userData.list) { p.x0 = p.x; p.y0 = p.y; p.z0 = p.z; }
 // ---- cars ----
@@ -115,7 +115,7 @@ const NP = 40, paper = [], papM = new THREE.InstancedMesh(new THREE.PlaneGeometr
 for (let i = 0; i < 400 && paper.length < NP; i++) { const az = (RD() - 0.5) * 80 * D2R, el = (RD() * 2 - 1) * 60 * D2R, d = 8 + RD() * 24;
   const p = new THREE.Vector3(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, -Math.cos(az) * Math.cos(el) * d); if (d < 18 && hitsCounter(p, new THREE.Vector3())) continue;
   paper.push({ p, w: new THREE.Vector3((RD() - 0.5) * 6, (RD() - 0.5) * 6, (RD() - 0.5) * 6), e: new THREE.Euler(RD() * 6, RD() * 6, RD() * 6) }); }
-papM.frustumCulled = false; scene.add(papM);
+papM.count = paper.length; papM.frustumCulled = false; scene.add(papM);
 const birds = createBirds(S, 14, { flap: 12, seed: 8, color: 0x4a505c });
 const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), ee = new THREE.Euler(), vv = new THREE.Vector3(), sc = new THREE.Vector3();
 S.run((t) => {
@@ -135,5 +135,5 @@ S.run((t) => {
   sun.position.copy(SUN).multiplyScalar(500).add(pos); sun.target.position.copy(pos);
   sky.U.sunDir.value.copy(SUN); sky.update(S, t);
   CL.update(S, { alt, sunDir: SUN }); sky.U.dip.value = CL.dip;
-  for (const m of [crowd.material]) m.U.rimDir.value.copy(SUN).negate();
+  crowd.material.U.rimDir.value.copy(SUN).negate();                 // rim from the bright sky/deck on the side away from the Sun
 });

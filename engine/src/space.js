@@ -63,13 +63,14 @@ export function createSpace(S, o = {}) {
         vec3 H = normalize(L + V); col += vec3(1.0,0.9,0.75) * pow(max(dot(n, H), 0.), 900.) * ocean * sunI * 0.5 * step(0., mu) * (1. - clouds) * (1. - seabed) * (1. - scar);
         // white surf on every coast at once (signed distance to the coast, km: > 0 on land)
         if (surf > 0.) { float d = texture2D(coast, vUv).r, s = surfT;
-          float fl = smoothstep(0., 0.06, s), w = 5. + 22.*(1. - exp(-s/0.5));
-          float line = exp(-d*d/(w*w)) * (0.65 + 1.6*exp(-s/0.55));
-          float sea = smoothstep(-(10. + 70.*s + 40.*s*s), -2., d) * step(d, 0.) * (0.35 + 0.25*fbm3(vO*0.01 + s));
-          float land = smoothstep(14. + 26.*s, 0., d) * step(0., d) * 0.5;
-          float foam = fl * clamp(line + sea + land, 0., 2.6) * (0.75 + 0.5*fbm3(vO*0.02 + vec3(0., s*0.6, 0.)));
-          col = mix(col, vec3(0.92, 0.96, 1.0) * max(mu*0.9 + 0.1, 0.) * sunI * 1.15, clamp(foam, 0., 1.) * surf);
-          col += vec3(0.85, 0.93, 1.0) * max(foam - 1., 0.) * max(mu, 0.) * sunI * 0.6 * surf; }
+          float fl = smoothstep(0., 0.05, s), w = 7. + 12.*(1. - exp(-s/0.6));
+          float line = exp(-d*d/(w*w)) * (0.8 + 2.2*exp(-s/0.5));                               // the foam line: flares, then settles
+          float reach = 8. + 32.*s + 8.*s*s;                                                     // spray sweeping out to sea
+          float sea = smoothstep(-reach, -reach*0.35, d) * step(d, 0.) * (0.18 + 0.32*smoothstep(0.35, 0.75, fbm3(vO*0.012 + vec3(s*0.4))));
+          float land = smoothstep(9. + 9.*s, 0., d) * step(0., d) * (0.3 + 0.25*fbm3(vO*0.02));  // the surge pushing inland
+          float foam = fl * clamp(line + sea + land, 0., 3.) * (0.8 + 0.4*fbm3(vO*0.03 + vec3(0., s*0.6, 0.)));
+          col = mix(col, vec3(0.92, 0.96, 1.0) * max(mu*0.9 + 0.1, 0.) * sunI * 1.1, clamp(foam, 0., 1.) * surf);
+          col += vec3(0.85, 0.93, 1.0) * max(foam - 1., 0.) * max(mu, 0.) * sunI * 0.5 * surf; }
         // clouds over everything
         vec3 cl = vec3(1.) * max(mu*0.9+0.1, 0.) * sunI * 1.05;
         col = mix(col, cl, clouds * 0.9 * smoothstep(-0.2, 0.05, mu));

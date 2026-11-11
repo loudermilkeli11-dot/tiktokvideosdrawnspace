@@ -122,18 +122,18 @@ export function createBoats(S, n, o = {}) {
 export function createSpray(S, parts, o = {}) {
   const N = parts.length, base = new THREE.PlaneGeometry(1, 1);
   const g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
-  const aP = new Float32Array(N * 3), aV = new Float32Array(N * 3), aT = new Float32Array(N * 4);
-  parts.forEach((q, i) => { aP.set(q.p, i * 3); aV.set(q.v, i * 3); aT.set([q.t0, q.size, q.drag ?? 0.3, (q.kind ?? 0) + Math.min(q.life ?? 6, 60) * 0.01], i * 4); });
-  g.setAttribute('aP', new THREE.InstancedBufferAttribute(aP, 3)); g.setAttribute('aV', new THREE.InstancedBufferAttribute(aV, 3)); g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4));
+  const aP = new Float32Array(N * 4), aV = new Float32Array(N * 3), aT = new Float32Array(N * 4);
+  parts.forEach((q, i) => { aP.set([q.p[0], q.p[1], q.p[2], q.shade ?? 1], i * 4); aV.set(q.v, i * 3); aT.set([q.t0, q.size, q.drag ?? 0.3, (q.kind ?? 0) + Math.min(q.life ?? 6, 60) * 0.01], i * 4); });
+  g.setAttribute('aP', new THREE.InstancedBufferAttribute(aP, 4)); g.setAttribute('aV', new THREE.InstancedBufferAttribute(aV, 3)); g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4));
   g.instanceCount = N;
   const U = { time: { value: 0 }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color(1, 0.97, 0.9) }, sunI: { value: 1 }, amb: { value: new THREE.Color(0x6f8fb0) },
     streak: { value: 1 / 26 }, res: { value: new THREE.Vector2(S.W, S.H) }, op: { value: o.opacity ?? 1 }, hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: o.hazeD ?? 9000 }, exposure: { value: 1 } };
   const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    vertexShader: `attribute vec3 aP; attribute vec3 aV; attribute vec4 aT; uniform float time, streak; uniform vec2 res;
+    vertexShader: `attribute vec4 aP; attribute vec3 aV; attribute vec4 aT; varying float vShade; uniform float time, streak; uniform vec2 res;
       varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit; varying float vH;
       uniform vec3 sunDir;
-      vec3 at(float a, float k){ vec3 vt = vec3(0., -9.81/k, 0.); return aP + (aV - vt)*(1. - exp(-k*a))/k + vt*a; }
-      void main(){ float age = time - aT.x; float kind = floor(aT.w + 0.001); float life = fract(aT.w + 0.0001)*100.; vK = kind; vSeed = fract(aT.x*13.7 + aP.x*0.37 + aP.z*0.11);
+      vec3 at(float a, float k){ vec3 vt = vec3(0., -9.81/k, 0.); return aP.xyz + (aV - vt)*(1. - exp(-k*a))/k + vt*a; }
+      void main(){ float age = time - aT.x; float kind = floor(aT.w + 0.001); float life = fract(aT.w + 0.0001)*100.; vK = kind; vShade = aP.w; vSeed = fract(aT.x*13.7 + aP.x*0.37 + aP.z*0.11);
         if (age <= 0. || age > life) { gl_Position = vec4(2., 2., 2., 1.); return; }
         float k = max(aT.z, 0.02); float a0 = max(age - streak, 0.);
         vec3 p1 = at(age, k), p0 = at(a0, k); if (p1.y < -30.) { gl_Position = vec4(2., 2., 2., 1.); return; }
@@ -150,7 +150,7 @@ export function createSpray(S, parts, o = {}) {
         vLit = 0.6 + 0.4*dot(normalize(vel + vec3(0., 0.001, 0.)), normalize(sunDir));
         gl_Position = vec4(sp/(res*0.5)*c1.w, c1.z, c1.w); }`,
     fragmentShader: `${NOISE}
-      uniform vec3 sunCol, amb, hazeCol; uniform float sunI, op, hazeD, exposure, time; varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit; varying float vH;
+      uniform vec3 sunCol, amb, hazeCol; uniform float sunI, op, hazeD, exposure, time; varying float vShade; varying vec2 vUv; varying float vA; varying float vK; varying float vSeed; varying float vDist; varying float vLit; varying float vH;
       void main(){ vec2 d = vUv - 0.5; float r = length(d)*2.;
         float n = fbm2(vUv*vec2(3., 6.) + vSeed*40.);
         float m;
@@ -159,7 +159,7 @@ export function createSpray(S, parts, o = {}) {
           m = smoothstep(0.95, 0.35, rr + (n - 0.5)*1.1) * smoothstep(0.38, 0.62, f1 + 0.25*(1. - rr)) * (0.7 + 0.5*f1); }
         else m = smoothstep(1., 0.0, r + (n - 0.5)*0.7) * (0.35 + 0.65*fbm2(vec2(vUv.x*9. + vSeed*20., vUv.y*2.))) * 0.45;
         float a = m*vA*op; if (a < 0.004) discard;
-        float sh = (0.5 + 0.5*vH)*(0.72 + 0.4*vSeed)*(0.75 + 0.35*n);
+        float sh = (0.5 + 0.5*vH)*(0.72 + 0.4*vSeed)*(0.75 + 0.35*n)*vShade;
         vec3 c = vec3(0.95, 0.97, 1.0)*(amb*0.8 + sunCol*sunI*0.95*vLit*sh);
         c = mix(c, hazeCol*1.1, 1. - exp(-vDist/hazeD));
         gl_FragColor = vec4(c*exposure, min(a, 1.)); }` });

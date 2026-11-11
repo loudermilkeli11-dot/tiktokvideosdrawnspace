@@ -72,10 +72,10 @@ for (const sp of shore) { const d = camD(sp.x, sp.z), nearK = d < 420 ? 1 : 0, L
 // up by the end of the shot (top speed 60-110 m/s scaled by the depth), crowned with droplets; side-lit by the sun
 const sunH = new THREE.Vector2(SUN.x, SUN.z).normalize();
 const ridge = (x, z) => 0.72 + 0.28 * Math.sin(x * 0.011 + 0.7) * Math.sin(z * 0.009 + 1.9) + 0.18 * Math.sin(x * 0.037 - z * 0.029);   // towers and dips along the wall
-for (let i = 0, nj = 0; i < 20000 && nj < 165; i++) { const c = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 70), 230 + Math.pow(SR(), 0.75) * 1400);
+for (let i = 0, nj = 0; i < 20000 && nj < 190; i++) { const c = CAM.clone().addScaledVector(dirB(BEAR + (SR() - 0.5) * 70), 240 + Math.pow(SR(), 1.3) * 1100);
   const sf = sField(c.x, c.z); if (sf > -110) continue; nj++;
-  const df = clamp(-groundH(c.x, c.z) / 28, 0.3, 1), d = camD(c.x, c.z), vmax = (62 + 48 * SR()) * (0.45 + 0.55 * Math.pow(df, 0.7)) * ridge(c.x, c.z);
-  const tx = (SR() - 0.5) * 0.24, tz = (SR() - 0.5) * 0.24, m = 110 + Math.floor(SR() * 70), rad = 5 + SR() * 9;
+  const df = clamp(-groundH(c.x, c.z) / 28, 0.3, 1), d = camD(c.x, c.z), vmax = (78 + 44 * SR()) * (0.55 + 0.45 * Math.pow(df, 0.7)) * ridge(c.x, c.z);
+  const tx = (SR() - 0.5) * 0.24, tz = (SR() - 0.5) * 0.24, m = 120 + Math.floor(SR() * 80), rad = 8 + SR() * 14;
   for (let k = 0; k < m; k++) { const u = 0.18 + 0.82 * Math.sqrt(SR()), a2 = SR() * 6.283, rr = Math.sqrt(SR()) * rad, ox = Math.cos(a2), oz = Math.sin(a2), kind = SR() < (u > 0.85 ? 0.35 : 0.7) ? 1 : 0;
     const jx = tx + (SR() - 0.5) * 0.07 + ox * 0.05, jz = tz + (SR() - 0.5) * 0.07 + oz * 0.05;
     parts.push({ p: [c.x + ox * rr, 0.5 + SR() * 2, c.z + oz * rr], v: [jx * vmax * u, vmax * u, jz * vmax * u], shade: 0.6 + 0.4 * Math.max(0, ox * sunH.x + oz * sunH.y) + 0.12 * (u - 0.5),

@@ -64,11 +64,12 @@ export function createSpace(S, o = {}) {
         // white surf on every coast at once (signed distance to the coast, km: > 0 on land)
         if (surf > 0.) { float d = texture2D(coast, vUv).r, s = surfT;
           float fl = smoothstep(0., 0.05, s), w = 7. + 12.*(1. - exp(-s/0.6));
-          float line = exp(-d*d/(w*w)) * (0.8 + 2.2*exp(-s/0.5));                               // the foam line: flares, then settles
+          float wob = vn3(vO*0.015 + 7.)*0.7 + vn3(vO*0.04)*0.3, dd = d + (wob - 0.5)*w*0.9;
+          float line = exp(-dd*dd/(w*w)) * (0.8 + 2.2*exp(-s/0.5)) * (0.55 + 0.9*smoothstep(0.3, 0.7, vn3(vO*0.05 + vec3(s*0.8, 0., 0.))*0.65 + vn3(vO*0.13)*0.35));   // the foam line: flares, then settles
           float reach = 8. + 32.*s + 8.*s*s;                                                     // spray sweeping out to sea
           float sea = smoothstep(-reach, -reach*0.35, d) * step(d, 0.) * (0.18 + 0.32*smoothstep(0.35, 0.75, fbm3(vO*0.012 + vec3(s*0.4))));
           float land = smoothstep(9. + 9.*s, 0., d) * step(0., d) * (0.3 + 0.25*fbm3(vO*0.02));  // the surge pushing inland
-          float foam = fl * clamp(line + sea + land, 0., 3.) * (0.8 + 0.4*fbm3(vO*0.03 + vec3(0., s*0.6, 0.)));
+          float foam = fl * clamp(line + sea + land, 0., 3.) * (0.85 + 0.3*vn3(vO*0.08 + vec3(0., s*0.6, 0.)));
           col = mix(col, vec3(0.92, 0.96, 1.0) * max(mu*0.9 + 0.1, 0.) * sunI * 1.1, clamp(foam, 0., 1.) * surf);
           col += vec3(0.85, 0.93, 1.0) * max(foam - 1., 0.) * max(mu, 0.) * sunI * 0.5 * surf; }
         // clouds over everything

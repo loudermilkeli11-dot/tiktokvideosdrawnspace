@@ -19,7 +19,7 @@ const dirLL = (lon, lat) => { const ph = (lon + 180) * D2R, th = lat * D2R; retu
 const C = dirLL(+(Q.get('lon') ?? 116), +(Q.get('lat') ?? -6));
 const SUN = dirLL(+(Q.get('slon') ?? 96), +(Q.get('slat') ?? 6));
 const SP = createSpace(S, { sunDir: SUN.toArray(), ring: false, stars: 0.3, sunI: 1.5, coast: true, coastW: 4096, sunGlare: 0 });
-SP.EU.surf.value = 1; SP.EU.cloudsI.value = 0.55;
+SP.EU.surf.value = 1; SP.EU.cloudsI.value = 0.55; SP.EU.detail.value = 0.8;
 const LAND = landsAt(60);
 function aimFor(pos, sx, sy, mm) {
   const toE = pos.clone().negate().normalize(); const vf = lensFov(mm) * D2R;

@@ -3,8 +3,8 @@
 // then the slow-motion hush: a low drone and a soft, low whoosh as the plane drifts up past the station (~5.2 s).
 function SOUND(ctx, out, dur) {
   const rv = verb(ctx, out, 4.0, 0.35);
-  hit(ctx, out, { t: 0 }); hit(ctx, rv, { t: 0, gain: -12, sub: false });
-  rumble(ctx, out, { t0: 0, t1: 3.6, gain: -13, sub: 30, level: (t) => 0.35 + 0.65 * sstep(0, 3.2, t) });
+  hit(ctx, out, { t: 0, gain: -8 }); hit(ctx, rv, { t: 0, gain: -14, sub: false });
+  rumble(ctx, out, { t0: 0, t1: 3.6, gain: -15, sub: 30, level: (t) => 0.35 + 0.65 * sstep(0, 3.2, t) });
   const g = ctx.createOscillator(); g.type = 'sawtooth'; g.frequency.setValueAtTime(48, 0); g.frequency.linearRampToValueAtTime(37, 3.5); g.start(0.1); g.stop(3.6);
   chain(g, filt(ctx, 'lowpass', 170, 0.8), env(ctx, [[0.1, -120], [1.0, -27], [3.3, -20], [3.55, -120]]), out);
   whoosh(ctx, out, { t: 2.5, dur: 1.0, gain: -19, f0: 110, f1: 650, pan0: -0.3, pan1: 0.3 });

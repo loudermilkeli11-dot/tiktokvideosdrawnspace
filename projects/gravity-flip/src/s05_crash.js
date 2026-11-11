@@ -51,7 +51,7 @@ bay.pier.group.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMateri
 const BR = rng(14), boats = [];
 for (let i = 0; i < 6000 && boats.length < 20; i++) { const near = boats.length < 9; const p = CAM.clone().addScaledVector(dirB(BEAR + (BR() - 0.5) * (near ? 34 : 50)), near ? 110 + BR() * 140 : 250 + BR() * 900);
   const s = sField(p.x, p.z); if (s > (near ? -14 : -30) || (near && s < -90)) continue; if (boats.some((b) => Math.hypot(b.x - p.x, b.z - p.z) < 35)) continue;
-  boats.push({ x: p.x, z: p.z, s0: s, yaw: BR() * 6.28, L: 7 + BR() * 9, carry: near, spin: (BR() - 0.5) * 2.4, roll: (BR() - 0.5) * 1.6, ph: BR() * 6 }); }
+  boats.push({ x: p.x, z: p.z, s0: s, sEnd: 18 + BR() * 45, yaw: BR() * 6.28, L: 7 + BR() * 9, carry: near, spin: (BR() - 0.5) * 2.4, roll: (BR() - 0.5) * 1.6, ph: BR() * 6 }); }
 const BT = createBoats(S, boats.length, { seed: 9 }); BT.materials.forEach((m) => patchSlab(m, OU, GROUND_GLSL));
 // ---------- spray (all born at the impact or after it; ballistic with drag, gravity back to normal) ----------
 const SR = rng(77), parts = [];
@@ -105,7 +105,7 @@ S.run((t) => {
     let x = b.x, z = b.z, y, rx = 0, rz = 0, yaw = b.yaw;
     if (ts <= 0) { y = H + waveHeight(x, z, t, 0.45, 0) + 0.1; rx = 0.05 * Math.sin(t * 1.3 + b.ph); rz = 0.06 * Math.sin(t * 1.1 + b.ph); }
     else if (b.carry) { const [gx, gz] = sGrad(x, z), gl = Math.hypot(gx, gz) || 1, nx = gx / gl, nz = gz / gl;
-      const R0 = OU.surgeR.value, V0 = OU.surgeV.value, travel = (R0 - b.s0) * 0.95 * (1 - Math.exp(-ts * V0 * 0.8 / R0));
+      const R0 = OU.surgeR.value, V0 = OU.surgeV.value, travel = (b.sEnd - b.s0) * (1 - Math.exp(-ts * V0 * 0.9 / (b.sEnd - b.s0)));
       x = b.x + nx * travel; z = b.z + nz * travel; const s = sField(x, z), front = R0 * (1 - Math.exp(-ts * V0 / R0));
       const W = 10.5 * (1 - 0.35 * clamp(s / Math.max(front, 1))) * sstep(-320, -30, s) * sstep(-1.5, 9, front - s);
       y = Math.max(W, groundH(x, z) + 0.6) + 0.4 * Math.sin(ts * 5 + b.ph); yaw = b.yaw + b.spin * ts; rx = b.roll * Math.sin(ts * 2.2 + b.ph) * 0.6; rz = b.roll * ts * 0.5; }

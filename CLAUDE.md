@@ -1,13 +1,40 @@
-# Invisible Journeys Studio: map (video engine WIP and paused; War Room active)
+# Invisible Journeys Studio: map
 
-Phase 0 is partly built. Nothing below has been checked end to end with a full render yet.
-- `engine/src/`: three.js r169 engine. `engine.js` (studio, deterministic `frame(t)`, sub-frame motion blur), `post.js` (bloom/ACES/grain),
-  `camera.js` (lens mm, eased paths, shake), `moon.js` (LROC+LOLA, Lommel-Seeliger, horizon-march shadows), `sky.js`, `ocean.js` (Gerstner + planar reflection),
-  `bay.js` (horseshoe-bay set, town windows, lamps, pier, boats, lighthouse; redesign not yet test-rendered), `crowd.js` (crowd, hero, birds).
-- `engine/tex/`: processed NASA/Poly Haven textures. `tools/process_textures.py` rebuilds them.
-- `tools/`: `build_page.py` (shot -> one HTML), `render.js`/`run.sh` (headless -> MP4), `frames.js` (key frames),
-  `overlay/` (captions + counter), `score.py`, `assemble.sh`, `check.py` (see the docstrings).
-- Not done: `tools/audio.js` + `engine/src/audio_core.js`, `tools/cloud/`, PLAYBOOK.md, the setup script, and the 3 s proof render.
-- Shots import `@engine/<module>.js` and `three`. Page time t = shot time + 4. Use `?scale=0.5&mb=1` for fast iteration.
-- `.war-room/roster.yaml`: TikTok officers for `/war-room` (pick "Saved roster"). `channel/results.csv` is the post-stats log.
-- `war-room/`: **War Room + Mission Control**, a separate Node app (Claude Agent SDK) for the Commander's Windows PC. Its 5 agents (`war-room/agents/*.md`) are Producer, Scout, Writer, Studio and Analyst. It auto-assigns tasks, keeps a hive mind, gates edits and commands behind approvals, and runs War Room councils that save dossiers to `channel/war-room/`. Windows: double-click `war-room/War Room Setup.cmd`. Elsewhere: `npm i && npm run demo`. See `war-room/README.md`.
+Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, caption style and rules. The owner is the Commander.
+
+## Engine (`engine/src/`, three.js r169; `engine/tex/` holds processed NASA/Poly Haven textures)
+- `engine.js`: studio, deterministic `frame(t)` (page time t = shot time + 4), sub-frame motion blur, `?scale=0.5&mb=1` for fast iteration.
+- `post.js`: bloom, ACES, grain, vignette.
+- `camera.js`: lenses in mm, eased paths, shake, whip.
+- `moon.js`: LROC + LOLA, Lommel-Seeliger, terminator shadows, earthshine, haze, airlight.
+- `sky.js`: dusk/night sky, Belt of Venus, stars, Milky Way.
+- `ocean.js`: Gerstner waves, planar reflection, surf.
+- `bay.js`: horseshoe-bay set: town windows, lamps, orientable plank pier, boats, lighthouse.
+- `figure.js`: organic people from signed distance fields; pose with `POSES` hand targets.
+- `crowd.js`: crowd, hero and birds, all built on figure.js.
+- `audio_core.js`: shot sound kit (surf, rumble, crowd, gasp, mid-range `hit`, whoosh, siren…) plus `renderSound`.
+
+## Tools (`tools/`)
+- `build_page.py`: shot.js → one HTML, plus `<shot>_sound.html`.
+- `frames.js`: key frames.
+- `render.js` / `run.sh`: render a page to MP4 with 2 renderers.
+- `audio.js`: render a sound page to WAV.
+- `overlay/`: captions + counter → overlay.mov. `stylelab.*` holds the style options.
+- `score.py`: ticks, risers, braaams, cracks, the big hit, silences.
+- `assemble.sh`: produces final.mp4 at −14 LUFS.
+- `check.py`: contact sheets plus checks for frames, size, loudness, flashes, jumps, cut hits (above 200 Hz) and silence.
+- `cloud/`: `snapshot.sh` (pages → `render` branch) → `plan.py` (chunks + worker prompts) → `create_session` per chunk (source_revision `render`, clone_depth 1, model claude-fable-5-2) → `collect.sh` → `join.sh`. Proven: about 2 min for 6 frames; cloud and local frames match.
+- Measured speed: about 9 s per frame alone, or about 18 s per frame with 2 renderers in parallel, at full size with 4 samples (hook shot).
+
+## Projects
+- `projects/moon-2x/`: video #1, from the sealed dossier `channel/war-room/2026-11-11-first-video.md`.
+  - `src/story.js` is the ONE approach law: the gap halves every 5 s, continuously. Shots and the counter both read it.
+  - Only `s01_hook` (3 s) exists. Still to do: the board for the 12 rungs, the remaining shots, the space-ending set, and the full score cue sheet.
+
+## War Room
+- `war-room/`: Node app (Agent SDK) for the Commander's Windows PC. To install, run `war-room/War Room Setup.cmd`.
+- `.war-room/roster.yaml`: the TikTok officers for `/war-room`. Dossiers go to `channel/war-room/`.
+- `channel/results.csv`: the post-stats log.
+
+## Environment
+- The setup script runs `npm ci` in `engine/` (saved 2026-11-11). It hasn't been run by a fresh session yet.

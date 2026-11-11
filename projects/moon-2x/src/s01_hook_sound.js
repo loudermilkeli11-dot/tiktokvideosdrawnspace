@@ -1,7 +1,7 @@
 // s01_hook sound (3.0 s + tail). Mid-chaos: the frame-0 hit, the sea swelling, the crowd rising to a gasp, a rumble that grows.
 function SOUND(ctx, out, dur) {
   const rv = verb(ctx, out, 2.8, 0.28);
-  const up = (t) => sstep(0, 3.2, t);                         // matches the picture's 0..1 escalation
+  const up = (t) => clamp(t / 3);                               // linear, matches the picture's steady approach
   hit(ctx, out, { t: 0.0, gain: -4 }); hit(ctx, rv, { t: 0.0, gain: -10, sub: false });   // frame-0 hit (mid-range + sub)
   surf(ctx, out, { t0: 0, t1: dur, gain: -13, period: 3.1, swell: (t) => 0.3 + 0.7 * up(t) });
   rumble(ctx, out, { t0: 0, t1: dur, gain: -15, level: (t) => 0.35 + 0.65 * up(t) });

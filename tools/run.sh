@@ -11,4 +11,4 @@ fail=0; for p in "${pids[@]}"; do wait $p || fail=1; done
 ((fail)) && { tail -5 "$TMP"/p*.log; exit 1; }
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$TMP/list.txt" -c copy "$OUT"
 n=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$OUT")
-echo "$OUT frames=$n expected=$N"; tail -1 "$TMP"/p*.log; rm -rf "$TMP"; [ "$n" = "$N" ]
+echo "$OUT frames=$n expected=$N"; for f in "$TMP"/p*.log; do tail -n 1 "$f"; done; rm -rf "$TMP"; [ "$n" = "$N" ]

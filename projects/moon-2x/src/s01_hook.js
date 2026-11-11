@@ -7,7 +7,8 @@ import { createOcean } from '@engine/ocean.js';
 import { createBay, GROUND_GLSL } from '@engine/bay.js';
 import { createCrowd, createHero, createBirds } from '@engine/crowd.js';
 import { applyCam, shake } from '@engine/camera.js';
-import { rng, keyed, lerp, smoother } from '@engine/util.js';
+import { rng, clamp } from '@engine/util.js';
+import { angRadius } from './story.js';
 const D2R = Math.PI / 180;
 const S = createStudio({ samples: 4, shadows: true, post: { exposure: 1.1, bloom: 0.16, bloomThreshold: 1.6, bloomRadius: 0.6, vignette: 0.5, grain: 0.03, sat: 1.08, contrast: 1.05 } });
 const { scene, camera } = S;
@@ -30,18 +31,20 @@ const birds = createBirds(S, 22, { flap: 8 });
 const camP = P.toWorld(0.45, DECK + 0.22, -93);
 const fwd = new THREE.Vector3(-Math.sin(PIER_YAW), 0, -Math.cos(PIER_YAW)), right = new THREE.Vector3(Math.cos(PIER_YAW), 0, -Math.sin(PIER_YAW));
 // rung-5 Moon: angular radius asin(1737.4 / 19867) = 5.02 deg; centre 1.2 deg up, 0.4 deg right of the pier axis
-const ANG0 = Math.asin(1737.4 / 19867), DIST = 15000;
+const STORY0 = 25, DIST = 15000;     // the hook is a flash-forward to rung 5 (story time 25 s); the approach never pauses
+const TOP_DEG = 6.1;                // keep the disc's top edge just under the caption band; it grows toward us and down
 const mdAt = (elevDeg) => { const v = fwd.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -0.6 * D2R); v.y = Math.tan(elevDeg * D2R); return v.normalize(); };
 const sun = sunForPhase(mdAt(1.0).negate(), 48, undefined, 160);
+// pre-roll (page t < 4) holds frame 0; from frame 0 everything moves at a constant rate
 S.run((t) => {
-  const tt = t - 4, u = smoother(0, 3.2, tt);            // 0..1 over the 3 s hook (pre-roll t<0 holds still)
-  // MID-CHAOS: the Moon keeps coming (5.02 -> 5.35 deg, rising), the sea swells, the crowd gets restless
-  const ANG = ANG0 * (1 + 0.065 * u), elev = 1.0 + 0.3 * u, md = mdAt(elev);
+  const tt = Math.max(t - 4, 0), u = clamp(tt / 3);       // linear 0..1 over the 3 s hook
+  // STEADY APPROACH: angular size follows the real geometry of a gap that halves every 5 s (5.02 deg -> 6.29 deg in 3 s)
+  const ANG = angRadius(STORY0 + tt), elev = TOP_DEG - ANG / D2R, md = mdAt(elev);
   const level = 1.1 + 0.6 * u, amp = 1.0 + 0.35 * u, agit = 0.45 + 0.35 * u;
-  // camera: slow push-in down the pier (0.7 m/s), tilt following the Moon, shake that grows with the rumble
-  const pos = camP.clone().addScaledVector(fwd, Math.max(tt, 0) * 0.7);
-  const look = pos.clone().addScaledVector(fwd, 1000); look.y += Math.tan((2.9 + 0.12 * u) * D2R) * 1000;
-  applyCam(camera, { pos, look, mm: 85, roll: 0 }, shake(t, 0.05 + 0.1 * u, 0.5 + 0.6 * u));
+  // camera: constant push-in down the pier (0.7 m/s), constant shake (no ramps)
+  const pos = camP.clone().addScaledVector(fwd, tt * 0.7);
+  const look = pos.clone().addScaledVector(fwd, 1000); look.y += Math.tan(2.9 * D2R) * 1000;
+  applyCam(camera, { pos, look, mm: 85, roll: 0 }, shake(t, 0.1, 0.8));
   moon.position.copy(camP).addScaledVector(md, DIST); moon.scale.setScalar(DIST * Math.sin(ANG));
   moon.faceNearSide(md.clone().negate(), [0.1, 0.05]);
   moon.U.sunDir.value.copy(sun); moon.U.earthDir.value.copy(md).negate();

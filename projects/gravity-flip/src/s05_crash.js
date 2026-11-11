@@ -90,7 +90,6 @@ for (let k = 0; k < 40; k++) { const ts = 0.05 + k * 0.05, front = OU.surgeR.val
 const spray = createSpray(S, parts);
 { const ob = ocean.refl.onBeforeRender; ocean.refl.onBeforeRender = (r, sc, cam) => { spray.mesh.visible = false; ob(r, sc, cam); spray.mesh.visible = true; }; }   // no spray in the mirror
 spray.U.sunDir.value.copy(SUN); spray.U.hazeD.value = 4000; spray.U.streak.value = +(Q.get("stk") ?? 1 / 15);   // long streaks: jets of water, not flakes
-console.log('spray particles', parts.length, 'boats', boats.length, 'impact at shot t', T_IMP.toFixed(3));
 const q = new THREE.Quaternion(), e = new THREE.Euler(), bp = new THREE.Vector3();
 S.run((t) => {
   const tt = Math.max(t - 4, 0), tau = tauAt('s05_crash', tt), H = heightAt(tau, T), ts = tt - T_IMP;   // ts: seconds since the impact

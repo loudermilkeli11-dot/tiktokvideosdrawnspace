@@ -230,3 +230,12 @@ HOW-WE-LOSE:
   - The third (A3) is the obvious risk, now with evidence: a fact-claim cover in this lane has already lost to no cover.
   - All three fixes are cheap.
 - **A1 is a real creative change.** Video #2 becomes a suspense countdown ("the Sun is gone; its light isn't"), not an escalation ladder. For one video it also waives "ends in space".
+
+## Post-seal note (2026-11-11, about 21:00 UTC)
+- **Video #2 was scrapped by the Commander:** "I don't want a repeat of an old video... run a new original idea through."
+- **Why it was a repeat twice over:**
+  - The Sun countdown remade our own "The sun just went dark".
+  - It also matched a popular niche video, Bolt Games' "What if the Sun disappeared? You wouldn't even know for 8 minutes" (101.3K likes; `channel/references/2026-11-11-niche.md`).
+- **Why the council missed it:** none of the officers checked the niche for originality.
+- **What still stands:** the rest of the seal (lane safety, measurement, Gates A and B). Amendment A1 is void.
+- **Next:** a new War Room decides Studio v2's format and an original video #2.

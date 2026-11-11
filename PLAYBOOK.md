@@ -17,7 +17,7 @@ The owner is the Commander. The target is good quality, fast.
 - The story is based on facts the way a Michael Bay movie is: one real fact lights the fuse, then everything goes huge.
 - There is one character, seen only from behind or in silhouette. No faces, no real people, no children, no gore.
 - One absurd change escalates in 8–12 steps (×2 or ×10 each), with a live counter on screen.
-- It ends in space, and the last frame hard-cuts to frame 1 so the video loops. (Waived once, for video #2 `sun-gone`, by the seal's amendment A1.)
+- It ends in space, and the last frame hard-cuts to frame 1 so the video loops.
 
 ### No voiceover, ever
 - Captions and sound design tell the story.

@@ -9,9 +9,9 @@ import { wedge, sField, groundH } from '@engine/bay.js';
 import { clamp, lerp, smoother, rng } from '@engine/util.js';
 import { bayWorld, D2R, SHOT } from './kit.js';
 import { angRadius } from './story.js';
-const S = createStudio({ samples: (t) => (t - 4 > 4.55 ? 16 : 8), shadows: false, post: { exposure: 1.12, bloom: 0.18, bloomThreshold: 1.5, bloomRadius: 0.6, vignette: 0.45, grain: 0.03, sat: 1.06, contrast: 1.05 } });
+const S = createStudio({ samples: (t) => (t - 4 > 4.62 ? 16 : 8), shadows: false, post: { exposure: 1.12, bloom: 0.18, bloomThreshold: 1.5, bloomRadius: 0.6, vignette: 0.45, grain: 0.03, sat: 1.06, contrast: 1.05 } });
 const { camera } = S;
-const W = bayWorld(S, { pierYaw: 3 * D2R, bay: { pierLen: 152 } });   // the standard pier (as in the hook)
+const W = bayWorld(S, { pierYaw: 3 * D2R, bay: { pierLen: 152 }, ocean: { reflScale: 0.35 } });   // the standard pier (as in the hook)
 const { bay } = W;
 const UP = new THREE.Vector3(0, 1, 0);
 const dirB = (bDeg) => new THREE.Vector3(Math.sin(bDeg * D2R), 0, -Math.cos(bDeg * D2R));   // bearing: 0 = out to sea (-Z), + = right
@@ -47,8 +47,9 @@ S.run((t) => {
   // the sea: constant-rate climb (no easing on story-driven change)
   const level = lerp(0.3, 2.0, u), amp = lerp(0.7, 1.3, u);
   // camera: 135 mm, a slow steady drift right with the boats, handheld shake that grows with the surge; whip-pan right at the end
+  // (the whip accelerates over the last 0.35 s and the cut lands at its fastest, mid-blur; 16 sub-frames there)
   const mm = 135, yH = 440, pitch = Math.atan(((yH - 480) / 480) * (18 / mm));
-  const bear = B0 + 0.22 * tt + whip(tt, 5 - 0.175, 0.35, 16);
+  const bear = B0 + 0.22 * tt + whip(tt, 5.0, 0.7, 24);
   const dir = dirB(bear); dir.y = Math.tan(pitch); dir.normalize();
   applyCam(camera, { pos: CAM, look: CAM.clone().add(dir), mm, roll: 0 }, shake(t, 0.035 + 0.05 * u, 0.6, 3));
   // boats break loose: eased drift from tt 1.2 (they are props, not the story clock)

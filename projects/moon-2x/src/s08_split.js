@@ -5,6 +5,7 @@ import { createStudio, THREE } from '@engine/engine.js';
 import { applyCam, shake } from '@engine/camera.js';
 import { createCrowd } from '@engine/crowd.js';
 import { createBreakup } from '@engine/breakup.js';
+import { trimBreakup } from '@engine/debris.js';
 import { groundH, sField } from '@engine/bay.js';
 import { clamp, lerp, rng, smoother } from '@engine/util.js';
 import { bayWorld, D2R, SHOT, dirThroughScreen } from './kit.js';
@@ -12,6 +13,7 @@ import { angRadius } from './story.js';
 const S = createStudio({ samples: 8, post: { exposure: 1.05, bloom: 0.18, bloomThreshold: 1.5, bloomRadius: 0.6, vignette: 0.5, grain: 0.03, sat: 1.06, contrast: 1.06 } });
 const W = bayWorld(S, { pierYaw: 3 * D2R });
 const B = createBreakup(S, { moon: { sunI: 1.3, normalScale: 2.0 }, rubble: 1400 });
+trimBreakup(B);   // each chunk keeps only its own triangles: same picture, far cheaper
 // camera on the hillside inland of the inner shore, looking out over the town and the flooded bay to the mouth
 const CX = 40, CZ = 260; const camBase = new THREE.Vector3(CX, groundH(CX, CZ) + 38, CZ);
 // crowd on the hill crest just below the camera, silhouetted against the bay (55–75 m away)

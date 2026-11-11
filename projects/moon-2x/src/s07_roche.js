@@ -5,6 +5,7 @@ import { createStudio, THREE } from '@engine/engine.js';
 import { applyCam, shake, kick } from '@engine/camera.js';
 import { createCrowd, createHero, createBirds } from '@engine/crowd.js';
 import { createBreakup } from '@engine/breakup.js';
+import { trimBreakup } from '@engine/debris.js';
 import { clamp, rng } from '@engine/util.js';
 import { bayWorld, D2R, SHOT, dirThroughScreen } from './kit.js';
 import { angRadius } from './story.js';
@@ -13,6 +14,7 @@ const PIER_YAW = 3 * D2R;
 const W = bayWorld(S, { shadows: true, pierYaw: PIER_YAW, pierLights: 4 });
 const P = W.bay.pier, DECK = P.deckY;
 const B = createBreakup(S, { moon: { sunI: 1.3, normalScale: 2.0 } });
+trimBreakup(B);   // each chunk keeps only its own triangles: same picture, far cheaper
 const R = rng(77); const people = [];
 for (let i = 0; i < 34; i++) { const side = i % 2 ? 1 : -1; const lz = -55 - R() * 95; const lx = side * (0.9 + R() * 1.3);
   const w = P.toWorld(lx, DECK, lz); people.push({ x: w.x, z: w.z, y: DECK, yaw: PIER_YAW + (R() - 0.5) * 0.5 }); }

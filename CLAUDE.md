@@ -12,6 +12,9 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 - `bay.js`: horseshoe-bay set: town windows, lamps, orientable plank pier, boats, lighthouse.
 - `figure.js`: organic people from signed distance fields; pose with `POSES` hand targets.
 - `crowd.js`: crowd, hero and birds, all built on figure.js.
+- `breakup.js`: the Moon cut into 12 chunks plus rubble. ALWAYS call `trimBreakup(B)` from `debris.js` (about 6× cheaper).
+- `debris.js`: meteors, impact glows, the ring arc from the ground, rubble streams, `trimBreakup`, `hideFromReflection`.
+- `space.js`: Earth (day/night/clouds/atmosphere), the debris ring with Earth's shadow, the Sun, stars.
 - `audio_core.js`: shot sound kit (surf, rumble, crowd, gasp, mid-range `hit`, whoosh, siren…) plus `renderSound`.
 
 ## Tools (`tools/`)
@@ -29,7 +32,9 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 ## Projects
 - `projects/moon-2x/`: video #1, from the sealed dossier `channel/war-room/2026-11-11-first-video.md`.
   - `src/story.js` is the ONE approach law: the gap halves every 5 s, continuously. Shots and the counter both read it.
-  - Only `s01_hook` (3 s) exists. Still to do: the board for the 12 rungs, the remaining shots, the space-ending set, and the full score cue sheet.
+  - v1 is DONE (2026-11-11): 13 shots, 66.0 s. The final is on the `videos` branch (`moon-2x/moon-2x_v1.mp4`).
+  - Board: `script.md`. Kit: `src/kit.js`. Overlay: `overlay.js`. Score: `score.json`. Builder brief: `BUILDERS.md`. Hand-overs: `FINAL/`.
+  - Known weak spots: the ring arch (s10/s11) looks like a striped beam; the chunks' inner faces are smooth; the early Moon is small (s03/s04).
 
 ## War Room
 - `war-room/`: Node app (Agent SDK) for the Commander's Windows PC. To install, run `war-room/War Room Setup.cmd`.

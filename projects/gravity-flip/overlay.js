@@ -28,7 +28,7 @@ const RATE = (r) => (r >= 1.5 ? `TIME-LAPSE ×${sig2(r)}` : r >= 0.8 ? 'REAL TIM
 // ---- counter segment for one shot: label/value/fact are functions of the story state (or constants)
 const res = (v, s) => (typeof v === 'function' ? v(s) : v);
 const seg = (name, o, t0 = SHOT[name].t0, t1 = SHOT[name].t0 + SHOT[name].dur) => ({
-  t0, t1, format: (x) => x,
+  t0, t1, format: (x) => x, band: o.band,
   label: (t) => res(o.label, S(name, t)), value: (t) => res(o.value, S(name, t)), fact: (t) => res(o.fact ?? '', S(name, t)),
 });
 
@@ -41,6 +41,9 @@ const tAgain = SHOT.s06_again.t0, tClouds = SHOT.s07_clouds.t0, tCoasts = SHOT.s
 const tPeel = SHOT.s09_peel.t0, tSlow = tPeel + SHOT.s09_peel.keys[1][0];   // 27.5: the speed ramp drops to ~real time
 const tReturn = SHOT.s10_return.t0, tEnd = SHOT.s11_end.t0;
 const A1 = apex(T1), A2 = apex(T2);
+
+// ---- stronger backing bands where the picture is bright (A4 >= 3:1 after yuv420p): noon sky, white cloud deck, sunlit Earth
+const BRIGHT = { a: 0.7, padY: 64, plateau: [0.74, 0.9] }, CLOUDS = { a: 0.78, padX: 130, padY: 64, plateau: [0.72, 0.9] };
 
 // ---- captions: anchored to the picture; each starts at max(anchor, previous start + 2.8 s) and runs to the next one
 const MIN = 2.8, frame = (t) => Math.round(t * 30) / 30;
@@ -60,9 +63,9 @@ export default () => ({
   captions: chain([
     [tFlip, 'Everything loose falls *up*.'],
     [tBack, "Gravity's back. | The sea *fell up* too."],          // board: 8.0 "Gravity's back. Still rising." + 8.5 "The sea fell up too." (merged)
-    [SHOT.s05_crash.t0, 'Then it all comes *back*.'],
+    [SHOT.s05_crash.t0, 'Then it all comes *back*.', { band: BRIGHT }],   // over the white splash
     [tAgain, 'Now make it *one minute.*'],
-    [tClouds, 'Above the clouds. | *Above the jets.*'],
+    [tClouds, 'Above the clouds. | *Above the jets.*', { band: CLOUDS }],
     [tCoasts, 'Every coast. *At once.*'],
     [tPeel, 'Now make it *ten minutes.*'],
     [tSlow, 'Planes pass the *space station.*'],
@@ -71,23 +74,23 @@ export default () => ({
   ], FILM_LEN),
   counter: [
     seg('s01_plaza', { label: 'Gravity flips in', value: (s) => COUNTDOWN(-s.tau), fact: `Earth pulls at ${G0} m/s²` }),
-    seg('s02_flip', { label: 'Falling up', value: (s) => HEIGHT(s.h), fact: (s) => `${KMH(s.v)} km/h · ${(s.T - s.tau).toFixed(1)} s of flip left` }),
+    seg('s02_flip', { band: BRIGHT, label: 'Falling up', value: (s) => HEIGHT(s.h), fact: (s) => `${KMH(s.v)} km/h · ${(s.T - s.tau).toFixed(1)} s of flip left` }),
     seg('s03_pov', {
       label: (s) => (s.tau < s.T ? 'Falling up' : 'Still rising'), value: (s) => HEIGHT(s.h),
       fact: (s) => (s.tau < s.T ? `${KMH(s.v)} km/h · ${(s.T - s.tau).toFixed(1)} s of flip left` : `${KMH(s.v)} km/h · gravity's back`),
     }),
     seg('s04_seaup', { label: 'Apex', value: (s) => HEIGHT(s.h), fact: (s) => `${KMH(s.v)} km/h · back down in ${(s.land - s.tau).toFixed(1)} s` }),
     seg('s05_crash', {
-      label: 'Landing speed · km/h', value: (s) => KMH(s.landed ? vLand(s.T) : s.v),
+      band: BRIGHT, label: 'Landing speed · km/h', value: (s) => KMH(s.landed ? vLand(s.T) : s.v),
       fact: (s) => (s.landed ? `${s.land.toFixed(1)} s after the flip` : `impact in ${(s.land - s.tau).toFixed(1)} s`),
     }),
     seg('s06_again', { label: `Flip · ${MMSS(T2)} · starts in`, value: (s) => COUNTDOWN(-s.tau), fact: `${T2 / T1}× longer than before` }),
-    seg('s07_clouds', { label: 'Height', value: (s) => HEIGHT(s.h), fact: (s) => `${KMH(s.v)} km/h · ${(s.T - s.tau).toFixed(1)} s of flip left` }),
+    seg('s07_clouds', { band: BRIGHT, label: 'Height', value: (s) => HEIGHT(s.h), fact: (s) => `${KMH(s.v)} km/h · ${(s.T - s.tau).toFixed(1)} s of flip left` }),
     seg('s08_coasts', {
-      label: 'Landing speed · km/h', value: (s) => KMH(s.landed ? vLand(s.T) : s.v),
+      band: BRIGHT, label: 'Landing speed · km/h', value: (s) => KMH(s.landed ? vLand(s.T) : s.v),
       fact: (s) => (s.landed ? `fell back from ${(A2 / 1000).toFixed(1)} km` : `impact in ${(s.land - s.tau).toFixed(1)} s`),
     }),
-    seg('s09_peel', { label: `Flip · ${MMSS(T3)} · height`, value: (s) => HEIGHT(s.h), fact: (s) => `T+${CLOCK(s.tau)} · ${RATE(s.rate)}` }),
+    seg('s09_peel', { band: BRIGHT, label: `Flip · ${MMSS(T3)} · height`, value: (s) => HEIGHT(s.h), fact: (s) => `T+${CLOCK(s.tau)} · ${RATE(s.rate)}` }),
     seg('s10_return', {
       label: 'Re-entry · km/h', value: (s) => KMH(s.landed ? vLand(s.T) : s.v), fact: (s) => `T+${CLOCK(s.tau)} · ${RATE(s.rate)}`,
     }, tReturn, tEnd + 0.15),                                    // the landing value holds through the cut, then fades

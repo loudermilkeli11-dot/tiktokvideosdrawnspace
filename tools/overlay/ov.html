@@ -243,6 +243,8 @@ function drawTag(tg, f) {
 //   counter: [{t0, t1, label: str|(t)=>str, value: (t)=>v, format?, fact?: str|(t)=>str, valueSize?, fadeIn?, fadeOut?}]
 //     Segments that touch (next.t0 == prev.t1) form one block: no fade at the junction, label/value/format switch in place.
 //   captions/titles/counter blocks fade in and out over V2.fade s (none at film start; fadeIn/fadeOut: 0 = hard).
+//   band (any title/caption/counter item): a stronger backing band where the picture is bright: a number (alpha) or
+//     {a, padX, padY, plateau} merged over the default band (white clouds, noon sky; A4).
 const V2 = {
   fade: 0.15,
   title: { font: "'Instrument Serif'", size: 47, lh: 0.98, top: 170, maxW: 492, minSize: 34, shadow: [2, 16, 0.55] },
@@ -437,6 +439,7 @@ function v2Tag(tg, f) {
   const B = V2.tagBand; v2BandAt(x + w / 2, (tg.y ?? T.y) + V2M.tag.lh / 2, w / 2 + B.padX, V2M.tag.lh / 2 + B.padY, B, 1);
   v2Composite({ x, y: tg.y ?? T.y, w, h: V2M.tag.lh }, T.shadow, T.op);
 }
+const v2B = (B, o) => (o == null ? B : typeof o === 'number' ? Object.assign({}, B, { a: o }) : Object.assign({}, B, o));
 function drawV2(f) {
   const vis = (it) => f >= fr(it.t0) && f < fr(it.t1);
   const titles = SPEC.titles.filter(vis), caps = SPEC.captions.filter(vis);
@@ -450,11 +453,11 @@ function drawV2(f) {
     const lh = V2M[kind].lh * L.size / V2[kind].size, h = L.lines.length * lh, W = Math.max(...L.lines.map((l) => l.w));
     v2BandAt(270, top + h / 2, Math.max(B.minRX, W / 2 + B.padX), h / 2 + B.padY, B, a);
   };
-  for (const { tt, L, a } of titleL) blockBand(L, 'title', tt.y ?? V2.title.top, V2.titleBand, a);
+  for (const { tt, L, a } of titleL) blockBand(L, 'title', tt.y ?? V2.title.top, v2B(V2.titleBand, tt.band), a);
   const C = V2.ctr, cw = C.bar + C.pad + C.maxW, ch = V2M.lab.lh + C.gap[0] + V2M.val.lh + C.gap[1] + V2M.fact.lh;
-  ctrA.forEach((a) => v2BandAt(C.x + cw / 2, C.y + ch / 2, cw / 2 + V2.ctrBand.padX, ch / 2 + V2.ctrBand.padY, V2.ctrBand, a));
+  ctrA.forEach((a, k) => { const B = v2B(V2.ctrBand, ctrs[k].cn.band); v2BandAt(C.x + cw / 2, C.y + ch / 2, cw / 2 + B.padX, ch / 2 + B.padY, B, a); });
   const capTop = (L) => { const lh = V2M.cap.lh * L.size / V2.cap.size; return V2.cap.top + lh / 2 - (L.lines.length * lh) / 2; };
-  for (const { c, L, a } of capL) blockBand(L, 'cap', c.y ?? capTop(L), V2.capBand, a);
+  for (const { c, L, a } of capL) blockBand(L, 'cap', c.y ?? capTop(L), v2B(V2.capBand, c.band), a);
   let n = 0;
   for (const tg of SPEC.tags) if (vis(tg)) { v2Tag(tg, f); n++; }
   ctrs.forEach(({ cn }, k) => { if (ctrA[k] > 0) { v2Counter(cn, f, ctrA[k]); n++; } });

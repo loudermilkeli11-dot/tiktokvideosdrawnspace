@@ -16,6 +16,9 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 - `debris.js`: meteors, impact glows, the ring arc from the ground, rubble streams, `trimBreakup`, `hideFromReflection`.
 - `space.js`: Earth (day/night/clouds/atmosphere), the debris ring with Earth's shadow, the Sun, stars.
 - `audio_core.js`: shot sound kit (surf, rumble, crowd, gasp, mid-range `hit`, whoosh, siren…) plus `renderSound`.
+- `city.js`: sunny downtown set: roads with kerbs and crossings, glass/stone towers, cars, trees, lamps, props, a fountain; `update(t, {lift, tumble, waterLift})`.
+- `planes.js` (generic airliner, nose −Z), `clouds.js` (cloud deck from above), `iss.js` (generic station), `shell.js` (oceans/air lifting off as shells), `storm.js` (meteor storm from orbit), `splash.js` (lifted sea, seabed, boats, spray), `fire.js` (flames, no smoke).
+- `sky.js`, `ocean.js` and `space.js` carry extra modes (see-through, lava, slab sea, seabed, surf, scar…), all off by default.
 
 ## Tools (`tools/`)
 - `build_page.py`: shot.js → one HTML, plus `<shot>_sound.html`.
@@ -25,8 +28,9 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 - `overlay/`: captions + counter → overlay.mov. `stylelab.*` holds the style options.
 - `score.py`: ticks, risers, braaams, cracks, the big hit, silences.
 - `assemble.sh`: produces final.mp4 at −14 LUFS.
-- `check.py`: contact sheets plus checks for frames, size, loudness, flashes, jumps, cut hits (above 200 Hz) and silence.
-- `cloud/`: `snapshot.sh` (pages → `render` branch) → `plan.py` (chunks + worker prompts) → `create_session` per chunk (source_revision `render`, clone_depth 1, model claude-fable-5-2) → `collect.sh` → `join.sh`. Proven: about 2 min for 6 frames; cloud and local frames match.
+- `check.py`: contact sheets plus checks for frames, size, loudness, flashes (upward jumps only), jumps, cut hits (above 200 Hz), silence and text contrast (A4, ≥ 3:1 after yuv420p). `--contrast overlay.mov --bg clean.mp4 --every 0.2` checks type before assembly.
+- `overlay/`: Studio v2 look (`style: {look: 'v2'}`); any title, caption or counter item takes `band` for a stronger backing band over bright picture.
+- `cloud/`: `RENDER_BRANCH=render-<x> snapshot.sh` (pages → a per-batch branch, so batches can run while others build) → `plan.py --chunk N --shots a,b` (chunks + worker prompts) → `create_session` per chunk (source_revision `render`, clone_depth 1, model claude-fable-5-2) → `collect.sh` → `join.sh`. Proven: about 2 min for 6 frames; cloud and local frames match.
 - Measured speed: about 9 s per frame alone, or about 18 s per frame with 2 renderers in parallel, at full size with 4 samples (hook shot).
 
 ## Projects
@@ -35,6 +39,15 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
   - v1 is DONE (2026-11-11): 13 shots, 66.0 s. The final is on the `videos` branch (`moon-2x/moon-2x_v1.mp4`).
   - Board: `script.md`. Kit: `src/kit.js`. Overlay: `overlay.js`. Score: `score.json`. Builder brief: `BUILDERS.md`. Hand-overs: `FINAL/`.
   - Known weak spots: the ring arch (s10/s11) looks like a striped beam; the chunks' inner faces are smooth; the early Moon is small (s03/s04).
+
+- `projects/gravity-flip/`: video #2, "What if gravity flipped for 5 seconds?" → 1 minute → 10 minutes. Studio v2 format: 11 shots, 38.0 s.
+  - `src/story.js` is the law (reversed inverse-square gravity for T seconds, integrated tables); the shots, the counter and the captions all read it.
+  - Lead city kit: `src/citykit.js`. Board: `script.md`. Builder brief: `BUILDERS.md`. Hand-overs: `FINAL/`.
+  - v1 is DONE (2026-11-11). The final is on the `videos` branch (`gravity-flip/gravity-flip_v1.mp4`).
+
+## Commander
+- Time zone: US Central. Give every ETA in CST/CDT, and never promise one you can't keep.
+- Rendering on the Commander's PC is free. It is not connected yet: they need to share a folder (Claude desktop app → Settings → Claude Code → Remote Control) and tell us their GPU.
 
 ## War Room
 - Sealed dossiers live in `channel/war-room/`: the first video, and the channel strategy (2026-11-11). The strategy covers the sky lane, fact-with-number covers, 34 s by default, and Gates A and B on 2026-11-13.

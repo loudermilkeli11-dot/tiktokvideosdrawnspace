@@ -11,7 +11,9 @@ Expected frame count: --frames, else sum of ../shots.txt if the video sits in pr
 score.json defaults to ../score.json likewise (silent ranges + loop_silence_frames).
 Text contrast (amendment A4): with ../out/overlay.mov (or --overlay), every 0.5 s the overlay's text pixels are measured
 against the composited pixels around them in the final (yuv420p) video; WARN below 3:1.
-Exit code 1 on hard failures: frame count, size >= 100 MB, loudness off -14 LUFS by > 1 LU, white flashes.
+Exit code 1 on hard failures: frame count, size >= 100 MB, loudness off -14 LUFS by > 1 LU, white flashes
+(a frame above 0.85 mean luma, or a jump UP by > 0.35; a cut from bright to dark is not a flash).
+Duration: 30-38 s is the default (PLAYBOOK); 61-70 s is the flagged long test; anything else WARNs.
 """
 import json, os, re, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
@@ -264,10 +266,11 @@ def contrast_only(args):
         bgs = {n: still for n, _ in ovs}
     else:
         want = {n for n, _ in ovs}
-        p = subprocess.run(['ffmpeg', '-v', 'error', '-i', bgp, '-an', '-vf', f'scale={W}:{H},format=rgb24', '-f', 'rawvideo', '-'],
-                           capture_output=True, check=True).stdout
+        # only the sampled frames (the whole film at full size would not fit in memory)
+        p = subprocess.run(['ffmpeg', '-v', 'error', '-i', bgp, '-an', '-vf', f"select='not(mod(n\\,{step}))',scale={W}:{H},format=rgb24",
+                            '-fps_mode', 'passthrough', '-f', 'rawvideo', '-'], capture_output=True, check=True).stdout
         allf = np.frombuffer(p, np.uint8).reshape(-1, H, W, 3)
-        bgs = {n: allf[min(n, len(allf) - 1)] for n in want}
+        bgs = {n: allf[min(n // step, len(allf) - 1)] for n in want}
     comp = []
     for n, o in ovs:
         a = o[..., 3:4].astype(np.float32) / 255
@@ -317,14 +320,13 @@ def main():
     P(f"frames: {n}" + (f" (expected {expected})" if expected else "") + f"   duration {dur:.3f}s   size {size / 1e6:.2f} MB")
     if expected and n != expected: fails.append(f"frame count {n} != {expected}")
     if size >= 100e6: fails.append(f"size {size / 1e6:.1f} MB >= 100 MB")
-    if not (61 <= dur <= 70): warns.append(f"duration {dur:.2f}s outside 61-70s")
+    if not (30 <= dur <= 38.05 or 61 <= dur <= 70): warns.append(f"duration {dur:.2f}s outside 30-38s (or the 61-70s test length)")
     P(f"loudness: I={I:.1f} LUFS  TP={TP:.1f} dBTP (target -14 / <= -1)")
     if not (abs(I + 14) <= 1): fails.append(f"integrated loudness {I:.1f} LUFS (off by > 1 LU)")
     if TP > -1.0: warns.append(f"true peak {TP:.1f} dBTP > -1")
 
     # white flashes
-    jumps = np.abs(np.diff(luma))
-    flash = sorted(set(np.where(luma > 0.85)[0].tolist()) | set((np.where(jumps > 0.35)[0] + 1).tolist()))
+    flash = sorted(set(np.where(luma > 0.85)[0].tolist()) | set((np.where(np.diff(luma) > 0.35)[0] + 1).tolist()))   # up only
     P(f"white-flash check: {len(flash)} frames" + (": " + ", ".join(f"f{f} {tc(f)} (luma {luma[f]:.2f})" for f in flash[:30]) if flash else " — OK"))
     if flash: fails.append(f"{len(flash)} white-flash frames")
 

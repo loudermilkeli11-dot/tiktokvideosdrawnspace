@@ -11,13 +11,15 @@ export function createSky(S, o = {}) {
     duskCol: { value: new THREE.Color(o.duskCol ?? 0xff7a3a) }, dayZen: { value: new THREE.Color(0x2a62c4) }, dayHor: { value: new THREE.Color(0x9cc4ec) },
     lpDir: { value: new THREE.Vector3(-1, 0, -0.3).normalize() }, lpCol: { value: new THREE.Color(o.lpCol ?? 0xff9a50) }, lp: { value: o.lp ?? 0.35 },
     mwN: { value: new THREE.Vector3(0.45, 0.35, 0.82).normalize() }, exposure: { value: o.exposure ?? 1 },
+    // see-through Earth (0 = off): below the horizon show the far side's night sky + the glowing iron core at the nadir
+    thru: { value: 0 }, coreCol: { value: new THREE.Color(1.0, 0.6, 0.3) }, coreI: { value: 40 }, coreAng: { value: Math.asin(3480 / 6371) }, skyGlow: { value: 0.004 },
     tintAll: { value: new THREE.Color(0xffffff) }, beltCol: { value: new THREE.Color(o.beltCol ?? 0xc98a96) }, beltI: { value: o.beltI ?? 0.35 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false,
     vertexShader: `varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }`,
     fragmentShader: `${NOISE}
-      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure;
+      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure; uniform float thru, coreI, coreAng, skyGlow; uniform vec3 coreCol;
       varying vec3 vD;
       vec3 starLayer(vec3 d, float sc, float dens, float bright){
         vec3 p = d*sc; vec3 c = floor(p); float h = h13(c);
@@ -70,7 +72,24 @@ export function createSky(S, o = {}) {
           st += starLayer(d, 1100., 0.10*band, 0.8);
           col += (st + mw) * sv;
         }
-        if (y < 0.) col = mix(col, nightHor*0.6 + duskCol*tw*0.1, smoothstep(0., -0.05, y));
+        // the core's light from below lights the whole atmosphere (see-through Earth)
+        col += coreCol*coreI*thru*skyGlow*(0.35 + 0.65*exp(-yc*3.));
+        if (y < 0.) {
+          vec3 below = nightHor*0.6 + duskCol*tw*0.1;
+          if (thru > 0.) {
+            vec3 tc = starLayer(d, 160., 0.05, 7.) + starLayer(d, 380., 0.035, 3.) + starLayer(d, 800., 0.03, 1.2);
+            float bb = dot(d, mwN); float band = exp(-bb*bb/0.03);
+            tc += vec3(0.55,0.6,0.75)*band*(0.35+0.9*fbm3(d*6.))*milky*0.05;
+            float ang = acos(clamp(-d.y, -1., 1.));                                   // angle from the nadir
+            float disc = smoothstep(coreAng + 0.004, coreAng - 0.004, ang);
+            float gran = 0.78 + 0.22*fbm3(d*26. + vec3(time*0.015, 0., time*0.01));    // slow convection mottling
+            float limb = 0.6 + 0.4*sqrt(max(1. - pow(ang/coreAng, 2.), 0.));
+            tc = mix(tc, coreCol*coreI*gran*limb, disc);
+            tc += coreCol*coreI*0.015*exp(-max(ang - coreAng, 0.)*10.);
+            below = mix(below, tc, thru);
+          }
+          col = mix(col, below, smoothstep(0., -0.05, y));
+        }
         gl_FragColor = vec4(col*exposure*tintAll, 1.);
       }`,
   });

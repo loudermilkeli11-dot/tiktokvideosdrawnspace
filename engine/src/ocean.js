@@ -45,6 +45,8 @@ export function createOcean(S, o = {}) {
     wA: { value: waveParams.map((p) => p.A) }, wK: { value: waveParams.map((p) => p.k) }, wW: { value: waveParams.map((p) => p.w) }, wQ: { value: waveParams.map((p) => p.Q) },
     wD: { value: waveParams.map((p) => new THREE.Vector2(p.d[0], p.d[1])) },
     exposure: { value: 1 },
+    thru: { value: 0 }, underCol: { value: new THREE.Color(1.0, 0.5, 0.2) },   // see-through Earth: core light from below
+    lava: { value: 0 }, lavaI: { value: 4.0 },   // 0 = water, 1 = molten basalt (incandescent cracks, dark crust plates)
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.DoubleSide,
@@ -63,7 +65,7 @@ export function createOcean(S, o = {}) {
         gl_Position = projectionMatrix*viewMatrix*vec4(p,1.); }`,
     fragmentShader: `${NOISE}
       ${groundGLSL}
-      uniform float time, amp, level, moonI, sunI, reflI, distort, foamAmt, surf, rough, glitter, exposure;
+      uniform float time, amp, level, moonI, sunI, reflI, distort, foamAmt, surf, rough, glitter, exposure, thru, lava, lavaI; uniform vec3 underCol;
       uniform sampler2D nTex, refl; uniform vec3 moonDir, moonCol, sunDir, sunCol, deep, shallow, sand, amb;
       varying vec3 vWP; varying vec3 vN; varying float vJac; varying vec4 vRU; varying float vDepth; varying vec2 vFlat;
       vec3 nm(vec2 uv){ return texture2D(nTex, uv).xzy*2.-1.; }
@@ -105,6 +107,22 @@ export function createOcean(S, o = {}) {
         col = mix(col, foamLit, foam*0.85);
         // wet-edge alpha: let the sand show through in the last few cm
         float a = smoothstep(-0.05, 0.25, vDepth);
+        if (lava > 0.) {   // molten sea: cooled crust plates drift on incandescent melt; wave crests tear the crust open
+          vec2 lp = vWP.xz*0.035 + vec2(time*0.006, -time*0.004);
+          float n1 = fbm2(lp), n2 = fbm2(lp*2.9 + 3.1);
+          float crust = smoothstep(0.30, 0.40, n1 + 0.22*n2);
+          float stretch = smoothstep(0.97, 0.55, vJac) + 0.6*smoothstep(0.6, 1.6, vWP.y - level);
+          float hot = clamp(1. - crust + 0.9*stretch, 0., 1.);
+          float vein = pow(1. - abs(n2*2. - 1.), 7.)*(1. - 0.6*crust);
+          float g2 = hot*hot*hot; vec3 lc = mix(vec3(0.016,0.009,0.007), vec3(0.95,0.13,0.02)*lavaI, g2) + vec3(1.0,0.36,0.05)*vein*lavaI*1.5*(0.35 + 0.65*hot);
+          lc *= 0.8 + 0.2*sin(time*0.6 + n1*11.);
+          float edge = smoothstep(0.6, 0.0, max(vDepth, 0.));                 // thin edge on the sand: brightest, fresh melt
+          lc += vec3(1.0,0.32,0.05)*lavaI*0.35*edge;
+          col = mix(col, lc + R*F*0.18, lava);
+          a = mix(a, smoothstep(-0.05, 0.08, vDepth), lava);
+        }
+        if (thru > 0.) { float T = exp(-max(vDepth, 0.)/45.);                 // light through the clear seabed and the water column
+          col += underCol*thru*(0.12 + 0.88*T)*(1. - F); a *= 1. - 0.8*thru*T*(1. - F); }
         gl_FragColor = vec4(col*exposure, a);
       }`,
     transparent: true, depthWrite: true,

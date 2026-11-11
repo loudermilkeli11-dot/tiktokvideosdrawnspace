@@ -54,7 +54,7 @@ export function createBay(S, o = {}) {
   // ---------- terrain ----------
   const nu = 380, nv = 300; const pos = new Float32Array((nu + 1) * (nv + 1) * 3); let k = 0;
   for (let j = 0; j <= nv; j++) { const v = j / nv; const z = v < 0.1 ? 300 - (v / 0.1) * 295 : 5 - Math.pow((v - 0.1) / 0.9, 1.7) * 3400; for (let i = 0; i <= nu; i++) { const u = i / nu * 2 - 1; const x = Math.sign(u) * Math.pow(Math.abs(u), 1.6) * 2600; pos[k++] = x; pos[k++] = groundH(x, z); pos[k++] = z; } }
-  const idx = []; for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+  const idx = []; for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1; idx.push(a, b, c, b, d, c); }   // CCW seen from above: faces (and normals) point up
   const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); tg.setIndex(idx); tg.computeVertexNormals();
   const sandD = S.tex('sand_diff_1k.jpg', { repeat: true }), sandN = S.tex('sand_nor_gl_1k.jpg', { repeat: true, srgb: false });
   const rockD = S.tex('rock_diff_1k.jpg', { repeat: true }), rockN = S.tex('rock_nor_gl_1k.jpg', { repeat: true, srgb: false });

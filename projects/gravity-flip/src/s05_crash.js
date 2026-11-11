@@ -76,7 +76,7 @@ for (let i = 0, nj = 0; i < 20000 && nj < 190; i++) { const c = CAM.clone().addS
   const sf = sField(c.x, c.z); if (sf > -110) continue; nj++;
   const df = clamp(-groundH(c.x, c.z) / 28, 0.3, 1), d = camD(c.x, c.z), vmax = (78 + 44 * SR()) * (0.55 + 0.45 * Math.pow(df, 0.7)) * ridge(c.x, c.z);
   const tx = (SR() - 0.5) * 0.24, tz = (SR() - 0.5) * 0.24, m = 120 + Math.floor(SR() * 80), rad = 8 + SR() * 14;
-  for (let k = 0; k < m; k++) { const u = 0.18 + 0.82 * Math.sqrt(SR()), a2 = SR() * 6.283, rr = Math.sqrt(SR()) * rad, ox = Math.cos(a2), oz = Math.sin(a2), kind = SR() < (u > 0.85 ? 0.35 : 0.7) ? 1 : 0;
+  for (let k = 0; k < m; k++) { const u = k % 2 ? 0.15 + 0.85 * Math.sqrt(SR()) : 0.12 + 0.6 * SR(), a2 = SR() * 6.283, rr = Math.sqrt(SR()) * rad, ox = Math.cos(a2), oz = Math.sin(a2), kind = SR() < (u > 0.85 ? 0.35 : 0.7) ? 1 : 0;
     const jx = tx + (SR() - 0.5) * 0.07 + ox * 0.05, jz = tz + (SR() - 0.5) * 0.07 + oz * 0.05;
     parts.push({ p: [c.x + ox * rr, 0.5 + SR() * 2, c.z + oz * rr], v: [jx * vmax * u, vmax * u, jz * vmax * u], shade: 0.6 + 0.4 * Math.max(0, ox * sunH.x + oz * sunH.y) + 0.12 * (u - 0.5),
       t0: T_IMP + 4 + SR() * 0.12, size: kind === 1 ? (3 + SR() * 6) * (0.55 + d / 1100) : (0.8 + SR() * 1.6) * (0.6 + d / 1200), drag: kind === 1 ? 0.12 : 0.05, life: 8, kind }); } }

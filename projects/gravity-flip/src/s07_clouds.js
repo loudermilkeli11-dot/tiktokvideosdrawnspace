@@ -91,7 +91,7 @@ const cars = [[-30, -38, -48], [34, 14, -52], [52, -64, -80], [-55, 40, -70], [8
   scene.add(g); return g;
 });
 // one car was still driving when gravity flipped: it keeps its road speed (~36 km/h) relative to us and tumbles across the top of frame
-{ const hc = cars[0]; hc.userData.hero = true; hc.userData.p.set(40, 5, -22); hc.userData.v.set(-10, 0.3, 0); hc.userData.w.set(0.7, 0.4, 1.1); }
+{ const hc = cars[0]; hc.userData.hero = true; hc.userData.p.set(40, 1.2, -22); hc.userData.v.set(-10, 0.3, 0); hc.userData.w.set(0.7, 0.4, 1.1); }
 // ---- plaza furniture falling up with us: cafe umbrellas, benches, bins, planters, cafe tables ----
 function part(g, col, m) { g = g.index ? g.toNonIndexed() : g; if (m) g.applyMatrix4(m); g.deleteAttribute('uv'); const c = new THREE.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) c.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }

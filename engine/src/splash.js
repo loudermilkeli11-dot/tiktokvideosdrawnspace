@@ -16,7 +16,8 @@ vec3 slabSun(vec3 wp){                       // direct sun reaching wp through t
   vec3 sd = normalize(sunDir); float yT = level + lift; if (wp.y > yT) return vec3(1.);
   vec2 xz = wp.xz + sd.xz*((yT - 8. - wp.y)/max(sd.y, 0.08));
   float th = level - groundH(xz); if (th <= 0.) return vec3(1.);
-  return mix(vec3(1.), exp(-absorb*th/max(sd.y, 0.25))*vec3(0.75, 0.95, 1.0), smoothstep(0., 0.7, th)); }
+  vec3 T = exp(-absorb*0.6*th/max(sd.y, 0.25)); T = mix(vec3(dot(T, vec3(0.3, 0.5, 0.2))), T, 0.45)*vec3(0.9, 1.0, 1.02);
+  return mix(vec3(1.), T, smoothstep(0., 0.7, th)); }
 float slabCover(vec3 wp){                    // how much of the sky the ceiling hides from wp
   if (lift < 0.05) return 0.;
   float yT = level + lift; if (wp.y > yT - 1.) return 0.;
@@ -37,17 +38,19 @@ export function patchSlab(mat, U, groundGLSL, o = {}) {
           sw = instanceMatrix*sw;
           #endif
           vSlabWp = (modelMatrix*sw).xyz; }`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${hasG ? '' : NOISE + groundGLSL}\n${SLAB_GLSL}`)
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', `${hasG ? '' : NOISE + groundGLSL}\n${SLAB_GLSL}\nfloat slabPud = 0.;\nvoid main() {`)
       .replace('#include <lights_fragment_begin>', THREE.ShaderChunk.lights_fragment_begin.replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); directLight.color *= slabSun(vSlabWp);'))
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { float cv = slabCover(vSlabWp); vec3 glow = mix(scatThin, scatThick, 0.45);
-          reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, reflectedLight.indirectDiffuse*0.35 + glow*0.55*material.diffuseColor, cv);
-          reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, glow*1.4*(0.25 + 0.75*slabPud), cv); }`);
+          reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, reflectedLight.indirectDiffuse*0.55 + glow*0.22*material.diffuseColor, cv);
+          vec3 gs = mix(vec3(dot(glow, vec3(0.3, 0.5, 0.2))), glow, 0.35 + 0.5*slabPud);
+          reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular, gs*(0.12 + 0.75*slabPud), cv); }`);
+    if (o.noLamps) sh.fragmentShader = sh.fragmentShader.replace(/for \(int i=0;i<(\d+);i\+\+\)\{ vec3 d = lampP/, 'for (int i=0;i<0;i++){ vec3 d = lampP');
     if (o.seabed) {                          // the exposed bed: ripple marks, dark weed patches, glassy puddles that mirror the ceiling
       sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>', `
         { float bd = smoothstep(-1., -6., sAt(vWp.xz)) * step(0.05, lift);
           float pn = fbm2(vWp.xz*0.045 + 3.7) + 0.35*fbm2(vWp.xz*0.31);
-          slabPud = bd*smoothstep(0.83, 0.9, pn);
+          slabPud = bd*smoothstep(0.9, 0.93, pn);
           roughnessFactor = mix(roughnessFactor, 0.04, slabPud);
           float wn = fbm2(vWp.xz*0.02 + 9.1);
           vec3 weed = mix(vec3(0.10,0.12,0.06), vec3(0.16,0.14,0.08), fbm2(vWp.xz*0.4));
@@ -61,9 +64,8 @@ export function patchSlab(mat, U, groundGLSL, o = {}) {
           normal = normalize(mix(normal, normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz), slabPud*0.92)); }
         #include <lights_physical_fragment>`);
     }
-    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'float slabPud = 0.;\nvoid main() {');
   };
-  mat.customProgramCacheKey = () => key() + '|slab' + (o.seabed ? 'B' : '');
+  mat.customProgramCacheKey = () => key() + '|slab' + (o.seabed ? 'B' : '') + (o.noLamps ? 'L' : '');
   mat.needsUpdate = true;
   return mat;
 }

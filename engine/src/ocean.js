@@ -84,7 +84,7 @@ const UNDER_FS = `
     c /= 4.; c = 1.17 - pow(c, 1.4); return pow(abs(c), 8.); }
   float hull(vec2 xz, float blur){ float m = 0.;
     for (int k = 0; k < ${NBOAT}; k++){ vec4 b = boats[k]; if (b.w <= 0.) continue; vec2 d = xz - b.xy; float c = cos(b.z), s = sin(b.z);
-      vec2 l = vec2(c*d.x - s*d.y, s*d.x + c*d.y); l /= vec2(b.w*0.2, b.w*0.5);
+      vec2 l = vec2(c*d.x - s*d.y, s*d.x + c*d.y); l /= vec2(b.w*0.2, b.w*0.5); l.x /= 1. - 0.75*smoothstep(0.1, 1., l.y);
       m = max(m, smoothstep(1. + blur/b.w*3., 1. - blur/b.w*1.5, length(l))); }
     return m; }
   void main(){
@@ -108,8 +108,7 @@ const UNDER_FS = `
     vec3 T = exp(-absorb*L);
     float ca = caus(pt.xz/14. + vec2(0.13, 0.07)*time*0.2, time*0.35) + 0.5*caus(pt.xz/5.5 - 0.05*time, time*0.5 + 2.);
     float hm = hull(pt.xz, 0.4 + th*0.12);                 // boats on top: dark hulls through the water
-    vec2 sh = vWP.xz + normalize(sunDir).xz/max(normalize(sunDir).y, 0.2)*th*0.6;
-    float hs = hull(sh, 1. + th*0.25);                     // their shadow columns in the water
+    float hs = hm;
     float k = 1. - exp(-0.075*L);
     vec3 scat = mix(scatThin, scatThick, smoothstep(2., 26., th))*sunI*k*(0.8 + causI*ca*(1. - smoothstep(4., 30., th)) + 0.25*causI*ca);
     vec3 col = Lin*T*(1. - hm) + scat*(1. - 0.75*hs)*(1. - 0.55*hm);
@@ -117,7 +116,7 @@ const UNDER_FS = `
     float F = 0.02 + 0.98*pow(1. - clamp(dot(nb, V), 0., 1.), 5.);
     vec3 R = reflect(I, nb); vec2 gp = vWP.xz + R.xz*(vWP.y/max(-R.y, 0.05));
     float landF = smoothstep(-2., 6., groundH(gp) - level);
-    col = mix(col, mix(bedCol, landCol, landF), F*0.85);
+    col = mix(col, mix(bedCol, landCol, landF*0.5), F*0.3);
     // the thin glassy edge catches the light
     col += sunCol*sunI*0.35*smoothstep(1.2, 0.0, th)*(0.5 + 0.5*ca);
     col = mix(col, hazeCol, 1. - exp(-dist/hazeD));
@@ -249,7 +248,7 @@ export function createOcean(S, o = {}) {
   if (o.slab) {
     Object.assign(U, { skyZen: { value: new THREE.Color(0x2f6fd0) }, skyHor: { value: new THREE.Color(0xa6cdee) }, absorb: { value: new THREE.Vector3(0.32, 0.07, 0.045) },
       scatThin: { value: new THREE.Color(0x3fd6d0) }, scatThick: { value: new THREE.Color(0x0b3f8a) }, landCol: { value: new THREE.Color(0x9a8a70) }, bedCol: { value: new THREE.Color(0x1d3a3a) },
-      hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: 9000 }, causI: { value: 0.9 },
+      hazeCol: { value: new THREE.Color(0xa6cdee) }, hazeD: { value: 9000 }, causI: { value: 1.4 },
       boats: { value: Array.from({ length: NBOAT }, () => new THREE.Vector4(0, 0, 0, 0)) } });
     const um = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide,
       vertexShader: groundGLSL + UNDER_VS.replace('float gH(vec2 p);', ''), fragmentShader: NOISE + groundGLSL + UNDER_FS });

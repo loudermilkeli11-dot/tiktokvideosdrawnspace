@@ -1,3 +1,8 @@
-slug,post_utc,views_48h,avg_watch_s,completion_pct,rewatch_pct,shares,saves,follows,hold_3s_pct,notes
-rods-from-god,,,,,,,,,,"baseline (earlier video, pre-studio): ~480 views after ~24 h; full stats not logged"
-moon-2x,2026-11-11T15:30,,,,,,,,,"early: ~300 views at ~1 h (approx post time); fill 48 h stats ~2026-11-13 15:30 UTC"
+slug,post_utc,length_s,snapshot_utc,views,likes,comments,shares,saves,follows,avg_watch_s,completion_pct,hold_3s_pct,fyp_pct,notes
+nuke-the-moon-a119,2026-11-06T20:16,34.0,2026-11-11T19:12,7013,132,4,0,10,4,9.0,8.13,,,cover: IN 1958 THE US PLANNED TO NUKE THE MOON; tags #nuke #moon #nukes #trump #nasa; pre-studio
+pickaxe-mountain,2026-11-07T17:50,88.5,2026-11-11T19:12,4833,121,4,2,12,3,17.8,2.80,,,cover: WILL TRUMP NUKE THIS MOUNTAIN? (Iran); caption asks for comments; pre-studio
+sun-went-dark,2026-11-03T12:12,34.0,2026-11-11T19:12,1029,65,0,0,4,0,13.4,22.72,,,no cover text; tags #thesun #supernova; stats updated 11/10; pre-studio
+dinosaur-killer,~2026-11-04,,2026-11-11T19:12,546,25,,,,,,,,,7-day list numbers; cover: THE DINOSAUR KILLER WAS TALLER THAN EVEREST; pre-studio
+rods-from-god,~2026-11-09,,2026-11-11T19:12,315,,,,,,,,,,7-day list (Commander recalled ~480 after a day); pre-studio
+halloween-meteors,~2026-10-28,,2026-11-11T19:12,270,22,,,,1,,,,,7-day list; cover: THIS FIREBALL IS A PEBBLE; pre-studio
+moon-2x,2026-11-11T15:30,66.0,2026-11-11T16:30,~300,,,,,,,,,,first studio film; ~300 views at ~1 h; fill 48 h stats ~2026-11-13 15:30 UTC

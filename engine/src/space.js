@@ -56,7 +56,7 @@ export function createSpace(S, o = {}) {
         if (scar > 0.) {                                    // after the return: scoured land, churned grey sea
           float bn = fbm3(vO*0.0011 + 5.), bk = smoothstep(0.35, 0.75, bn);
           vec3 burnt = mix(vec3(0.16, 0.12, 0.09), vec3(0.05, 0.04, 0.035), bk) * (0.8 + 0.4*fbm3(vO*0.006));
-          vec3 churn = mix(vec3(0.17, 0.18, 0.18), vec3(0.42, 0.43, 0.42), smoothstep(0.45, 0.8, fbm3(vO*0.004 + 9.)));
+          vec3 churn = mix(vec3(0.06, 0.07, 0.075), vec3(0.24, 0.25, 0.24), smoothstep(0.45, 0.8, fbm3(vO*0.004 + 9.))) * (0.8 + 0.4*fbm3(vO*0.02 + 3.));
           dc = mix(dc, mix(mix(dc, burnt, 0.75), churn, ocean), scar); }
         vec3 col = dc * max(mu, 0.) * sunI;
         // ocean glint

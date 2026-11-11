@@ -17,7 +17,7 @@ const dirLL = (lon, lat) => { const ph = (lon + 180) * D2R, th = lat * D2R; retu
 const C = dirLL(+(Q.get('lon') ?? -50), +(Q.get('lat') ?? 12));
 const EAST = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), C).normalize(), NORTH = new THREE.Vector3().crossVectors(C, EAST);
 const SP = createSpace(S, { sunDir: [1, 0, 0], ring: false, stars: 0.36, sunI: 1.8, cityI: 1.0, sunGlare: 0 });
-SP.EU.scar.value = 1; SP.EU.cloudsI.value = 0.35; SP.EU.atmI.value = 0.7; SP.EU.glowI.value = 0.035; SP.EU.glowCol.value.setRGB(1.0, 0.36, 0.1);
+SP.EU.scar.value = 1; SP.EU.cloudsI.value = 0.35; SP.EU.atmI.value = 0.5; SP.EU.glowI.value = 0.035; SP.EU.glowCol.value.setRGB(1.0, 0.36, 0.1);
 function aimFor(pos, sx, sy, mm) {
   const toE = pos.clone().negate().normalize(); const vf = lensFov(mm) * D2R;
   const ay = ((sy - 480) / 960) * vf, ax = ((sx - 270) / 540) * vf * (540 / 960);
@@ -32,7 +32,7 @@ S.run((t) => {
   SP.sunDir.copy(C).multiplyScalar(Math.cos(sa)).addScaledVector(EAST, -Math.sin(sa) * 0.92).addScaledVector(NORTH, Math.sin(sa) * 0.39).normalize();
   SP.earth.rotation.y = (tau - 3400) * 0.004;                         // the planet turning (a little faster than true, slow on screen)
   SP.EU.cityI.value = 0.9; SP.EU.glowI.value = 0.03 * (1 - 0.3 * u);
-  const mm = 35, pos = C.clone().multiplyScalar(lerp(21000, 23500, u));
-  applyCam(camera, { pos, look: aimFor(pos, +(Q.get('sx') ?? 290), +(Q.get('sy') ?? 470), mm), mm, roll: lerp(-12, -14, u) }, shake(t, 0.015, 0.4, 9));
+  const mm = 35, pos = C.clone().multiplyScalar(lerp(23000, 25500, u));
+  applyCam(camera, { pos, look: aimFor(pos, +(Q.get('sx') ?? 258), +(Q.get('sy') ?? 470), mm), mm, roll: lerp(-12, -14, u) }, shake(t, 0.015, 0.4, 9));
   SP.update(S, t);
 });

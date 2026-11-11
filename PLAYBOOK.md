@@ -26,6 +26,7 @@ The owner is the Commander. The target is good quality, fast.
   - It's the default in `tools/overlay/ov.html`. `style: { look: 'classic' }` restores the old Anton / Azeret Mono look.
   - Use `|` in a caption to choose the line break.
 - Speculative shots are tagged `DRAMATIZATION`.
+- **Turn on TikTok's "AI-generated" label on every post.** TikTok requires a label on AI-generated or significantly edited content that shows realistic-looking scenes or people (Community Guidelines → Integrity & Authenticity, checked 2026-11-11). Our renders are realistic, synthetic scenes of events that never happened. Unlabeled posts "may be removed, restricted, or labeled by our team." The on-screen DRAMATIZATION tag does not replace the platform label.
 - No engagement bait. No fluffy smoke or fog.
 
 ### Frame-1 hook

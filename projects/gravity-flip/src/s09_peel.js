@@ -17,7 +17,7 @@ import { tauAt, heightAt } from './story.js';
 
 const Q = new URLSearchParams(location.search);
 const D2R = Math.PI / 180, CUT = 3.5, ISS = 408, A0 = +(Q.get('a0') ?? 11.1);   // km: the station's altitude, the plane's start altitude
-const S = createStudio({ samples: (t) => (t - 4 >= CUT ? 4 : 2), near: 1, far: 3e6,
+const S = createStudio({ samples: 2, near: 1, far: 3e6,
   post: { exposure: 1.0, bloom: 0.18, bloomThreshold: 1.4, bloomRadius: 0.6, vignette: 0.38, grain: 0.025, ca: 0.0006, sat: 1.08, contrast: 1.04 } });
 const { scene, camera } = S;
 // lat/lon -> unit vector in the Earth's frame (same parameterisation as SphereGeometry's UVs; Earth is not rotated here)

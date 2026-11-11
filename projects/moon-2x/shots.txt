@@ -1,3 +1,15 @@
-# moon-2x: first video (sealed dossier channel/war-room/2026-11-11-first-video.md). Board in progress; only the hook exists.
+# moon-2x: 66.0 s = 1980 frames. Board: script.md. Story clock: src/story.js (storyT = film - 3; hook = 25..28)
 # <name> <frames>
 s01_hook 90
+s02_today 150
+s03_tide 150
+s04_flood 150
+s05_blackout 150
+s06_pier 150
+s07_roche 150
+s08_split 150
+s09_meteors 150
+s10_ring 150
+s11_iss 150
+s12_rise 150
+s13_space 240

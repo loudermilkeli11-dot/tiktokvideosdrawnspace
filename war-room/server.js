@@ -14,13 +14,20 @@ try { for (const l of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n
 
 const { loadAgents, READ_ONLY } = await import('./lib/agents.js');
 const { Store } = await import('./lib/store.js');
-const { runAgent, DEMO } = await import('./lib/runner.js');
+const { runAgent, DEMO, MODE, CLAUDE_BIN } = await import('./lib/runner.js');
 
 const PORT = +(process.env.WARROOM_PORT || 4747);
 const HOST = process.env.WARROOM_HOST || '127.0.0.1';
 const TOKEN = process.env.WARROOM_TOKEN || '';
 const WORKSPACE = path.resolve(ROOT, process.env.WARROOM_WORKSPACE || '..');
-const MAX_PARALLEL = +(process.env.WARROOM_MAX_PARALLEL || 3);
+// Efficiency: agents share weighted slots (Haiku 0.5, Sonnet 1, Opus 2) out of WARROOM_SLOTS (default 6), so five
+// Sonnet agents can work at once while Opus is rationed. A usage governor pauses NEW work when the API-equivalent spend of
+// the last 5 hours passes WARROOM_WINDOW_USD (a soft cap on the plan's usage); Claude's own limit message also pauses it.
+const SLOTS = +(process.env.WARROOM_SLOTS || 6);
+const WINDOW_MS = 5 * 3600e3, WINDOW_USD = +(process.env.WARROOM_WINDOW_USD || 25);
+const DEEP_MODEL = process.env.WARROOM_DEEP_MODEL || 'claude-opus-5-5', ROUTER_MODEL = process.env.WARROOM_ROUTER_MODEL || 'claude-haiku-5-5';
+const weight = (model) => (/opus/.test(model || '') ? 2 : /haiku/.test(model || '') ? 0.5 : 1);
+let limitedUntil = 0;   // set when Claude says the plan's limit is reached
 const MAX_DEPTH = 2; // how many delegation hops an agent chain may take on its own
 
 const agents = loadAgents(path.join(ROOT, 'agents'));
@@ -37,6 +44,22 @@ function emit(type, data) { const s = `event: ${type}\ndata: ${JSON.stringify(da
 const publicTask = (t) => ({ ...t, log: undefined, logCount: t.log.length });
 function setAgent(id, patch) { Object.assign(live[id], patch); emit('agent', { id, ...live[id] }); }
 function hive(entry) { emit('hive', store.addHive(entry)); }
+const SPEND_F = path.join(ROOT, 'data', 'spend.json');
+const spendLog = (() => { try { return JSON.parse(fs.readFileSync(SPEND_F, 'utf8')); } catch { return []; } })();
+function addSpend(cost) { if (!cost) return; spendLog.push({ t: Date.now(), c: cost }); while (spendLog.length && spendLog[0].t < Date.now() - 24 * 3600e3) spendLog.shift(); try { fs.writeFileSync(SPEND_F, JSON.stringify(spendLog)); } catch {} }
+const windowSpend = () => spendLog.filter((e) => e.t > Date.now() - WINDOW_MS).reduce((a, e) => a + e.c, 0);
+function usage() {
+  const w = windowSpend(), used = store.tasks.filter((t) => t.status === 'running').reduce((a, t) => a + weight(t.model || byId[t.agent]?.model), 0);
+  const oldest = spendLog.find((e) => e.t > Date.now() - WINDOW_MS);
+  const paused = limitedUntil > Date.now() ? 'limit' : w >= WINDOW_USD ? 'cap' : '';
+  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, resumeAt: paused === 'limit' ? limitedUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
+}
+function noteResult(r) {
+  addSpend(r.cost);
+  if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
+  emit('usage', usage());
+}
+setInterval(() => { emit('usage', usage()); pump(); }, 60e3);
 
 // ---------------- context every agent gets ----------------
 function teamContext(agentId) {
@@ -99,25 +122,28 @@ function keywordRoute(text) {
 async function route(text) {
   const at = text.match(/@([a-z]+)/i);
   if (at && byId[at[1].toLowerCase()]) return { agent: at[1].toLowerCase(), reason: 'named by the Commander' };
-  if (DEMO) return keywordRoute(text);
+  const kw = keywordRoute(text);
+  if (DEMO || kw.reason === 'matched keywords') return kw;   // free: only unclear orders go to the (cheap) router model
   try {
     const r = await runAgent({
-      agent: { ...byId.producer || agents[0], effort: 'low', preset: false, prompt: 'You route tasks to the right specialist. Reply with ONE line of JSON only: {"agent":"<id>","reason":"<5-10 words>"}' },
+      agent: { ...byId.producer || agents[0], model: ROUTER_MODEL, effort: 'low', preset: false, prompt: 'You route tasks to the right specialist. Reply with ONE line of JSON only: {"agent":"<id>","reason":"<5-10 words>"}' },
       prompt: `Agents:\n${agents.map((a) => `${a.id}: ${a.role}`).join('\n')}\n\nTask: ${text}`,
       cwd: WORKSPACE, tools: [], maxTurns: 1, onLog: () => {}, canUseTool: async () => ({ behavior: 'deny', message: 'no tools' }), abort: new AbortController(),
     });
     const j = JSON.parse((r.text.match(/\{[\s\S]*?\}/) || ['{}'])[0]);
-    if (byId[j.agent]) return { agent: j.agent, reason: j.reason || 'routed by Producer', cost: r.cost };
+    addSpend(r.cost);
+    if (byId[j.agent]) return { agent: j.agent, reason: j.reason || 'routed', cost: r.cost };
   } catch {}
   return keywordRoute(text);
 }
 
 // ---------------- tasks ----------------
-async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander' }) {
-  const task = { id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
+async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false }) {
+  const task = { deep: !!deep, id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
   store.tasks.push(task); store.save(); emit('task', publicTask(task));
   if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; }
   else task.routeReason = by === 'Commander' ? 'assigned by the Commander' : `delegated by ${by}`;
+  task.model = deep ? DEEP_MODEL : byId[task.agent].model;
   task.status = 'queued'; store.save(); emit('task', publicTask(task));
   hive({ agent: by === 'Commander' ? null : by, kind: 'task', text: `→ @${task.agent}: ${task.title}` });
   pump();
@@ -125,9 +151,9 @@ async function createTask({ text, agent, parent = null, depth = 0, by = 'Command
 }
 function logTo(task, e) { const entry = { t: Date.now(), ...e }; task.log.push(entry); if (task.log.length > 400) task.log.shift(); emit('log', { taskId: task.id, entry }); if (e.kind === 'text' || e.kind === 'tool') setAgent(task.agent, { last: e.text.split('\n')[0].slice(0, 160) }); }
 function pump() {
-  const running = store.tasks.filter((t) => t.status === 'running').length;
-  if (running >= MAX_PARALLEL) return;
-  const next = store.tasks.find((t) => t.status === 'queued' && live[t.agent]?.status === 'idle');
+  const u = usage();
+  if (u.paused) return;
+  const next = store.tasks.find((t) => t.status === 'queued' && live[t.agent]?.status === 'idle' && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
   if (next) { runTask(next); pump(); }
 }
 async function runTask(task) {
@@ -137,9 +163,10 @@ async function runTask(task) {
   const abort = new AbortController(); aborts.set(task.id, abort);
   let r;
   try {
-    r = await runAgent({ agent, prompt: `# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}\n\n${teamContext(agent.id)}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model }, prompt: `# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}\n\n${teamContext(agent.id)}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
-  aborts.delete(task.id);
+  aborts.delete(task.id); noteResult(r);
+  if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
   task.finished = Date.now(); task.result = r.text; task.cost += r.cost; task.turns = r.turns;
   task.status = abort.signal.aborted ? 'stopped' : r.ok ? 'done' : 'failed';
   if (r.error) logTo(task, { kind: 'error', text: r.error });
@@ -180,6 +207,7 @@ async function convene(wr) {
     seat.status = 'speaking'; emit('warroom', wr);
     const a = byId[seat.agent];
     const r = await runAgent({ agent: a, prompt, cwd: WORKSPACE, tools, maxTurns: tools.length ? 8 : 1, onLog: (e) => { if (e.kind === 'tool') { seat.notes = e.text; emit('seat', { id: wr.id, seat: seat.key, notes: e.text }); } }, canUseTool: async (name, input) => (READ_ONLY.has(name) ? { behavior: 'allow', updatedInput: input } : { behavior: 'deny', message: 'War Room seats are read-only.' }), abort: wr.abort, demoText });
+    noteResult(r);
     seat.text = r.text || r.error || '(no answer)'; seat.cost = r.cost; seat.status = r.ok ? 'done' : 'failed'; wr.cost += r.cost;
     emit('warroom', wr); return r;
   };
@@ -235,7 +263,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (p === '/api/state') return json(res, {
-      demo: DEMO, workspace: WORKSPACE,
+      demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE,
       agents: agents.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji, color: a.color, role: a.role, model: a.model, tools: a.tools, lens: a.lens, ...live[a.id], done: store.tasks.filter((t) => t.agent === a.id && t.status === 'done').length, cost: store.tasks.filter((t) => t.agent === a.id).reduce((s, t) => s + t.cost, 0) })),
       tasks: store.tasks.slice(-200).map(publicTask), hive: store.recentHive(120),
       approvals: [...approvals.values()].map(({ resolve, ...a }) => a),
@@ -244,7 +272,7 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/tasks/') && req.method === 'GET') { const t = store.tasks.find((x) => x.id === p.split('/')[3]); return t ? json(res, t) : json(res, { error: 'not found' }, 404); }
     if (req.method === 'POST') {
       const b = await body(req);
-      if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null }); return json(res, publicTask(t)); }
+      if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
       if ((m = p.match(/^\/api\/tasks\/(\w+)\/stop$/))) { aborts.get(m[1])?.abort(); const t = store.tasks.find((x) => x.id === m[1]); if (t && t.status === 'queued') { t.status = 'stopped'; emit('task', publicTask(t)); store.save(); } return json(res, { ok: true }); }
       if ((m = p.match(/^\/api\/tasks\/(\w+)\/retry$/))) { const t = store.tasks.find((x) => x.id === m[1]); if (!t) return json(res, { error: 'not found' }, 404); const n = await createTask({ text: t.text, agent: t.agent }); return json(res, publicTask(n)); }
@@ -291,6 +319,7 @@ const server = http.createServer(async (req, res) => {
 });
 server.listen(PORT, HOST, () => {
   console.log(`\n  War Room ready → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${TOKEN ? '/?token=' + TOKEN : ''}`);
-  console.log(`  Mode: ${DEMO ? 'DEMO (simulated agents; add ANTHROPIC_API_KEY to .env for real ones)' : 'LIVE (Claude Agent SDK)'}`);
+  console.log(`  Mode: ${MODE === 'plan' ? `PLAN (Claude Code on this PC, your Claude plan: ${CLAUDE_BIN})` : MODE === 'api' ? 'API (Claude Agent SDK, billed to ANTHROPIC_API_KEY)' : 'DEMO (simulated agents; install Claude Code and sign in for real ones)'}`);
+  console.log(`  Slots: ${SLOTS} (Haiku 0.5, Sonnet 1, Opus 2)   5-hour soft cap: $${WINDOW_USD} API-equivalent`);
   console.log(`  Workspace: ${WORKSPACE}\n  Agents: ${agents.map((a) => a.emoji + ' ' + a.name).join('  ')}\n`);
 });

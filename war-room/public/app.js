@@ -122,16 +122,24 @@ function connect() {
   es.addEventListener('agent', (e) => { const d = JSON.parse(e.data); Object.assign(A(d.id), d); renderRoster(); });
   es.addEventListener('task', (e) => { const t = JSON.parse(e.data); const i = S.tasks.findIndex((x) => x.id === t.id); if (i >= 0) S.tasks[i] = t; else S.tasks.push(t); renderBoard(); renderRoster(); if (S.open === t.id && ['done', 'failed', 'stopped'].includes(t.status)) openTask(t.id); else if (S.open === t.id) $('#dStatus').textContent = t.status; });
   es.addEventListener('log', (e) => { const d = JSON.parse(e.data); if (S.open === d.taskId) { const L = $('#dLog'); if (L) { const stick = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.insertAdjacentHTML('beforeend', logRow(d.entry)); if (stick) L.scrollTop = L.scrollHeight; } } });
+  es.addEventListener('usage', (e) => renderUsage(JSON.parse(e.data)));
   es.addEventListener('hive', (e) => { S.hive.unshift(JSON.parse(e.data)); renderHive(); });
   es.addEventListener('approval', (e) => { S.approvals.push(JSON.parse(e.data)); renderApprovals(); try { navigator.vibrate?.(80); } catch {} });
   es.addEventListener('approval-done', (e) => { const d = JSON.parse(e.data); S.approvals = S.approvals.filter((a) => a.id !== d.id); renderApprovals(); });
   es.addEventListener('warroom', (e) => { const w = JSON.parse(e.data); const i = S.warrooms.findIndex((x) => x.id === w.id); if (i >= 0) S.warrooms[i] = w; else S.warrooms.push(w); renderWrList(); if (S.wrOpen === w.id) renderWr(); renderRoster(); });
   es.addEventListener('seat', (e) => { const d = JSON.parse(e.data); const w = S.warrooms.find((x) => x.id === d.id); const s = w?.seats.find((x) => x.key === d.seat); if (s) { s.notes = d.notes; if (S.wrOpen === w.id) renderWr(); } });
 }
+function renderUsage(u) {
+  if (!u) return; const el = $('#usage'); if (!el) return;
+  const at = u.resumeAt ? new Date(u.resumeAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  el.textContent = u.paused === 'limit' ? `⏸ plan limit · back ${at}` : u.paused === 'cap' ? `⏸ 5h cap $${u.cap} · back ${at}` : `5h $${u.window.toFixed(2)}/${u.cap} · slots ${u.used}/${u.slots}`;
+  el.className = 'mono' + (u.paused ? ' warn' : '');
+}
 async function load() {
   const st = await api('/api/state'); Object.assign(S, st);
-  $('#mode').textContent = st.demo ? 'DEMO' : 'LIVE'; $('#mode').className = 'badge ' + (st.demo ? 'demo' : 'live');
-  $('#mode').title = st.demo ? 'Simulated agents. Add ANTHROPIC_API_KEY to warroom/.env and restart for real ones.' : 'Real agents via the Claude Agent SDK';
+  const M = { plan: ['PLAN', 'live', 'Real agents through Claude Code on this PC, on your Claude plan'], api: ['API', 'live', 'Real agents billed to the API key in war-room/.env'], demo: ['DEMO', 'demo', 'Simulated agents. Install Claude Code and sign in, then restart, for real ones.'] }[st.mode || (st.demo ? 'demo' : 'api')];
+  $('#mode').textContent = M[0]; $('#mode').className = 'badge ' + M[1]; $('#mode').title = M[2];
+  renderUsage(st.usage);
   if (document.activeElement !== $('#pinned')) $('#pinned').value = st.pinned || '';
   if (!S.wrOpen && S.warrooms.length) S.wrOpen = S.warrooms[S.warrooms.length - 1].id;
   renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr();
@@ -154,7 +162,7 @@ document.addEventListener('click', async (e) => {
   else if ((x = el('[data-wrplan]'))) { x.disabled = true; const r = await api(`/api/warroom/${x.dataset.wrplan}/plan`, {}); x.textContent = `Sent ${r.tasks} tasks ✓`; }
   else if ((x = el('[data-wrstop]'))) await api(`/api/warroom/${x.dataset.wrstop}/stop`, {});
 });
-$('#cmd').addEventListener('submit', async (e) => { e.preventDefault(); const text = $('#cmdText').value.trim(); if (!text) return; $('#cmdText').value = ''; await api('/api/tasks', { text, agent: $('#cmdAgent').value }); });
+$('#cmd').addEventListener('submit', async (e) => { e.preventDefault(); const text = $('#cmdText').value.trim(); if (!text) return; $('#cmdText').value = ''; await api('/api/tasks', { text, agent: $('#cmdAgent').value, deep: $('#cmdDeep').checked }); $('#cmdDeep').checked = false; });
 $('#cmdText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#cmd').requestSubmit(); } });
 $('#wrForm').addEventListener('submit', async (e) => { e.preventDefault(); const question = $('#wrQ').value.trim(); if (!question) return;
   const officers = [...document.querySelectorAll('[data-off].on')].map((c) => c.dataset.off); $('#wrQ').value = '';

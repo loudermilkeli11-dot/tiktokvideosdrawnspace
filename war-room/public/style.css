@@ -134,3 +134,6 @@ button.no{background:#331717;border:1px solid #5a2a2a;color:var(--bad);border-ra
 @media (max-width:1100px){ #mission{grid-template-columns:1fr} .roster{flex-direction:row;overflow:auto} .agent{min-width:220px} .board{grid-template-columns:1fr} .warTop,.wrStage{grid-template-columns:1fr} }
 @media (max-width:1100px){ #mission > .side{order:-1} #mission .panel.grow{max-height:240px} }
 @media (max-width:600px){ main{padding:10px} .top{gap:8px} .tabs{flex-wrap:nowrap;overflow-x:auto;order:3;flex-basis:100%} .tabs button{white-space:nowrap} .meta{margin-left:auto} .meta #spend{display:none} .table{max-width:340px} .seat{width:84px;margin:-34px 0 0 -42px} .seat .av{width:44px;height:44px;font-size:20px} }
+
+.deep{display:flex;align-items:center;gap:4px;font-size:12px;opacity:.85;cursor:pointer}
+#usage.warn{color:#ffb347}

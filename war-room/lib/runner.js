@@ -1,8 +1,32 @@
-// Runs one agent turn through the Claude Agent SDK and streams what it does.
-// DEMO mode (no ANTHROPIC_API_KEY, or --demo) simulates agents so the dashboard can be explored for free.
-import { query } from '@anthropic-ai/claude-agent-sdk';
+// Runs one agent turn and streams what it does. Three backends:
+//   plan  (default when Claude Code is installed and no API key is set): runs the Claude Code CLI on this PC
+//         (`claude -p`, signed in with the Commander's Claude account), so usage counts against the Claude plan.
+//         Tools are pre-approved per agent (READ_ONLY + the agent's `writes` folders + its `bash` command prefixes);
+//         anything else is refused, and the agent is told to ask the Commander instead.
+//   api   (ANTHROPIC_API_KEY set, or WARROOM_BACKEND=api): Claude Agent SDK, billed to the API key, live approvals.
+//   demo  (--demo, or neither of the above): simulated agents, free.
+import { spawn, execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
-export const DEMO = process.argv.includes('--demo') || !process.env.ANTHROPIC_API_KEY;
+export function findClaude() {
+  if (process.env.CLAUDE_BIN && fs.existsSync(process.env.CLAUDE_BIN)) return process.env.CLAUDE_BIN;
+  const win = process.platform === 'win32';
+  const known = win ? [path.join(os.homedir(), '.local', 'bin', 'claude.exe')] : [path.join(os.homedir(), '.local', 'bin', 'claude'), '/usr/local/bin/claude'];
+  try {
+    const out = execFileSync(win ? 'where' : 'which', win ? ['claude'] : ['-a', 'claude'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const list = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const exe = list.find((l) => /\.exe$/i.test(l)) || list.find((l) => /\.cmd$/i.test(l)) || list[0];
+    if (exe) return exe;
+  } catch {}
+  return known.find((k) => fs.existsSync(k)) || null;
+}
+const CLAUDE = findClaude();
+export const MODE = process.argv.includes('--demo') ? 'demo'
+  : (process.env.WARROOM_BACKEND || (process.env.ANTHROPIC_API_KEY ? 'api' : CLAUDE ? 'plan' : 'demo'));
+export const DEMO = MODE === 'demo';
+export const CLAUDE_BIN = CLAUDE;
 
 function toolSummary(b) {
   const i = b.input || {};
@@ -24,6 +48,8 @@ function toolSummary(b) {
  */
 export async function runAgent(p) {
   if (DEMO) return demoRun(p);
+  if (MODE === 'plan') return planRun(p);
+  const { query } = await import('@anthropic-ai/claude-agent-sdk');
   const a = p.agent;
   const sys = [a.prompt, p.system].filter(Boolean).join('\n\n');
   const tools = p.tools ?? a.tools;
@@ -62,6 +88,70 @@ export async function runAgent(p) {
     turns: result.num_turns || 0,
     error: ok ? null : [result.subtype, ...(result.errors || [])].join(': '),
   };
+}
+
+// ---------------- plan backend: the Claude Code CLI on this PC ----------------
+const READ_TOOLS = ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite'];
+const ALL_TOOLS = [...READ_TOOLS, 'Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Task'];
+const q = (a) => (/[\s"&|<>^()]/.test(a) ? '"' + a.replace(/"/g, '""') + '"' : a);   // cmd.exe quoting (only for a .cmd shim)
+function planArgs(a, p, tools) {
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--model', p.model || a.model, '--max-turns', String(p.maxTurns ?? a.maxTurns), '--setting-sources', 'project', '--strict-mcp-config'];   // no MCP servers: agents don't need them, and their tool lists cost tokens on every call
+  const allow = tools.filter((t) => READ_TOOLS.includes(t));
+  if (tools.some((t) => ['Write', 'Edit', 'MultiEdit'].includes(t))) for (const w of a.writes || []) allow.push(`Edit(${w.replace(/\/$/, '')}/**)`);
+  if (tools.includes('Bash')) for (const b of a.bash || []) allow.push(`Bash(${b}:*)`);
+  const deny = ALL_TOOLS.filter((t) => !tools.includes(t));
+  // seats without tools (council officers, the router) don't need Claude Code's long coding system prompt: replace it
+  if (!tools.length) args.push('--system-prompt', 'You are one member of an AI team that runs a TikTok studio. Answer in plain text, following the instructions in the message.');
+  if (allow.length) args.push('--allowedTools', ...allow);
+  if (deny.length) args.push('--disallowedTools', ...deny);
+  return args;
+}
+function planRun(p) {
+  const a = p.agent, tools = p.tools ?? a.tools;
+  const role = [a.prompt, p.system].filter(Boolean).join('\n\n');
+  const rules = tools.length
+    ? `\n\n# Permissions\nYou may read anything${(a.writes || []).length ? `, and write only under: ${a.writes.join(', ')}` : ''}${(a.bash || []).length ? `. Commands you may run start with: ${a.bash.join(' | ')}` : ''}. Anything else is refused automatically: do not retry it; finish with a line "NEEDS APPROVAL: <exact action and why>" so the Commander can decide.`
+    : '\n\nAnswer directly in text. You have no tools in this seat.';
+  const prompt = `# Your role\n${role}${rules}\n\n${p.prompt}`;
+  const env = { ...process.env }; delete env.ANTHROPIC_API_KEY;   // use the Claude login on this PC, never an API key
+  const isCmd = /\.(cmd|bat)$/i.test(CLAUDE);
+  const args = planArgs(a, p, tools);
+  return new Promise((resolve) => {
+    let child;
+    try { child = spawn(isCmd ? q(CLAUDE) : CLAUDE, isCmd ? args.map(q) : args, { cwd: p.cwd, env, shell: isCmd, windowsHide: true }); }
+    catch (e) { return resolve({ ok: false, text: '', cost: 0, turns: 0, error: `Could not start Claude Code (${CLAUDE}): ${e.message}` }); }
+    let buf = '', err = '', result = null;
+    const kill = () => { try { if (process.platform === 'win32') execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }); else child.kill('SIGTERM'); } catch {} };
+    p.abort?.signal.addEventListener('abort', kill);
+    child.stdout.on('data', (d) => {
+      buf += d; let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue;
+        let m; try { m = JSON.parse(line); } catch { continue; }
+        if (m.type === 'assistant') {
+          for (const b of m.message?.content || []) {
+            if (b.type === 'text' && b.text.trim()) p.onLog({ kind: 'text', text: b.text });
+            else if (b.type === 'tool_use') p.onLog({ kind: 'tool', text: toolSummary(b) });
+          }
+        } else if (m.type === 'result') result = m;
+      }
+    });
+    child.stderr.on('data', (d) => { err += d; if (err.length > 8000) err = err.slice(-8000); });
+    child.stdin.on('error', () => {});
+    child.stdin.end(prompt);
+    child.on('error', (e) => { err += e.message; });
+    child.on('close', () => {
+      for (const d of result?.permission_denials || []) p.onLog({ kind: 'error', text: `refused (not pre-approved): ${toolSummary({ name: d.tool_name, input: d.tool_input })}` });
+      const text = result?.result || '';
+      const all = `${text}\n${err}`;
+      const limited = /usage limit|rate limit|limit reached|429|overloaded/i.test(all) && !(result && result.subtype === 'success' && !result.is_error);
+      const ep = all.match(/\|(\d{10})\b/);
+      if (!result) return resolve({ ok: false, text: '', cost: 0, turns: 0, limited, resetAt: ep ? +ep[1] * 1000 : null, error: (err.trim().split('\n').slice(-3).join(' ') || 'Claude Code exited without a result').slice(0, 400) });
+      const ok = result.subtype === 'success' && !result.is_error;
+      resolve({ ok, text, cost: result.total_cost_usd || 0, turns: result.num_turns || 0, usage: result.usage, limited: limited && !ok, resetAt: ep ? +ep[1] * 1000 : null,
+        error: ok ? null : [result.subtype, text.slice(0, 300), err.trim().slice(-300)].filter(Boolean).join(': ') });
+    });
+  });
 }
 
 // ---------------- demo mode ----------------

@@ -52,7 +52,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 
 ## War Room
 - Sealed dossiers live in `channel/war-room/`: the first video, and the channel strategy (2026-11-11). The strategy covers the sky lane, fact-with-number covers, 34 s by default, and Gates A and B on 2026-11-13.
-- `war-room/`: Node app (Agent SDK) for the Commander's Windows PC. To install, run `war-room/War Room Setup.cmd`.
+- `war-room/`: Node app for the Commander's Windows PC. PLAN mode (default): agents run through Claude Code on the PC, on the Claude plan (no API key); weighted slots (Haiku 0.5, Sonnet 1, Opus 2, 6 total), a 5-hour usage governor, Deep (Opus) per order. To install, run `war-room/War Room Setup.cmd`.
 - `.war-room/roster.yaml`: the TikTok officers for `/war-room`. Dossiers go to `channel/war-room/`.
 - `channel/results.csv`: the post-stats log.
 

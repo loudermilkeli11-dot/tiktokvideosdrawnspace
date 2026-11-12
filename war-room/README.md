@@ -29,12 +29,10 @@ The team, one Markdown file each in `agents/` (edit the prompt, tools or model, 
 2. Open the `war-room` folder and double-click **`War Room Setup.cmd`**. It:
    - installs Node.js and Git for Windows with `winget` if they're missing;
    - installs the dependencies;
-   - asks for your Anthropic API key, hidden as you type. Press Enter to skip and use free **DEMO** mode with simulated agents;
+   - installs **Claude Code** and asks you to sign in once with your Claude account. The agents then run through it, on your Claude plan (**PLAN** mode): no API key and no separate bill;
    - adds **auto-start at login**, so the server runs quietly in the background;
    - adds a **War Room** icon on the desktop and in the Start menu. The icon opens the War Room in **its own window**, with no tabs or address bar;
    - starts it and opens the window.
-3. Get an API key at https://console.anthropic.com/settings/keys. Usage is billed to that account. To add or change the key later, edit `war-room\.env` and run Setup again.
-
 Day to day, click the **War Room** icon. Other controls:
 - **Stop:** right-click `windows\stop.ps1`, then choose **Run with PowerShell**.
 - **Remove the shortcuts and auto-start:** run `windows\uninstall.ps1` the same way.
@@ -50,14 +48,19 @@ npm install && npm run demo
 ```
 Open http://localhost:4747. For real agents, copy `.env.example` to `.env`, add your key, and run `npm start`.
 
-## Costs and safety
+## Usage and safety
 
-- Real agents bill your Anthropic API account. Every task and council shows its cost, and the top bar shows the total.
-- Each task stops at `WARROOM_TASK_BUDGET_USD` (default $3). At most `WARROOM_MAX_PARALLEL` agents (default 3) run at once.
-- Agents default to `claude-opus-5-5`. To use a cheaper model, change `model:` in an agent's `.md` file (for example `claude-sonnet-5-5`).
+- **PLAN mode (default):** the agents run through Claude Code on this PC, signed in with your Claude account, so their work counts against your Claude plan's usage limits. There is no separate bill. (API mode is still there: put a key in `.env` and agents bill that key instead.)
+- **Efficient by design:**
+  - Each agent has its own model. The Producer (also the Marshal) uses Opus; the Scout, Writer, Studio and Analyst use Sonnet. Tick **Deep** on an order to run that one task on Opus.
+  - Orders are routed by keywords for free. Only an unclear order goes to a quick Haiku router.
+  - Agents share **6 slots**: Haiku counts 0.5, Sonnet 1 and Opus 2. So five Sonnet agents can work at once, or Opus plus three or four others. Councils run their officers in parallel too.
+  - Agents run without MCP servers, and council seats without Claude Code's long coding instructions, so every call stays small.
+- **Usage governor:** the top bar shows the last 5 hours of usage (in API-equivalent dollars) and the slots in use. New work pauses at the soft cap (`WARROOM_WINDOW_USD`, default $25), and running work finishes. If Claude says your plan's limit is reached, the War Room pauses and resumes by itself when the limit resets.
+- **Permissions in PLAN mode:** agents read freely. They write only in their own folders (the Writer and Studio under `projects/`, the Analyst under `channel/`). The Studio runs only the studio's own commands (`node tools/...`, `python tools/...`, the PC render script, `git status/diff/log`). Anything else is refused, and the agent ends with a `NEEDS APPROVAL:` line so you can decide. (Live Allow/Deny pop-ups exist only in API mode.)
 - The server only listens on your own computer (`127.0.0.1`). To reach it from your phone, set `WARROOM_TOKEN` to a long random string, set `WARROOM_HOST=0.0.0.0`, and open `http://<computer-ip>:4747/?token=<token>` once. Only do this on a network you trust, or put it behind a tunnel that requires login.
 - Agents work inside the studio repo (`WARROOM_WORKSPACE`, default `..`). The Writer and Studio may write under `projects/`, and the Analyst under `channel/`, without asking. Everything else that changes something waits for your approval.
-- On Windows, the Studio's commands run through Git Bash. Rendering also needs Python and ffmpeg, so the full render pipeline is easiest on Mac or Linux, or in a cloud session.
+- On Windows, the Studio's commands run through Git Bash. Rendering needs Python and ffmpeg too: `pc/Render PC Setup.cmd` installs them.
 - The Agent SDK requires an Anthropic API key. Anthropic doesn't allow apps like this one to run on a claude.ai subscription login.
 
 ## How the agents talk to each other

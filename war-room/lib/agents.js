@@ -32,6 +32,7 @@ export function loadAgents(dir) {
       effort: meta.effort || 'medium',
       tools: meta.tools || ['Read', 'Glob', 'Grep'],
       writes: meta.writes || [],
+      bash: meta.bash || [],
       preset: !!meta.preset,
       maxTurns: meta.maxTurns || 25,
       lens: meta.lens || '',

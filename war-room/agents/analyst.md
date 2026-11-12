@@ -5,7 +5,7 @@ id: analyst
 emoji: 📊
 color: "#ff6b6b"
 role: Reads the numbers and plays the harshest viewer. Logs results, writes post-mortems, critiques hooks and retention. Feeds the War Room.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 effort: high
 tools: [Read, Glob, Grep, Write, Edit, WebFetch]
 writes: [channel/]

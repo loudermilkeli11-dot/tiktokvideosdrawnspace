@@ -5,7 +5,7 @@ id: scout
 emoji: 🔭
 color: "#6ec6ff"
 role: Finds trends and ideas, and verifies the one real fact behind each pitch with sources.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 effort: medium
 tools: [WebSearch, WebFetch, Read, Glob, Grep]
 maxTurns: 25

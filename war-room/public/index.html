@@ -18,7 +18,7 @@
     <button data-tab="hive">Hive Mind</button>
     <button data-tab="memory">Memory</button>
   </nav>
-  <div class="meta"><span id="mode" class="badge">…</span><span id="spend" class="mono">$0.00</span><span id="clock" class="mono">--:--:-- UTC</span><span id="conn" class="conn" title="live link"></span></div>
+  <div class="meta"><span id="mode" class="badge">…</span><span id="usage" class="mono" title="Usage in the last 5 hours (API-equivalent) and agent slots in use"></span><span id="spend" class="mono">$0.00</span><span id="clock" class="mono">--:--:-- UTC</span><span id="conn" class="conn" title="live link"></span></div>
 </header>
 
 <main>
@@ -30,6 +30,7 @@
         <textarea id="cmdText" rows="2" placeholder="Give an order… e.g. “Pitch 3 ideas for next week's video” or “@writer board the Moon idea”"></textarea>
         <div class="cmdrow">
           <select id="cmdAgent"><option value="">⚡ Auto-assign</option></select>
+          <label class="deep" title="Run this task on Opus (slower, uses about 2x the usage). Default: each agent's own model."><input type="checkbox" id="cmdDeep"> Deep</label>
           <button class="primary" type="submit">Dispatch ⏎</button>
         </div>
       </form>

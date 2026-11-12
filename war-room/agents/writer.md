@@ -5,7 +5,7 @@ id: writer
 emoji: ✍️
 color: "#c792ea"
 role: Writes the script and board: captions with timing, counter math, shot list.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 effort: high
 tools: [Read, Glob, Grep, Write, Edit]
 writes: [projects/, pitches/]

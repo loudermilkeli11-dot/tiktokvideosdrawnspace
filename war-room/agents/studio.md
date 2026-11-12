@@ -5,10 +5,11 @@ id: studio
 emoji: 🛠️
 color: "#f9e2af"
 role: Drives the render engine in this repo. Builds shots, renders, assembles and checks videos.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 effort: high
 tools: [Read, Glob, Grep, Edit, Write, Bash]
 writes: [projects/]
+bash: [node tools/, python tools/, py tools/, bash tools/, git status, git diff, git log, ffprobe, powershell -ExecutionPolicy Bypass -File .\pc\render_project.ps1]
 preset: true
 maxTurns: 60
 lens: "Which shot is the hardest, does the engine already have it, and what do we cut if time runs out?"

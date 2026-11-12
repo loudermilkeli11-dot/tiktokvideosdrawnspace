@@ -30,10 +30,12 @@ const WINDOW_MS = 5 * 3600e3, WINDOW_USD = +(process.env.WARROOM_WINDOW_USD || 2
 const DEEP_MODEL = process.env.WARROOM_DEEP_MODEL || 'claude-opus-5-5', ROUTER_MODEL = process.env.WARROOM_ROUTER_MODEL || 'claude-haiku-5-5';
 const weight = (model) => (/opus/.test(model || '') ? 2 : /haiku/.test(model || '') ? 0.5 : 1);
 let limitedUntil = 0;   // set when Claude says the plan's limit is reached
-// The Commander's rule: never go above PLAN_CAP (default 80%) of the plan's current 5-hour window. Real readings come from
-// Claude Code (rate_limit_event). At the cap: new work waits, running agents pause and re-queue (their saved files stay),
-// and everything resumes on its own when the 5-hour window resets.
-const PLAN_CAP = +(process.env.WARROOM_PLAN_CAP || 0.8);
+// The Commander's rule: stay near PLAN_CAP (default 75%) of the plan's current 5-hour window. Real readings come from
+// Claude Code (rate_limit_event). At the cap: new work waits, but running agents FINISH (stopping them mid-task throws away
+// their progress and they redo it on resume). Only at HARD_STOP (95%) are running agents paused and re-queued.
+// Everything resumes on its own when the 5-hour window resets.
+const PLAN_CAP = +(process.env.WARROOM_PLAN_CAP || 0.75), HARD_STOP = 0.95;
+let hardStopped = false;
 const plan = { five: null, fiveReset: null, seven: null, t: 0 };
 let capUntil = 0, capOverride = 0;   // capOverride: the Commander pressed Resume; run past the cap until the window resets (hard stop at 95%)
 const overridden = () => capOverride > Date.now() && (plan.five == null || plan.five < 0.95);
@@ -78,27 +80,36 @@ function onRate(info) {
   if (sv && typeof sv.utilization === 'number') plan.seven = sv.utilization;
   plan.t = Date.now();
   if (plan.five != null && plan.five >= PLAN_CAP && capUntil <= Date.now() && !overridden()) capHit();
+  if (plan.five != null && plan.five >= HARD_STOP && !hardStopped) hardStop();
+  if (plan.five != null && plan.five < PLAN_CAP) hardStopped = false;
   if (capOverride && plan.fiveReset && capOverride - 60e3 > plan.fiveReset + 5 * 60e3) capOverride = 0;   // a new window started
   else if (plan.five != null && plan.five < PLAN_CAP && capUntil > Date.now() && (!plan.fiveReset || plan.fiveReset < capUntil - 60e3)) capUntil = 0;   // the window already reset
   emit('usage', usage());
 }
 function capHit() {
   capUntil = Math.max(Date.now() + 5 * 60e3, (plan.fiveReset || Date.now() + 30 * 60e3) + 60e3);
+  const n = store.tasks.filter((t) => t.status === 'running').length;
+  const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): no new work starts${n ? `; ${n} running task(s) finish first` : ''}. Queued work starts about ${at}` });
+  notifier.send('usage', `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Running tasks finish; new work starts on its own about ${at}.`, { photo: alertImg('usage'), buttons: [{ text: '▶ Resume anyway', data: 'unpause' }] });
+  emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Running tasks finish; new work starts on its own about ${at}.` });
+}
+function hardStop() {   // the safety net: running work pushed usage to 95%, so pause it now (saved files stay; it re-queues)
+  hardStopped = true; if (capUntil <= Date.now()) capUntil = Math.max(Date.now() + 5 * 60e3, (plan.fiveReset || Date.now() + 30 * 60e3) + 60e3);
   const n = store.tasks.filter((t) => t.status === 'running');
   for (const t of n) { t.capStop = true; aborts.get(t.id)?.abort(); }
-  const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): ${n.length} running task(s) paused, everything resumes about ${at}` });
-  notifier.send('usage', `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.`, { photo: alertImg('usage'), buttons: [{ text: '▶ Resume anyway', data: 'unpause' }] });
-  emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.` });
+  if (n.length) hive({ agent: null, kind: 'info', text: `Usage hit ${Math.round(plan.five * 100)}% (hard stop ${HARD_STOP * 100}%): ${n.length} running task(s) paused until the window resets` });
 }
 rateBus.fn = onRate;
 let probing = false;
 async function refreshPlan(force) {   // keep the reading fresh while there is work, so we never start blind
-  if (MODE !== 'plan' || probing) return; const busy = store.tasks.some((t) => ['queued', 'running', 'team'].includes(t.status));
-  if (!force && (!busy || Date.now() - plan.t < 4 * 60e3)) return;
+  if (MODE !== 'plan' || probing) return;
+  // running agents already report usage with every call, so only probe when work is WAITING and the reading is stale
+  const running = store.tasks.some((t) => ['running', 'team'].includes(t.status)), queued = store.tasks.some((t) => t.status === 'queued');
+  if (!force && (running || !queued || Date.now() - plan.t < 15 * 60e3)) return;
   probing = true; try { await probeUsage(WORKSPACE); } catch {} probing = false; pump();
 }
-setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
+setInterval(() => refreshPlan(false), 5 * 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error, { photo: alertImg('setup') }); }
@@ -256,7 +267,7 @@ async function runTask(task) {
     r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
-  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(PLAN_CAP * 100)}% of your 5-hour usage; it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
+  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(HARD_STOP * 100)}% of your 5-hour usage (hard stop); it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
   task.finished = Date.now(); task.result = r.text; task.cost += r.cost; task.turns = r.turns;
   task.status = abort.signal.aborted ? 'stopped' : r.ok ? 'done' : 'failed';

@@ -10,7 +10,7 @@ export const EVENTS = {
   approval: 'Needs your approval (a production brief, a council verdict)',
   done: 'Finished (a video is ready)',
   failed: 'Failures and blocks',
-  usage: 'Usage pauses (80% cap, plan limit)',
+  usage: 'Usage pauses (75% cap, plan limit)',
   setup: 'Setup problems (sign-in, update needed)',
   tasks: 'Every finished task (chatty)',
 };

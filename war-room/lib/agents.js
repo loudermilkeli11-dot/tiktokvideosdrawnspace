@@ -35,6 +35,7 @@ export function loadAgents(dir) {
       bash: meta.bash || [],
       preset: !!meta.preset,
       maxTurns: meta.maxTurns || 25,
+      claudeMd: meta.claudeMd !== false && meta.claudeMd !== 'false',   // false: skip the engine-focused CLAUDE.md (non-code agents)
       lens: meta.lens || '',
       keywords: meta.keywords || [],
       prompt: m[2].trim(),

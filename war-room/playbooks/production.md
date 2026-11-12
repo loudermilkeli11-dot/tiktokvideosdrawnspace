@@ -9,7 +9,7 @@ maxTurns: 30
 
 The Commander greenlit an idea. Turn it into **projects/<slug>/PRODUCTION.md**: one complete, self-contained build order that the Director (or any Claude session) can build from without asking anything.
 - Use a short kebab-case slug from the premise (e.g. `air-vanishes`). If that folder exists, add -2.
-- Read the source the order names (a pitch file and its number, a sealed dossier, or the Commander's own words), plus channel/BRAIN.md, PLAYBOOK.md and CLAUDE.md (what the engine already has).
+- Read the source the order names (a pitch file and its number, a sealed dossier, or the Commander's own words), plus PLAYBOOK.md. CLAUDE.md (what the engine already has) and the channel brain are already in your context: don't re-read them.
 - The Commander's words in the order override the pitch.
 
 PRODUCTION.md must contain exactly these sections:

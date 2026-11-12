@@ -30,7 +30,7 @@ export const CLAUDE_BIN = CLAUDE;
 // Claude Code reports the plan's real usage windows (rate_limit_event: five_hour / seven_day utilization 0..1) on every run.
 export const rateBus = { fn: null };
 // a tiny 1-turn Haiku call that only refreshes the usage reading (costs a fraction of a cent)
-export async function probeUsage(cwd) { if (MODE !== 'plan') return null; return planRun1({ agent: { id: 'probe', prompt: '', model: 'claude-haiku-5-5', maxTurns: 1 }, tools: [], maxTurns: 1, prompt: 'Reply with OK.', cwd, onLog: () => {} }); }
+export async function probeUsage(cwd) { if (MODE !== 'plan') return null; return planRun1({ agent: { id: 'probe', prompt: '', model: 'claude-haiku-5-5', maxTurns: 1, claudeMd: false }, tools: [], maxTurns: 1, prompt: 'Reply with OK.', cwd, onLog: () => {} }); }
 
 function toolSummary(b) {
   const i = b.input || {};
@@ -70,7 +70,7 @@ export async function runAgent(p) {
       tools,
       canUseTool: p.canUseTool,
       abortController: p.abort,
-      settingSources: ['project'], // load the workspace CLAUDE.md, not your personal ~/.claude settings
+      settingSources: a.claudeMd === false ? [] : ['project'], // load the workspace CLAUDE.md (code agents only), not your personal ~/.claude settings
       persistSession: false,
     },
   });
@@ -97,9 +97,9 @@ export async function runAgent(p) {
 // ---------------- plan backend: the Claude Code CLI on this PC ----------------
 const READ_TOOLS = ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TodoWrite'];
 const ALL_TOOLS = [...READ_TOOLS, 'Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Task'];
-const q = (a) => (/[\s"&|<>^()]/.test(a) ? '"' + a.replace(/"/g, '""') + '"' : a);   // cmd.exe quoting (only for a .cmd shim)
+const q = (a) => (a === '' || /[\s"&|<>^()]/.test(a) ? '"' + a.replace(/"/g, '""') + '"' : a);   // cmd.exe quoting (only for a .cmd shim)
 function planArgs(a, p, tools) {
-  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--model', p.model || a.model, '--max-turns', String(p.maxTurns ?? a.maxTurns), '--setting-sources', 'project', '--strict-mcp-config'];   // no MCP servers: agents don't need them, and their tool lists cost tokens on every call
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--model', p.model || a.model, '--max-turns', String(p.maxTurns ?? a.maxTurns), '--setting-sources', a.claudeMd === false ? '' : 'project', '--strict-mcp-config'];   // non-code agents skip the engine-focused CLAUDE.md; no MCP servers: agents don't need them, and their tool lists cost tokens on every call
   const allow = tools.filter((t) => READ_TOOLS.includes(t));
   if (tools.some((t) => ['Write', 'Edit', 'MultiEdit'].includes(t))) for (const w of a.writes || []) allow.push(`Edit(${w.replace(/\/$/, '')}/**)`);
   // command prefixes as glob rules ("Bash(node tools/*)"); the older "prefix:*" form is refused by current Claude Code

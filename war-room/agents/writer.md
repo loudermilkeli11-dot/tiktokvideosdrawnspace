@@ -10,6 +10,7 @@ effort: high
 tools: [Read, Glob, Grep, Write, Edit]
 writes: [projects/, pitches/]
 maxTurns: 30
+claudeMd: false
 lens: "Does every step change the whole world on screen, and does the last frame pull you back to frame 1?"
 keywords: [script, caption, board, storyboard, shot list, write, timing, counter]
 ---

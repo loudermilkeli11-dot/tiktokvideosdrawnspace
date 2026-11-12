@@ -10,6 +10,7 @@ effort: high
 tools: [Read, Glob, Grep, Write, Edit, WebFetch]
 writes: [channel/]
 maxTurns: 25
+claudeMd: false
 lens: "What do our numbers say, and where does a bored scroller on a muted phone leave?"
 keywords: [stats, analytics, results, views, retention, completion, post-mortem, postmortem, review, critique, feedback, hook, policy, log]
 ---

@@ -61,7 +61,7 @@ function taskCard(t) {
 function waitWhy(t) {
   const u = S.usage || {}, a = A(t.agent);
   if (u.paused === 'limit') return 'Paused: Claude reported a usage limit. Click Resume in the top bar to retry now.';
-  if (u.paused === 'plan') return `Paused: your 5-hour usage reached the ${Math.round((u.plan?.cap || 0.8) * 100)}% cap. It starts by itself after the reset.`;
+  if (u.paused === 'plan') return `Paused: your 5-hour usage reached the ${Math.round((u.plan?.cap || 0.75) * 100)}% cap. Running tasks finish; new work starts by itself after the reset.`;
   if (u.paused === 'cap') return `Paused: the 5-hour soft cap ($${u.cap}) was reached.`;
   if (a.status && a.status !== 'idle') return `Waiting for ${a.name} to finish its current task (one task per agent).`;
   const w = /opus/.test(t.model || a.model || '') ? 2 : /haiku/.test(t.model || a.model || '') ? 0.5 : 1;
@@ -168,7 +168,7 @@ function connect() {
 function renderUsage(u) {
   if (!u) return; S.usage = u;
   const at = u.resumeAt ? new Date(u.resumeAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-  const pl = u.plan && u.plan.five != null ? u.plan : null, capPct = Math.round((u.plan?.cap || 0.8) * 100);
+  const pl = u.plan && u.plan.five != null ? u.plan : null, capPct = Math.round((u.plan?.cap || 0.75) * 100);
   const pct = pl ? Math.min(100, pl.five * 100) : Math.min(100, (u.window / u.cap) * 100);
   $('#usage').innerHTML = u.paused === 'limit' ? `⏸ plan limit · back ${at} <button class="mini" data-resume>Resume</button>`
     : u.paused === 'plan' ? `⏸ ${capPct}% cap · back ${at} <button class="mini" data-resume title="Override: start work anyway">Resume</button>`

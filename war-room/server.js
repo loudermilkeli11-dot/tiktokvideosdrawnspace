@@ -358,7 +358,7 @@ function buildDone(pr, t) {
   if (pr.stage === 'cancelled') return;
   if (t.status !== 'done' || !/BUILD COMPLETE/i.test(t.result || '')) return buildFail(pr, t);
   if (!pr.fixes && pr.stats?.shots) { const b = pr.builder === 'sonnet' ? 'sonnet' : 'opus'; const eff = pr.parallel ? pr.stats.shots / BUILDERS_N + 3 : pr.stats.shots;
-    calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / eff); saveCalib(); }
+    calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / eff); calib.learnedBuild++; saveCalib(); }
   pr.buildPhase = null; pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
 }
 function onProductionTask(task, r) {
@@ -409,7 +409,7 @@ async function startRender(pr) {
   if (pr.stage === 'cancelled') return pemit(pr, 'Render cancelled.');
   const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
   if (code === 0 && fs.existsSync(final)) {
-    if (pr.stats?.frames && pr.quality !== 'draft' && !pr.early) { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); saveCalib(); }
+    if (pr.stats?.frames && pr.quality !== 'draft' && !pr.early) { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); calib.learnedRender++; saveCalib(); }
     pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
     hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
   } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < 1) {
@@ -431,7 +431,12 @@ function sendVideo(req, res, f) {
 
 // ---------------- ETA: estimates that learn from real runs (data/calib.json) ----------------
 const CALIB_F = path.join(ROOT, 'data', 'calib.json');
-const calib = Object.assign({ briefMin: 5, buildMinPerShot: { opus: 12, sonnet: 8 }, renderSecPerFrame: { max: 1.0, standard: 0.25, draft: 0.12 }, renderOverheadMin: 4 }, (() => { try { return JSON.parse(fs.readFileSync(CALIB_F, 'utf8')); } catch { return {}; } })());
+// v2 defaults include the speed-ups (cheat sheet, 2 shots at a time on the GPU, early renders). Learned values are kept;
+// defaults saved by an older version (nothing learned yet) are replaced.
+const CALIB_DEF = { v: 2, briefMin: 5, buildMinPerShot: { opus: 10, sonnet: 7 }, renderSecPerFrame: { max: 0.65, standard: 0.16, draft: 0.08 }, renderOverheadMin: 3, learnedBuild: 0, learnedRender: 0 };
+const calib = (() => { let c = {}; try { c = JSON.parse(fs.readFileSync(CALIB_F, 'utf8')); } catch {}
+  if ((c.v || 1) < 2) { if (!c.learnedBuild) delete c.buildMinPerShot; if (!c.learnedRender) delete c.renderSecPerFrame; delete c.renderOverheadMin; c.v = 2; }
+  return Object.assign({}, CALIB_DEF, c); })();
 const saveCalib = () => { try { fs.writeFileSync(CALIB_F, JSON.stringify(calib, null, 1)); } catch {} };
 const ema = (old, v) => +(old * 0.6 + v * 0.4).toFixed(3);
 function briefStats(pr) {   // shots and frames from the board table in PRODUCTION.md
@@ -441,7 +446,8 @@ function briefStats(pr) {   // shots and frames from the board table in PRODUCTI
 }
 function etaOf(pr) {   // minutes left per stage -> finish time
   const now = Date.now(), st = pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
-  const par = (st.shots >= PARALLEL_MIN_SHOTS && byId.builder) || pr.parallel, build = (par ? st.shots / BUILDERS_N + 3 : st.shots) * calib.buildMinPerShot[b], render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1)) / 60 + calib.renderOverheadMin;
+  const par = (st.shots >= PARALLEL_MIN_SHOTS && byId.builder) || pr.parallel, build = (par ? st.shots / BUILDERS_N + 3 : st.shots) * calib.buildMinPerShot[b];
+  const render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1) * (par && pr.quality !== 'draft' ? 1 / BUILDERS_N : 1)) / 60 + calib.renderOverheadMin;   // early renders cover the other groups
   let left = 0;
   if (pr.stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;
   else if (pr.stage === 'approval') left = build + render;

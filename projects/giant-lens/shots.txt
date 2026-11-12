@@ -1,0 +1,11 @@
+# giant-lens: 38.0 s = 1140 frames. Board: script.md. Law: src/story.js (SHOT table: t0, dur, step0, grows)
+# <name> <frames>
+s01_plaza 135
+s02_street 135
+s03_tower 135
+s04_bay 135
+s05_town 135
+s06_clouds 135
+s07_strato 135
+s08_orbit 165
+s09_loop 30

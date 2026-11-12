@@ -1,0 +1,84 @@
+{
+ "_note": "giant-lens score (38.0 s). Times from src/story.js: HITS = [13.5, 22.5, 31.5, 37.0] (the 4 hard cuts; s08 runs to 37.0, s09 = the plaza 37.0-38.0). Brief section 5 (ground-liquid critique): NO ticks block, exactly 4 hits, low-mid thuds (impact = the low body; a soft crack at -13 dB gives each cut its 200 Hz-3 kHz onset for check.py, no ding, nothing above ~3 kHz), silence as the last beat. Lens-grow swells (every shot start) and the beam hum live in the shot sound, not here. Riser 1 climbs the glass tower into the bay cut (13.5); riser 2 climbs from above the clouds through the two strato grows into the orbit braaam (31.5). Space: one low tone (shot sound). TRUE silence 36.55-36.97, then the soft loop thud at 37.0; 37.0-38.0 = plaza room tone only (s09 sound).",
+ "master_peak_db": -3.0,
+ "reverb": {
+  "decay": 2.8,
+  "send": 0.18,
+  "predelay": 0.02
+ },
+ "risers": [
+  {
+   "_cue": "riser 1: the beam climbs the glass tower, into the hard cut to the bay",
+   "t0": 9.0,
+   "t1": 13.5,
+   "gain_db": -15,
+   "speed": 0.3,
+   "noise": 0.25
+  },
+  {
+   "_cue": "riser 2: above the clouds, through both strato grows, into the orbit braaam",
+   "t0": 22.5,
+   "t1": 31.5,
+   "gain_db": -15,
+   "speed": 0.15,
+   "noise": 0.2
+  }
+ ],
+ "braaams": [
+  {
+   "_cue": "hit 3: the cut to orbit (-6 dB per the brief)",
+   "t": 31.5,
+   "gain_db": -6,
+   "decay": 3.4,
+   "root": 41.2
+  }
+ ],
+ "impacts": [
+  {
+   "_cue": "hit 1: cut to the bay",
+   "t": 13.5,
+   "gain_db": -4
+  },
+  {
+   "_cue": "hit 2: cut above the clouds",
+   "t": 22.5,
+   "gain_db": -4
+  },
+  {
+   "_cue": "hit 3: cut to orbit (under the braaam)",
+   "t": 31.5,
+   "gain_db": -5
+  },
+  {
+   "_cue": "hit 4: soft loop thud on the cut to the plaza",
+   "t": 37.0,
+   "gain_db": -9
+  }
+ ],
+ "cracks": [
+  {
+   "_cue": "soft mid-range onset under hit 1 (check.py cut-hit rule; low level, not a ding)",
+   "t": 13.5,
+   "gain_db": -13
+  },
+  {
+   "t": 22.5,
+   "gain_db": -13
+  },
+  {
+   "t": 31.5,
+   "gain_db": -14
+  },
+  {
+   "t": 37.0,
+   "gain_db": -16
+  }
+ ],
+ "silent": [
+  [
+   36.55,
+   36.97
+  ]
+ ],
+ "loop_silence_frames": 0
+}

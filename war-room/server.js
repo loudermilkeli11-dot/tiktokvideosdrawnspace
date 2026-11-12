@@ -15,6 +15,7 @@ try { for (const l of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n
 
 const { loadAgents, READ_ONLY } = await import('./lib/agents.js');
 const { Store } = await import('./lib/store.js');
+const { createNotifier } = await import('./lib/notify.js');
 const { runAgent, DEMO, MODE, CLAUDE_BIN, rateBus, probeUsage } = await import('./lib/runner.js');
 
 const PORT = +(process.env.WARROOM_PORT || 4747);
@@ -84,6 +85,7 @@ function capHit() {
   for (const t of n) { t.capStop = true; aborts.get(t.id)?.abort(); }
   const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): ${n.length} running task(s) paused, everything resumes about ${at}` });
+  notifier.send('usage', `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.`, { buttons: [{ text: '▶ Resume anyway', data: 'unpause' }] });
   emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.` });
 }
 rateBus.fn = onRate;
@@ -96,7 +98,7 @@ async function refreshPlan(force) {   // keep the reading fresh while there is w
 setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
-  if (r.needsLogin) emit('login', { text: r.error });
+  if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error); }
   if (r.needsUpdate && !globalThis.__updWarned) { globalThis.__updWarned = 1; emit('login', { title: '⬆️ Update Claude Code', text: r.updateNote }); hive({ agent: null, kind: 'info', text: r.updateNote }); }
   if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
   emit('usage', usage());
@@ -233,6 +235,7 @@ async function runTask(task) {
   if (r.error) logTo(task, { kind: 'error', text: r.error });
   const summary = (r.text.match(/^SUMMARY:\s*(.+)$/m) || [])[1] || r.text.split('\n').find((l) => l.trim())?.slice(0, 200) || r.error || task.status;
   task.summary = summary; store.save(); emit('task', publicTask(task));
+  if (!task.production && !abort.signal.aborted) { if (task.status === 'failed') notifier.send('failed', `⚠️ ${agent.name} failed`, `${task.title}\n${(r.error || summary).slice(0, 400)}`); else if (task.status === 'done' && task.by === 'Commander') notifier.send('tasks', `✔ ${agent.name} finished`, `${task.title}\n${summary}`); }
   hive({ agent: agent.id, kind: task.status, text: summary });
   live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1);
   setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: live[agent.id].n ? live[agent.id].taskId : null, last: summary });
@@ -299,7 +302,17 @@ function endTeam(task, status, text) {
 const PSTAGES = ['brief', 'approval', 'build', 'render', 'done'];
 const prods = store.productions;
 const pub = (pr) => ({ ...pr, log: (pr.log || []).slice(-80), eta: typeof etaOf === 'function' ? etaOf(pr) : null });
-function pemit(pr, line) { if (line) { (pr.log ||= []).push({ t: Date.now(), text: String(line).slice(0, 400) }); if (pr.log.length > 600) pr.log.splice(0, pr.log.length - 600); } store.save(); emit('production', pub(pr)); }
+function prodAlert(pr) {
+  const sig = `${pr.stage}|${pr.error || ''}`; if (pr.alertSig === sig) return; pr.alertSig = sig;
+  const eta = etaOf(pr), when = eta ? ` If approved now, ready about ${new Date(eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : '';
+  if (pr.stage === 'approval') notifier.send('approval', `🎬 Approve "${pr.title}"?`, `The production brief is ready (projects/${pr.slug}/PRODUCTION.md).${when}`, { buttons: [{ text: '✅ Approve & build', data: `approve:${pr.id}` }, { text: '✖ Reject', data: `reject:${pr.id}` }] });
+  else if (pr.stage === 'done') notifier.send('done', `🎬 Video ready: ${pr.title}`, `projects/${pr.slug}/out/final.mp4 is rendered and passed QC. It's in the Studio tab.`);
+  else if (pr.stage === 'failed') notifier.send('failed', `⚠️ Production stopped: ${pr.title}`, (pr.error || 'Unknown problem').slice(0, 600), { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
+  else if (pr.stage === 'paused') notifier.send('failed', `⏸ Production paused: ${pr.title}`, pr.note || 'The War Room restarted during this stage.', { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
+}
+function approveProd(pr, notes) { if (pr.stage !== 'approval') return `"${pr.title}" is not waiting for approval (stage: ${pr.stage}).`; if (notes) pr.notes = [pr.notes, notes].filter(Boolean).join('\n'); pr.approved = Date.now(); hive({ agent: null, kind: 'order', text: `🎬 approved: ${pr.title}` }); startBuild(pr); return `✅ Approved "${pr.title}". Building now.`; }
+function resumeProd(pr) { const from = pr.stage === 'paused' ? pr.pausedFrom : pr.failedAt; pr.error = null; if (!pr.slug) startBrief(pr); else if (!pr.approved) { pr.stage = 'approval'; pemit(pr); } else if (from === 'render') startRender(pr); else startBuild(pr); return `↻ Resumed "${pr.title}".`; }
+function pemit(pr, line) { if (line) { (pr.log ||= []).push({ t: Date.now(), text: String(line).slice(0, 400) }); if (pr.log.length > 600) pr.log.splice(0, pr.log.length - 600); } store.save(); emit('production', pub(pr)); try { prodAlert(pr); } catch {} }
 async function startBrief(pr) {
   pr.stage = 'brief'; pemit(pr, 'Producer is writing the production brief…');
   const t = await createTask({ agent: byId.producer ? 'producer' : agents[0].id, playbook: 'production', production: pr.id, model: DEEP_MODEL,
@@ -460,6 +473,25 @@ function etaOf(pr) {   // minutes left per stage -> finish time
   return { minutes: Math.round(left), at: now + left * 60e3, approx: pr.stage !== 'render' || !(pr.progress > 0.03), waitingOnYou: pr.stage === 'approval' };
 }
 
+// ---------------- phone (Telegram): alerts out, commands in ----------------
+const fmtT = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+async function phoneCommand(raw) {
+  const [cmd, arg] = String(raw).trim().split(/[:\s]+/, 2), c = cmd.replace(/^\//, '').replace(/@\w+$/, '').toLowerCase();
+  const pick = (stage) => (arg && prods.find((x) => x.id === arg)) || [...prods].reverse().find((x) => !stage || stage.includes(x.stage));
+  if (c === 'approve') { const pr = pick(['approval']); return pr ? approveProd(pr) : 'Nothing is waiting for approval.'; }
+  if (c === 'reject') { const pr = pick(['approval']); if (!pr) return 'Nothing is waiting for approval.'; cancelProduction(pr); return `✖ Rejected "${pr.title}".`; }
+  if (c === 'resume') { const pr = pick(['failed', 'paused']); if (pr) return resumeProd(pr); if (limitedUntil || capUntil) { limitedUntil = 0; capUntil = 0; pump(); return '▶ Queue resumed.'; } return 'Nothing to resume.'; }
+  if (c === 'unpause') { limitedUntil = 0; capUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue from the phone' }); pump(); return '▶ Queue resumed (usage cap overridden until the next reading).'; }
+  if (c === 'status' || c === 'start') {
+    const u = usage(), run = store.tasks.filter((t) => ['running', 'team'].includes(t.status)), q = store.tasks.filter((t) => t.status === 'queued').length;
+    const live = prods.filter((x) => !['done', 'cancelled'].includes(x.stage)).slice(-4).map((x) => { const e = etaOf(x); return `🎬 ${x.title}: ${x.stage}${x.buildPhase ? ' (' + x.buildPhase + ')' : ''}${e && !e.waitingOnYou ? ', ready about ' + fmtT(e.at) : ''}`; });
+    return [`War Room · ${MODE.toUpperCase()}`, u.plan?.five != null ? `Usage: ${Math.round(u.plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%)${u.paused ? ' · PAUSED' : ''}` : (u.paused ? 'Queue: PAUSED' : ''),
+      `Working: ${run.map((t) => `${byId[t.agent]?.emoji || ''} ${t.title}`).join(' · ') || 'nobody'}${q ? ` · ${q} queued` : ''}`, ...live].filter(Boolean).join('\n');
+  }
+  return 'Commands: /status · /approve · /reject · /resume';
+}
+const notifier = createNotifier(path.join(ROOT, 'data'), { onCommand: phoneCommand, log: (m) => console.error(m) });
+
 // ---------------- War Room ----------------
 const demoSeat = (a, role, q) => () => role === 'marshal'
   ? `STRATEGY: Back the giant-Moon pitch, opening on a giant Moon over a packed beach at frame 1, built mostly in the bay set; spend the saved time on the last 15 s in space.\n\nBATTLE PLAN:\n1. @scout: Lock the fuse fact (Moon recession, 3.8 cm/yr) with a NASA source.\n2. @writer: Board the winning premise with 11 steps and the loop.\n3. @analyst: Review the board as the Scroller: first 3 seconds, steps 2–4, the loop.\n4. @studio: Build the hero look-test shot at half size.\n\nCONSENSUS: all 4 officers back the giant-Moon premise; the Analyst warns the middle steps may repeat.`
@@ -510,7 +542,10 @@ async function convene(wr) {
   wr.dissent = tenth.text;
   finishWr(wr, 'awaiting');
 }
-function finishWr(wr, stage) { wr.stage = stage; wr.finished = Date.now(); store.save(); emit('warroom', wr); hive({ agent: null, kind: 'warroom', text: `War Room ${stage === 'awaiting' ? 'returned a verdict on' : stage + ':'} "${wr.question.slice(0, 80)}"` }); }
+function finishWr(wr, stage) {
+  if (stage === 'awaiting') notifier.send('approval', '⚔️ The council has a verdict', `"${wr.question.slice(0, 140)}": open the War Room tab to read the strategy and the Tenth Man, then seal it.`);
+  else if (stage === 'failed') notifier.send('failed', '⚠️ Council failed', (wr.error || wr.question).slice(0, 400));
+  wr.stage = stage; wr.finished = Date.now(); store.save(); emit('warroom', wr); hive({ agent: null, kind: 'warroom', text: `War Room ${stage === 'awaiting' ? 'returned a verdict on' : stage + ':'} "${wr.question.slice(0, 80)}"` }); }
 function dossierMarkdown(wr) {
   const d = new Date(wr.created).toISOString();
   return `# War Room dossier: ${wr.question}\n\n- Convened: ${d}\n- Status: ${wr.stage}${wr.verdict ? `\n- Commander's call: ${wr.verdict}` : ''}\n- Cost: $${wr.cost.toFixed(2)}\n\n` +
@@ -570,15 +605,18 @@ const server = http.createServer(async (req, res) => {
       const pr = { id: uid(), title: String(b.title || b.source).split('\n')[0].slice(0, 90), source: String(b.source).trim(), notes: String(b.notes || '').trim(), quality: ['draft', 'standard', 'max'].includes(b.quality) ? b.quality : 'max', builder: b.builder === 'sonnet' ? 'sonnet' : 'opus', created: Date.now(), stage: 'brief', log: [], cost: 0 };
       prods.push(pr); hive({ agent: null, kind: 'order', text: `🎬 greenlit: ${pr.title}` }); startBrief(pr); return json(res, pub(pr));
     }
+    if (p === '/api/notify' && req.method === 'GET') return json(res, notifier.view());
+    if (p === '/api/notify' && req.method === 'POST') { try { return json(res, await notifier.update(await body(req))); } catch (e) { return json(res, { error: e.message }, 400); } }
+    if (p === '/api/notify/test' && req.method === 'POST') { await notifier.send('done', '📱 War Room test alert', 'Phone alerts work. You will get approvals, finished videos, failures and usage pauses here.', { force: true }); return json(res, { ok: true }); }
     if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open)$/)) && req.method === 'POST') {
       const b = await body(req); const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
       if (b.quality && ['draft', 'standard', 'max'].includes(b.quality)) pr.quality = b.quality;
       if (b.builder) pr.builder = b.builder === 'sonnet' ? 'sonnet' : 'opus';
       if (b.notes) pr.notes = [pr.notes, String(b.notes)].filter(Boolean).join('\n');
-      if (pm[2] === 'approve' && pr.stage === 'approval') { pr.approved = Date.now(); hive({ agent: null, kind: 'order', text: `🎬 approved: ${pr.title}` }); startBuild(pr); }
+      if (pm[2] === 'approve') approveProd(pr);
       else if (pm[2] === 'cancel') cancelProduction(pr);
       else if (pm[2] === 'render' && pr.slug) { pr.fixes = 0; startRender(pr); }
-      else if (pm[2] === 'resume') { const from = pr.stage === 'paused' ? pr.pausedFrom : pr.failedAt; pr.error = null; if (!pr.slug) startBrief(pr); else if (!pr.approved) { pr.stage = 'approval'; pemit(pr); } else if (from === 'render') startRender(pr); else startBuild(pr); }
+      else if (pm[2] === 'resume') resumeProd(pr);
       else if (pm[2] === 'open' && pr.final) { if (process.platform === 'win32') spawnProc('explorer.exe', [`/select,${pr.final}`], { detached: true }); }
       return json(res, pub(pr));
     }

@@ -34,7 +34,8 @@ export class Store {
     return e;
   }
   recentHive(n = 15) { return this.hive.slice(-n).reverse(); }
-  pinned() { try { return fs.readFileSync(this._p('memory/pinned.md'), 'utf8'); } catch { return ''; } }
+  // pinned memory: the Commander's own edits (data/memory/pinned.md), else the shipped defaults (war-room/pinned.default.md)
+  pinned() { try { return fs.readFileSync(this._p('memory/pinned.md'), 'utf8'); } catch { try { return fs.readFileSync(path.join(this.dir, '..', 'pinned.default.md'), 'utf8'); } catch { return ''; } } }
   setPinned(text) { fs.writeFileSync(this._p('memory/pinned.md'), text); }
   agentMemory(id) { try { return fs.readFileSync(this._p(`memory/${id}.md`), 'utf8'); } catch { return ''; } }
   remember(id, fact) {

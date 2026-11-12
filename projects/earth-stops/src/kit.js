@@ -30,16 +30,18 @@ PALETTE.top.splice(0, PALETTE.top.length, 0xd94a3d, 0xf0b23a, 0x3a78d0, 0x2f9e68
 PALETTE.bot.splice(0, PALETTE.bot.length, 0x2d3d5c, 0xd9cfb6, 0x3e3e3e, 0x5b7fa8, 0xebe6da, 0x6d5539, 0x1c1c22, 0x7a2e2e);
 PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a5a, 0x1a1410, 0x8a6a48, 0xd8c08a, 0x3a3a3a);
 // ONE sun for every ground set: late afternoon, 28° high, from the west-south-west (screen-left, a little behind a north-looking camera)
-export const SUN = new THREE.Vector3(-0.80, 0.47, 0.37).normalize();
-export const SUN_COL = 0xffd29a, SUN_I = 3.5;
-export const SKY = { zen: 0x2a68c8, hor: 0xc9d6dc };          // blue overhead, a pale blue horizon (= group A's plazaLook; the haze is warm)
-export const HAZE = { col: 0xe6cfa8, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows
-export const HEMI = { sky: 0x9fbce6, ground: 0x8a7258, i: 0.8 };
+// v4 (Commander 11-12 fix #3, golden light): the sun drops to ~19° (longer, visible shadows), warmer and a touch stronger;
+// a deeper blue zenith over a warm golden horizon band; warmer haze; a gentle warm grade. Still full daylight.
+export const SUN = new THREE.Vector3(-0.84, 0.33, 0.43).normalize();
+export const SUN_COL = 0xffc683, SUN_I = 4.1;
+export const SKY = { zen: 0x1446b0, hor: 0xead8a2, altI: 1.0 };          // deep blue overhead, a warm golden band at the horizon (yellow-gold: a redder one blends to pink)
+export const HAZE = { col: 0xeed3a0, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows gold
+export const HEMI = { sky: 0x9ab8e8, ground: 0x9a7650, i: 0.85 };
 // warm grade (lift/gain) on top of ACES; dust shots push it to amber with gradeDust()
-export const POST_DAY = { exposure: 1.0, bloom: 0.12, bloomThreshold: 2.0, bloomRadius: 0.6, vignette: 0.3, grain: 0.014, ca: 0.0008, sat: 1.1, contrast: 1.06, lift: [0.018, 0.010, 0.0], gain: [1.05, 1.0, 0.9] };
+export const POST_DAY = { exposure: 1.02, bloom: 0.14, bloomThreshold: 1.8, bloomRadius: 0.6, vignette: 0.3, grain: 0.014, ca: 0.0008, sat: 1.14, contrast: 1.07, lift: [0.018, 0.012, 0.0], gain: [1.05, 1.01, 0.89] };
 export const POST_ORBIT = { exposure: 1.0, bloom: 0.22, bloomThreshold: 1.1, bloomRadius: 0.55, vignette: 0.4, grain: 0.02, ca: 0.0006, sat: 1.1, contrast: 1.05, lift: [0.01, 0.006, 0.0], gain: [1.03, 1.0, 0.94] };
 // k 0..1: how much tan dust is in the air (story: ramps with e). Call each frame after createStudio: gradeDust(S, k).
-export function gradeDust(S, k) { const p = S.post.p; p.gain = [1.05 + 0.05 * k, 1.0 - 0.03 * k, 0.9 - 0.16 * k]; p.lift = [0.018 + 0.02 * k, 0.010 + 0.012 * k, 0.0]; p.sat = 1.1 - 0.12 * k; p.contrast = 1.06 - 0.04 * k; }
+export function gradeDust(S, k) { const p = S.post.p; p.gain = [1.05 + 0.03 * k, 1.01 - 0.01 * k, 0.89 - 0.10 * k]; p.lift = [0.018 + 0.010 * k, 0.012 + 0.010 * k, 0.0]; p.sat = 1.14 - 0.12 * k; p.contrast = 1.07 - 0.04 * k; }
 export const COL = { heroTop: 0xd9a21b /* mustard */, heroBot: 0x22252c, heroBag: 0x2b2f36, heroHair: 0x2a1d14, rail: 0x6a3222, railDark: 0x3c1c14, dust: 0x8f5c30 };   // dust: ochre, darker than the paving so it reads
 // motion-blur samples (brief §6): 12 fast, 8 moving, 4 calm. s09 = s01's pre-stop value so the loop frames match.
 export const SAMPLES = { s01_pre: 4, s01_plaza: 12, s02_street: 12, s03_towers: 8, s04_river: 8, s05_bay: 8, s06_town: 8, s07_coast: 4, s08_earth: 4, s09_loop: 4 };
@@ -94,6 +96,7 @@ export function dayLights(S, o = {}) {
   const { scene } = S;
   S.hdri('hdri_day_1k.hdr', o.envI ?? 0.55);
   const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(o.hor ?? SKY.hor);
+  if (sky.U.altI) sky.U.altI.value = SKY.altI;                    // v4: blue climbs faster + a thin golden band hugging the horizon
   const sun = new THREE.DirectionalLight(SUN_COL, o.sunI ?? SUN_I); sun.castShadow = !!o.shadows; sun.shadow.mapSize.set(o.map ?? 2048, o.map ?? 2048);
   const b = o.box ?? 90;
   Object.assign(sun.shadow.camera, { left: -b, right: b, top: b, bottom: -b, near: 10, far: o.far ?? 2500 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
@@ -170,7 +173,9 @@ export function createChips(S, list, o = {}) {
   const N = list.length, card = new THREE.PlaneGeometry(1, 0.7), tet = new THREE.TetrahedronGeometry(0.6);
   const mk = (base) => { const g = new THREE.InstancedBufferGeometry(); const b = base.index ? base.toNonIndexed() : base; b.computeVertexNormals();
     g.setAttribute('position', b.attributes.position); g.setAttribute('normal', b.attributes.normal); return g; };
-  const groups = [0, 1].map((shape) => list.filter((c) => (c.shape ?? 0) === shape));
+  // v4: shape 2 = steel beam (long thin box), 3 = concrete slab (thick block); only built when a list uses them
+  const GEOS = [tet, card, new THREE.BoxGeometry(1.6, 0.16, 0.16), new THREE.BoxGeometry(1.0, 0.32, 0.75)];
+  const groups = [0, 1, 2, 3].map((shape) => list.filter((c) => (c.shape ?? 0) === shape));
   const U = { e: { value: 0 }, V: { value: V }, wrap: { value: new THREE.Vector3(o.wrap?.[0] ?? 0, o.wrap?.[1] ?? 0, o.wrap ? 1 : 0) }, rest: { value: o.rest ? 1 : 0 },
     sunDir: { value: SUN.clone() }, sunCol: { value: new THREE.Color(SUN_COL).multiplyScalar(o.sunI ?? 1.6) }, skyCol: { value: new THREE.Color(HEMI.sky).multiplyScalar(0.55) },
     gndCol: { value: new THREE.Color(HEMI.ground).multiplyScalar(0.45) }, fogCol: { value: new THREE.Color(HAZE.col) }, fogN: { value: o.fogNear ?? HAZE.near }, fogF: { value: o.fogFar ?? HAZE.far },
@@ -203,7 +208,7 @@ export function createChips(S, list, o = {}) {
         float d = length(cameraPosition - vW); col = mix(col, fogCol, clamp((d - fogN)/(fogF - fogN), 0., 1.));
         gl_FragColor = vec4(col, 1.); }` });
   const meshes = groups.map((L, shape) => { if (!L.length) return null;
-    const g = mk(shape === 1 ? card : tet), aP = new Float32Array(L.length * 4), aS = new Float32Array(L.length * 4), aC = new Float32Array(L.length * 3), c = new THREE.Color();
+    const g = mk(GEOS[shape]), aP = new Float32Array(L.length * 4), aS = new Float32Array(L.length * 4), aC = new Float32Array(L.length * 3), c = new THREE.Color();
     L.forEach((q, i) => { aP.set([q.p[0], q.p[1], q.p[2], q.t0 ?? 0], i * 4); aS.set([q.size ?? 0.2, q.seed ?? ((i * 0.6180339) % 1), q.kind ?? 0, 0], i * 4); c.set(q.col ?? 0x8a8a80); c.toArray(aC, i * 3); });
     g.setAttribute('aP', new THREE.InstancedBufferAttribute(aP, 4)); g.setAttribute('aS', new THREE.InstancedBufferAttribute(aS, 4)); g.setAttribute('aC', new THREE.InstancedBufferAttribute(aC, 3));
     g.instanceCount = L.length; const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.castShadow = false; S.scene.add(m); return m; }).filter(Boolean);

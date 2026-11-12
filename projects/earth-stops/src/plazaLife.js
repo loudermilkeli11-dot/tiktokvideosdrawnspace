@@ -28,7 +28,9 @@ const sst = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a)))
 POSES.cling2 = { R: { t: [0.06, 2.12, -0.05], pole: [1, 0, 0.3] }, L: { t: [-0.06, 2.06, -0.05], pole: [-1, 0, 0.3] }, legR: [-0.15, 0.1, 0.1], legL: [0.25, 0.12, 0.35], lean: 0.0, head: [0, 0.2] };
 POSES.flail = { R: { t: [0.5, 1.9, 0.25], pole: [1, -0.3, 0.2] }, L: { t: [-0.55, 1.3, -0.3], pole: [-1, -0.3, 0] }, legR: [0.3, 0.15, 0.4], legL: [-0.25, 0.1, -0.2], lean: 0.1, head: [0.3, 0.4] };
 // v3 (Commander 11-12 critique #1): the lamp post moved from 24 m to ~12 m from the lens so the clinger is big on a phone
-export const LAMP = new THREE.Vector3(-3.0, 0, 50), GRIP_Y = 4.7;
+// v4 (Commander 11-12 fix #1): moved again, to the kerb edge of the south sidewalk (z 52.5, ~11.5 m from the lens), and s01/s09
+// shoot it on FRAME1_CAM.mm + F1_ZOOM, so the clinger fills about a third of the frame width
+export const LAMP = new THREE.Vector3(-2.2, 0, 52.5), GRIP_Y = 4.7, F1_ZOOM = 3;
 export const CLING_REL = 4.8;                                                       // film s: he lets go (s01 tt 4.8)
 
 export function plazaLife(S, W) {

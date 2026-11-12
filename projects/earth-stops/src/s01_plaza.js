@@ -9,6 +9,7 @@ import { ease, clamp } from '@engine/util.js';
 import { FRAME1_CAM, POST_DAY, SAMPLES, D2R } from './kit.js';
 import { T_STOP } from './story.js';
 import { plazaSet } from './groupA_plaza.js';
+import { F1_ZOOM } from './plazaLife.js';
 
 const S = createStudio({ samples: (t) => (t - 4 < T_STOP - 0.02 ? SAMPLES.s01_pre : SAMPLES.s01_plaza), shadows: true, post: { ...POST_DAY } });
 const P = plazaSet(S);
@@ -19,7 +20,7 @@ export function camAt(tt) {
   const pos = FRAME1_CAM.pos.clone();
   const pan = 9 * Math.pow(clamp((tt - 6.6) / 1.4), 2);                             // eased in, still moving at 8.0
   const dir = FRAME1_CAM.look.clone().sub(FRAME1_CAM.pos).applyAxisAngle(YAX, -pan * D2R);
-  return { pos, look: pos.clone().add(dir), mm: FRAME1_CAM.mm + 3 * u, roll: 0 };
+  return { pos, look: pos.clone().add(dir), mm: FRAME1_CAM.mm + F1_ZOOM + 3 * u, roll: 0 };
 }
 
 S.run((t) => {

@@ -22,7 +22,7 @@ const sst = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a)))
 // The kit's horizon is a pale grey-cream; the hits have a blue sky warming to gold at the horizon. Applied identically in
 // s01 and s09 so the loop matches.
 export function plazaLook(W) {
-  W.sky.U.dayZen.value.set(qn('zen', 0x2a68c8)); W.sky.U.dayHor.value.set(qn('hor', 0xc9d6dc));
+  W.sky.U.dayZen.value.set(qn('zen', 0x1446b0)); W.sky.U.dayHor.value.set(qn('hor', 0xead8a2)); if (W.sky.U.altI) W.sky.U.altI.value = 1.0;   // v4: = kit SKY (golden horizon)
 }
 
 export function plazaSet(S, o = {}) {

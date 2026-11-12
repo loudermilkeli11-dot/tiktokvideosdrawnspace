@@ -2,6 +2,22 @@
 # auto-start and the icons at THIS copy, starts it and opens the window. Safe to run any time.
 . "$PSScriptRoot\common.ps1"
 $port = Get-WarRoomPort
+
+# 0. never kill running agents by accident: a restart throws away their in-progress conversation
+try {
+    $st0 = Invoke-RestMethod "http://127.0.0.1:$port/api/state" -TimeoutSec 3
+    $busy = @($st0.tasks | Where-Object { $_.status -in @('running', 'team') })
+    if ($busy.Count -and $env:WARROOM_FORCE_RESTART -ne '1') {
+        Write-Host "$($busy.Count) agent(s) are working right now:" -ForegroundColor Yellow
+        $busy | ForEach-Object { Write-Host ("  - {0}: {1}" -f $_.agent, $_.title) }
+        $a = Read-Host "[W] wait until they finish, then restart (recommended)   [R] restart now and stop them   [C] cancel"
+        if ($a -match '^[Cc]') { Write-Host 'Cancelled. Nothing was restarted.'; exit 0 }
+        if ($a -notmatch '^[Rr]') {
+            Write-Host 'Waiting for the agents to finish (checks every 30 s; close this window to give up)...' -ForegroundColor Cyan
+            do { Start-Sleep -Seconds 30; try { $n = @((Invoke-RestMethod "http://127.0.0.1:$port/api/state" -TimeoutSec 5).tasks | Where-Object { $_.status -in @('running', 'team') }).Count } catch { $n = 0 }; Write-Host "  $n still working" } while ($n -gt 0)
+        }
+    }
+} catch {}
 Write-Host "Restarting the War Room from $Root (port $port)..." -ForegroundColor Cyan
 
 # 1. stop the keep-alive loops first (or they start the server again), then every War Room server

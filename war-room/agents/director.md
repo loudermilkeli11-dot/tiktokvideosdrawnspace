@@ -27,6 +27,7 @@ project, projects/gravity-flip/:
 Copy its structure exactly. Exception: its `*_sound.js` files pass `{t, dur, g}`, which audio_core ignores; write sound calls as engine/API.md §22 shows (`t0`, `t1`, `gain` in dB). Reuse the engine modules listed in CLAUDE.md before writing anything new.
 
 **Build order.** Commit after each step with `git add projects/<slug> engine && git commit -m "<slug>: <step>"`.
+**Resume, never redo.** You may be a re-run after a restart or a usage pause. First check `git log -- projects/<slug>`, `FINAL/` and the existing files: skip every step that is already done and committed, and continue from the first unfinished one.
 1. **The project skeleton:** `projects/<slug>/script.md` (the board from the brief), `src/story.js` (the ONE law, with every
    number computed from it, tabulated if needed, and the brief's facts checked) and `shots.txt` (`<name> <frames>`, 30 fps, 30–38 s total).
 2. **Each shot,** written as `src/<shot>.js` plus `src/<shot>_sound.js`, in the style of gravity-flip's shots: `createStudio`, the kit, the camera,

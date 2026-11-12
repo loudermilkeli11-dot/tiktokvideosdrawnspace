@@ -422,9 +422,19 @@ async function startBuild(pr) {
       const t = await prodTask(pr, 'director', `Build ${base}.${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}`, `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}`);
       return buildDone(pr, t);
     }
+    // Resume, don't restart: after a War Room restart, a cap pause or a stop, phases and Builder groups that already finished
+    // are reused instead of being run again from scratch (not for fix or edit rounds, which must redo work).
+    const fresh = !pr.fixNote && !pr.editNote;
+    const prior = (re, ok) => (fresh ? store.tasks.filter((t) => t.production === pr.id && re.test(t.text) && t.status === 'done' && ok.test(t.result || '')).at(-1) : null);
+    const reuseGroup = (g, since) => {
+      const t = prior(new RegExp(`^PHASE 2 of 3 .*Builder group ${g}\.`), /SHOTS DONE/i); if (t) return t;
+      if (!fresh) return null;
+      for (const f of [`${g}.txt`, `group${g}.txt`]) { try { const st = fs.statSync(path.join(WORKSPACE, 'projects', pr.slug, 'FINAL', f)); if (st.mtimeMs > since) return { status: 'done', text: `Builder group ${g}`, result: `SHOTS DONE: ${g} (hand-over FINAL/${f} already written; reused)` }; } catch {} }
+      return null;
+    };
     // 1. lead: skeleton + shared kit + the split
     pr.buildPhase = 'lead'; pemit(pr, `Parallel build (${who}): the Director writes the law, the shared kit and the split…`);
-    const lead = await prodTask(pr, 'director', `PHASE 1 of 3 (lead) of a PARALLEL build of ${base}.
+    const lead = prior(/^PHASE 1 of 3/, /PLAN READY/) || await prodTask(pr, 'director', `PHASE 1 of 3 (lead) of a PARALLEL build of ${base}.
 Do build-order steps 1 (skeleton: script.md, src/story.js, shots.txt) and write the SHARED KIT every shot imports (sets, palette, lighting, camera helpers: src/kit.js), checked on one key frame. Do NOT build the shots yourself.
 Also write overlay.js (captions + counter, every number from story.js, inside the safe area) and score.json now: they depend only on the law and the board, so the shots can be rendered the moment they are built.
 Then write projects/${pr.slug}/BUILDERS.md: split the shots into ${BUILDERS_N} groups named A, B, C… of similar difficulty (keep shots that cut into each other in the same group when you can), give each group its shots, the handshake at every cut (what the frame looks like at the cut), the shared rules and the contract (Builders write only their own shot files and new files named after their group, never shared files, never commit).
@@ -434,7 +444,9 @@ Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>
     if (!groups.length) return buildDone(pr, lead);   // the lead built it all itself
     // 2. Builders in parallel, one per group
     pr.buildPhase = 'shots'; pemit(pr, `${groups.length} Builders are building shots in parallel: ${groups.map((x) => `${x.g} (${x.shots})`).join(' · ')}`);
-    const done = await Promise.all(groups.map((x) => prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`).then((t) => { if (t.status === 'done' && /SHOTS DONE/i.test(t.result || '')) earlyRender(pr, x.shots.split(/[,\s]+/).filter(Boolean)); return t; })));
+    const since = lead.finished ? lead.finished - 6 * 3600e3 : 0;   // hand-overs written after the split (with slack for a lead re-run)
+    const reused = groups.filter((x) => reuseGroup(x.g, since)).map((x) => x.g); if (reused.length) pemit(pr, `Reusing finished Builder group(s): ${reused.join(', ')}`);
+    const done = await Promise.all(groups.map((x) => reuseGroup(x.g, since) || prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`).then((t) => { if (t.status === 'done' && /SHOTS DONE/i.test(t.result || '')) earlyRender(pr, x.shots.split(/[,\s]+/).filter(Boolean)); return t; })));
     const bad = done.filter((t) => t.status !== 'done' || !/SHOTS DONE/i.test(t.result || ''));
     if (bad.length) return buildFail(pr, bad[0], `Builder group(s) ${bad.map((t) => (t.text.match(/group ([A-Z])/) || [])[1]).join(', ')} did not finish`);
     // 3. lead: integrate, consistency pass, captions, score, commit

@@ -36,6 +36,8 @@ Study the reference shots in projects/gravity-flip/src/. Exception: its `*_sound
 - **Never edit:** story.js, shots.txt, the shared kit, overlay.js, score.json, other Builders' files, or any existing engine file. If you need one of them changed, explain it in your hand-over and the lead will do it.
 - **Don't git commit.** The lead commits everything once all Builders finish.
 
+**Resume, never redo.** You may be a re-run after a restart or a usage pause. Before writing anything, check what already exists: your hand-over in `FINAL/`, your shot files and their frames in `out/`. A shot whose file exists: build it and check ONE key frame; keep it if it passes, and only fix what fails. If your hand-over already exists and its shots build, end at once with `SHOTS DONE: <group>`.
+
 **Each shot:**
 1. Build the page: `python tools/build_page.py projects/<slug>/src/<shot>.js` (use `python3` outside Windows).
 2. Check key frames on the GPU: `node tools/frames.js projects/<slug>/dist/<shot>.html projects/<slug>/out/frames_<shot> 0.2 1.5 <last-0.2> --scale 0.5` (half size is enough to judge; it costs a quarter of the image tokens. Open a full-size frame with `--scale 1` only to check fine detail or small text, and only that one frame).

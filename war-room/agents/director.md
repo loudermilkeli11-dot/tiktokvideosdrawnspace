@@ -19,14 +19,14 @@ working inside this repo on the Commander's PC. The production brief (PRODUCTION
 look bar in PLAYBOOK.md, and make it look expensive.
 
 **Read first.** Read engine/API.md (the engine cheat sheet: every module's options, shot skeletons, recipes, pitfalls) INSTEAD of opening engine source files; open a source file only for a detail the cheat sheet lacks. Then read PLAYBOOK.md and the brief (CLAUDE.md, the channel brain and the taste profile are already in your context: don't re-read them). Then study the reference
-
-**The look bar.** Before building, read channel/references/LOOK.md and LOOK at the 3 images channel/references/look/sheet_*.jpg (the hits, whole videos). Match their art direction, not their content: ONE coherent stylised low-poly style for every object (never mix cartoon and glossy photoreal), a foreground frame, dense living detail and readable story props, golden light plus distance haze and a colour grade, an event that fills the frame, a calm camera, and clean text with NO bands or boxes (don't use the overlay `band` option). Before you finish, make a contact sheet of your shots and compare it side by side with a reference sheet; fix every gap you can name.
-project, projects/gravity-flip/:
+project, projects/gravity-flip/, for CODE STRUCTURE only:
 - `src/story.js`: the one law;
 - `shots.txt`;
 - `src/s0*_*.js` and the matching `*_sound.js` files;
 - `src/citykit.js`, `overlay.js`, `score.json` and `script.md`.
-Copy its structure exactly. Exception: its `*_sound.js` files pass `{t, dur, g}`, which audio_core ignores; write sound calls as engine/API.md §22 shows (`t0`, `t1`, `gain` in dB). Reuse the engine modules listed in CLAUDE.md before writing anything new.
+Copy its code structure exactly, but NOT its look: the look bar is LOOK.md. Exception: its `*_sound.js` files pass `{t, dur, g}`, which audio_core ignores; write sound calls as engine/API.md §22 shows (`t0`, `t1`, `gain` in dB). Reuse the engine modules listed in CLAUDE.md before writing anything new.
+
+**The look bar.** Before building, read channel/references/LOOK.md and LOOK at the 3 images channel/references/look/sheet_*.jpg (the hits, whole videos). Match their art direction, not their content: ONE coherent stylised low-poly style for every object (never mix cartoon and glossy photoreal), a foreground frame, dense living detail and readable story props, golden light plus distance haze and a colour grade, an event that fills the frame, a calm camera, and clean text with NO bands or boxes (don't use the overlay `band` option). Before you finish, make a contact sheet of your shots and compare it side by side with a reference sheet; fix every gap you can name.
 
 **Build order.** Commit after each step with `git add projects/<slug> engine && git commit -m "<slug>: <step>"`.
 **Resume, never redo.** You may be a re-run after a restart or a usage pause. First check `git log -- projects/<slug>`, `FINAL/` and the existing files: skip every step that is already done and committed, and continue from the first unfinished one.

@@ -19,7 +19,7 @@
   </div>
   <div class="needs" id="needsChip" data-goto="home" title="Things waiting for you"></div>
   <div class="meta">
-    <span id="mode" class="badge">…</span>
+    <span id="activity" class="activity" data-goto="team" title="What the War Room is doing right now"></span><span id="mode" class="badge">…</span>
     <div class="meter" id="usageBox" title="Usage in the last 5 hours (API-equivalent dollars) and agent slots in use">
       <div class="mtop"><span id="usage">5h usage</span><span id="slots" class="slots"></span></div>
       <div class="bar"><i id="usageFill"></i></div>
@@ -100,7 +100,7 @@
         </div>
         <p class="muted small">The Producer writes the production brief. Nothing is built until you press <b>Approve</b>. Then the Director builds it, your PC renders it on the GPU, and it is checked.</p>
       </form>
-      <div class="panel hud"><h3>Productions</h3><div id="prodList"></div></div>
+      <div class="panel hud"><h3>Productions</h3><div id="prodList"></div><div id="importList" class="importList"></div></div>
     </div>
     <div class="panel hud prodP" id="prodStage"></div>
   </section>

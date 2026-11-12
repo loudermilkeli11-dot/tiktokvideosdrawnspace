@@ -35,7 +35,9 @@ let limitedUntil = 0;   // set when Claude says the plan's limit is reached
 // and everything resumes on its own when the 5-hour window resets.
 const PLAN_CAP = +(process.env.WARROOM_PLAN_CAP || 0.8);
 const plan = { five: null, fiveReset: null, seven: null, t: 0 };
-let capUntil = 0;
+let capUntil = 0, capOverride = 0;   // capOverride: the Commander pressed Resume; run past the cap until the window resets (hard stop at 95%)
+const overridden = () => capOverride > Date.now() && (plan.five == null || plan.five < 0.95);
+function overrideCap(by) { limitedUntil = 0; capUntil = 0; capOverride = Math.max(Date.now() + 15 * 60e3, (plan.fiveReset || Date.now() + 5 * 3600e3) + 60e3); hive({ agent: null, kind: 'info', text: `${by} overrode the ${Math.round(PLAN_CAP * 100)}% cap until ${new Date(capOverride).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} (hard stop at 95%)` }); for (const t of store.tasks) if (t.status === 'queued' && t.log?.at(-1)?.text?.startsWith('Paused at')) t.log.push({ t: Date.now(), kind: 'info', text: 'Resumed by the Commander.' }); emit('usage', usage()); pump(); }
 const MAX_DEPTH = 2; // how many delegation hops an agent chain may take on its own
 
 const gitHead = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return '?'; } };
@@ -67,7 +69,7 @@ function usage() {
   const w = windowSpend(), used = store.tasks.filter((t) => t.status === 'running').reduce((a, t) => a + weight(t.model || byId[t.agent]?.model), 0);
   const oldest = spendLog.find((e) => e.t > Date.now() - WINDOW_MS);
   const paused = limitedUntil > Date.now() ? 'limit' : capUntil > Date.now() ? 'plan' : (MODE !== 'plan' || plan.five == null) && w >= WINDOW_USD ? 'cap' : '';
-  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, plan: { ...plan, cap: PLAN_CAP }, resumeAt: paused === 'limit' ? limitedUntil : paused === 'plan' ? capUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
+  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, override: overridden() ? capOverride : null, working: store.tasks.filter((t) => ['running', 'team'].includes(t.status)).length, queued: store.tasks.filter((t) => t.status === 'queued').length, plan: { ...plan, cap: PLAN_CAP }, resumeAt: paused === 'limit' ? limitedUntil : paused === 'plan' ? capUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
 }
 function onRate(info) {
   const f = info.unifiedWindows?.five_hour, sv = info.unifiedWindows?.seven_day;
@@ -75,7 +77,8 @@ function onRate(info) {
   else if (info.rateLimitType === 'five_hour' && typeof info.utilization === 'number') { plan.five = info.utilization; plan.fiveReset = info.resetsAt ? info.resetsAt * 1000 : null; }
   if (sv && typeof sv.utilization === 'number') plan.seven = sv.utilization;
   plan.t = Date.now();
-  if (plan.five != null && plan.five >= PLAN_CAP && capUntil <= Date.now()) capHit();
+  if (plan.five != null && plan.five >= PLAN_CAP && capUntil <= Date.now() && !overridden()) capHit();
+  if (capOverride && plan.fiveReset && capOverride - 60e3 > plan.fiveReset + 5 * 60e3) capOverride = 0;   // a new window started
   else if (plan.five != null && plan.five < PLAN_CAP && capUntil > Date.now() && (!plan.fiveReset || plan.fiveReset < capUntil - 60e3)) capUntil = 0;   // the window already reset
   emit('usage', usage());
 }
@@ -231,7 +234,7 @@ function logTo(task, e) { const entry = { t: Date.now(), ...e }; task.log.push(e
 function pump() {
   const u = usage();
   if (u.paused) return;
-  if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP) { capHit(); return; }
+  if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP && !overridden()) { capHit(); return; }
   // production work (an approved video) goes first; other orders never take a slot a waiting Builder needs
   const ready = (t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS;
   const prodWaiting = store.tasks.some((t) => t.status === 'queued' && t.production);
@@ -243,7 +246,7 @@ const settle = (t) => { const w = waiters.get(t.id); if (w) { waiters.delete(t.i
 const waitFor = (t) => (['done', 'failed', 'stopped'].includes(t.status) ? Promise.resolve(t) : new Promise((r) => waiters.set(t.id, r)));
 async function runTask(task) {
   const agent = byId[task.agent];
-  task.status = 'running'; task.started = Date.now(); store.save(); emit('task', publicTask(task));
+  task.status = 'running'; task.started = Date.now(); store.save(); emit('task', publicTask(task)); emit('usage', usage());
   live[agent.id].n = (live[agent.id].n || 0) + 1;
   setAgent(agent.id, { status: 'working', taskId: task.id, last: live[agent.id].n > 1 ? `${live[agent.id].n} tasks at once` : 'Starting…' });
   const abort = new AbortController(); aborts.set(task.id, abort);
@@ -347,6 +350,24 @@ async function sendToPhone(pr) {
   const r = await notifier.sendPackage(f, postInfo(pr)).catch((e) => ({ ok: false, error: e.message }));
   pemit(pr, r.ok ? '📱 Sent the video, caption and hashtags to your phone.' : `📱 Not sent to the phone: ${r.error}`);
 }
+// ---------------- edits: change a finished video; every finished render is kept as a version ----------------
+function archiveVersion(pr) {
+  const out = path.join(WORKSPACE, 'projects', pr.slug, 'out'), v = pr.version || 1;
+  for (const [a, b] of [['final.mp4', `final_v${v}.mp4`], ['tiktok.mp4', `tiktok_v${v}.mp4`]]) { try { if (fs.existsSync(path.join(out, a))) fs.copyFileSync(path.join(out, a), path.join(out, b)); } catch {} }
+  (pr.versions ||= []); if (!pr.versions.some((x) => x.v === v)) pr.versions.push({ v, t: pr.finished || Date.now(), note: pr.lastEdit || 'original' });
+}
+function editProd(pr, text) {
+  text = text.trim(); if (!text) return { error: 'Describe the change.' };
+  if (pr.stage !== 'done') return { error: `"${pr.title}" is ${pr.stage}; edits start from a finished video.` };
+  archiveVersion(pr); pr.editNote = text; pr.lastEdit = text; pr.fixes = 0; pr.fixNote = null; (pr.edits ||= []).push({ t: Date.now(), text });
+  hive({ agent: null, kind: 'order', text: `✏️ edit "${pr.title}": ${text.slice(0, 160)}` }); startBuild(pr); return { ok: true };
+}
+function restoreProd(pr, v) {
+  const out = path.join(WORKSPACE, 'projects', pr.slug, 'out'), f = path.join(out, `final_v${v}.mp4`);
+  if (!fs.existsSync(f) || pr.stage !== 'done') return { error: 'That version is not available.' };
+  archiveVersion(pr); fs.copyFileSync(f, path.join(out, 'final.mp4')); if (fs.existsSync(path.join(out, `tiktok_v${v}.mp4`))) fs.copyFileSync(path.join(out, `tiktok_v${v}.mp4`), path.join(out, 'tiktok.mp4'));
+  pr.version = v; pr.finished = Date.now(); pemit(pr, `Restored version ${v}. (The project's source files are unchanged: an edit after this starts from the latest code.)`); return { ok: true };
+}
 function approveProd(pr, notes) { if (pr.stage !== 'approval') return `"${pr.title}" is not waiting for approval (stage: ${pr.stage}).`; if (notes) pr.notes = [pr.notes, notes].filter(Boolean).join('\n'); pr.approved = Date.now(); hive({ agent: null, kind: 'order', text: `🎬 approved: ${pr.title}` }); startBuild(pr); return `✅ Approved "${pr.title}". Building now.`; }
 function resumeProd(pr) { const from = pr.stage === 'paused' ? pr.pausedFrom : pr.failedAt; pr.error = null; if (!pr.slug) startBrief(pr); else if (!pr.approved) { pr.stage = 'approval'; pemit(pr); } else if (from === 'render') startRender(pr); else startBuild(pr); return `↻ Resumed "${pr.title}".`; }
 function pemit(pr, line) { if (line) { (pr.log ||= []).push({ t: Date.now(), text: String(line).slice(0, 400) }); if (pr.log.length > 600) pr.log.splice(0, pr.log.length - 600); } store.save(); emit('production', pub(pr)); try { prodAlert(pr); } catch {} }
@@ -367,12 +388,17 @@ async function startBuild(pr) {
   const open = store.tasks.find((t) => t.production === pr.id && ['director', 'builder'].includes(t.agent) && ['routing', 'queued', 'running'].includes(t.status));
   if (open) return pemit(pr, 'The build is already running.');   // never two builds of one production
   pr.stage = 'build'; pr.buildStarted = Date.now(); pr.buildTasks = [];
-  const parallel = !pr.fixNote && (pr.stats?.shots || 0) >= PARALLEL_MIN_SHOTS && byId.builder;
+  const parallel = !pr.fixNote && !pr.editNote && (pr.stats?.shots || 0) >= PARALLEL_MIN_SHOTS && byId.builder;
   pr.parallel = !!parallel; const who = pr.builder === 'sonnet' ? 'Sonnet' : 'Opus';
   const base = `the approved production projects/${pr.slug}/PRODUCTION.md (slug: ${pr.slug})`;
   try {
     if (!parallel) {
       pemit(pr, `Director is building projects/${pr.slug} (${who})…`);
+      if (pr.editNote) {
+        pemit(pr, `Director is making your edit (${who})…`);
+        const t = await prodTask(pr, 'director', `EDIT the finished film projects/${pr.slug} (its brief: projects/${pr.slug}/PRODUCTION.md if it exists, else script.md).\nThe Commander wants these changes:\n${pr.editNote}\n\nChange ONLY what this needs (the shot files, overlay.js, score.json, story.js…). Leave everything else byte-for-byte identical, so unchanged shots keep their renders. Check every changed shot's key frames on the GPU. Commit, then finish with BUILD COMPLETE.`, `SUMMARY: (demo) edit applied.\nBUILD COMPLETE: projects/${pr.slug}`);
+        return buildDone(pr, t);
+      }
       const t = await prodTask(pr, 'director', `Build ${base}.${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}`, `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}`);
       return buildDone(pr, t);
     }
@@ -412,7 +438,7 @@ function buildDone(pr, t) {
   if (t.status !== 'done' || !/BUILD COMPLETE/i.test(t.result || '')) return buildFail(pr, t);
   if (!pr.fixes && pr.stats?.shots) { const b = pr.builder === 'sonnet' ? 'sonnet' : 'opus'; const eff = pr.parallel ? pr.stats.shots / BUILDERS_N + 3 : pr.stats.shots;
     calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / eff); calib.learnedBuild++; saveCalib(); }
-  pr.buildPhase = null; pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
+  pr.buildPhase = null; pemit(pr, pr.editNote ? 'Edit made. Re-rendering the changed shots on the GPU…' : 'Build complete. Rendering on the GPU…'); startRender(pr);
 }
 function onProductionTask(task, r) {
   const pr = prods.find((x) => x.id === task.production); if (!pr || pr.stage === 'cancelled') return;
@@ -463,7 +489,7 @@ async function startRender(pr) {
   const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
   if (code === 0 && fs.existsSync(final)) {
     if (pr.stats?.frames && pr.quality !== 'draft' && !pr.early) { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); calib.learnedRender++; saveCalib(); }
-    pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
+    pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pr.version = pr.editNote ? (pr.version || 1) + 1 : (pr.version || 1); pr.editNote = null; pemit(pr, `Done: ${final} (version ${pr.version})`);
     hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
   } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < 1) {
     pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n'); pr.early = null;
@@ -495,7 +521,8 @@ const ema = (old, v) => +(old * 0.6 + v * 0.4).toFixed(3);
 function briefStats(pr) {   // shots and frames from the board table in PRODUCTION.md
   try { const md = fs.readFileSync(briefPath(pr), 'utf8'); const rows = md.split('\n').filter((l) => /^\|\s*`?s?\d{1,2}/i.test(l));
     const frames = rows.map((l) => +((l.split('|')[2] || '').match(/\d{2,4}/) || [0])[0]).reduce((a, b) => a + b, 0);
-    return { shots: rows.length || 11, frames: frames > 300 ? frames : (rows.length || 11) * 100 }; } catch { return { shots: 11, frames: 1100 }; }
+    if (rows.length) return { shots: rows.length, frames: frames > 300 ? frames : rows.length * 100 }; } catch {}
+  try { const L = fs.readFileSync(path.join(WORKSPACE, 'projects', pr.slug, 'shots.txt'), 'utf8').split(/\r?\n/).map((l) => l.replace(/#.*/, '').trim()).filter(Boolean); return { shots: L.length, frames: L.reduce((a, l) => a + (+l.split(/\s+/)[1] || 0), 0) }; } catch { return { shots: 11, frames: 1100 }; }
 }
 function etaOf(pr) {   // minutes left per stage -> finish time
   const now = Date.now(), st = pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
@@ -517,15 +544,16 @@ async function phoneCommand(raw) {
   const pick = (stage) => (arg && prods.find((x) => x.id === arg)) || [...prods].reverse().find((x) => !stage || stage.includes(x.stage));
   if (c === 'approve') { const pr = pick(['approval']); return pr ? approveProd(pr) : 'Nothing is waiting for approval.'; }
   if (c === 'reject') { const pr = pick(['approval']); if (!pr) return 'Nothing is waiting for approval.'; cancelProduction(pr); return `✖ Rejected "${pr.title}".`; }
-  if (c === 'resume') { const pr = pick(['failed', 'paused']); if (pr) return resumeProd(pr); if (limitedUntil || capUntil) { limitedUntil = 0; capUntil = 0; pump(); return '▶ Queue resumed.'; } return 'Nothing to resume.'; }
-  if (c === 'unpause') { limitedUntil = 0; capUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue from the phone' }); pump(); return '▶ Queue resumed (usage cap overridden until the next reading).'; }
+  if (c === 'resume') { const pr = pick(['failed', 'paused']); if (pr) return resumeProd(pr); if (limitedUntil || capUntil) { overrideCap('Commander (phone)'); return '▶ Queue resumed past the cap (hard stop at 95%).'; } return 'Nothing to resume.'; }
+  if (c === 'unpause') { overrideCap('Commander (phone)'); return `▶ Resumed. Running past the ${Math.round(PLAN_CAP * 100)}% cap until ${new Date(capOverride).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} (hard stop at 95%).`; }
+  if (c === 'edit') { const pr = [...prods].reverse().find((x) => x.stage === 'done'); if (!pr) return 'No finished video to edit.'; const text = String(raw).replace(/^\/?edit\s*/i, '').trim(); if (!text) return 'Send: /edit <what to change>, e.g. /edit make the ending at night'; const r = editProd(pr, text); return r.error || `✏️ Editing "${pr.title}": ${text}`; }
   if (c === 'status' || c === 'start') {
     const u = usage(), run = store.tasks.filter((t) => ['running', 'team'].includes(t.status)), q = store.tasks.filter((t) => t.status === 'queued').length;
     const live = prods.filter((x) => !['done', 'cancelled'].includes(x.stage)).slice(-4).map((x) => { const e = etaOf(x); return `🎬 ${x.title}: ${x.stage}${x.buildPhase ? ' (' + x.buildPhase + ')' : ''}${e && !e.waitingOnYou ? ', ready about ' + fmtT(e.at) : ''}`; });
     return [`War Room · ${MODE.toUpperCase()}`, u.plan?.five != null ? `Usage: ${Math.round(u.plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%)${u.paused ? ' · PAUSED' : ''}` : (u.paused ? 'Queue: PAUSED' : ''),
       `Working: ${run.map((t) => `${byId[t.agent]?.emoji || ''} ${t.title}`).join(' · ') || 'nobody'}${q ? ` · ${q} queued` : ''}`, ...live].filter(Boolean).join('\n');
   }
-  return 'Commands: /status · /approve · /reject · /resume';
+  return 'Commands: /status · /approve · /reject · /resume · /edit <change>';
 }
 const ACT_KEY = crypto.randomBytes(12).toString('hex');   // action links in desktop notifications (this run only)
 let AUMID = '';
@@ -654,8 +682,17 @@ const server = http.createServer(async (req, res) => {
     if ((pm = p.match(/^\/api\/productions\/(\w+)\/post$/)) && req.method === 'GET') { const pr = prods.find((x) => x.id === pm[1]); return pr?.slug ? json(res, postInfo(pr)) : json(res, { error: 'not found' }, 404); }
     if ((pm = p.match(/^\/api\/productions\/(\w+)\/(video|brief)$/)) && req.method === 'GET') {
       const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
-      if (pm[2] === 'video') { const f = path.join(WORKSPACE, 'projects', pr.slug || '_', 'out', 'final.mp4'); return fs.existsSync(f) ? sendVideo(req, res, f) : json(res, { error: 'no video yet' }, 404); }
+      if (pm[2] === 'video') { const v = +url.searchParams.get('ver') || 0, out = path.join(WORKSPACE, 'projects', pr.slug || '_', 'out'), f = v && v !== (pr.version || 1) ? path.join(out, `final_v${v}.mp4`) : path.join(out, 'final.mp4'); return fs.existsSync(f) ? sendVideo(req, res, f) : json(res, { error: 'no video yet' }, 404); }
       return json(res, { text: fs.existsSync(briefPath(pr)) ? fs.readFileSync(briefPath(pr), 'utf8') : '' });
+    }
+    if (p === '/api/projects' && req.method === 'GET') { let L = []; try { L = fs.readdirSync(path.join(WORKSPACE, 'projects'), { withFileTypes: true }).filter((d) => d.isDirectory() && fs.existsSync(path.join(WORKSPACE, 'projects', d.name, 'shots.txt'))).map((d) => d.name); } catch {} return json(res, { projects: L.filter((x) => !prods.some((pr) => pr.slug === x && pr.stage !== 'cancelled')) }); }
+    if (p === '/api/productions/import' && req.method === 'POST') {
+      const b = await body(req), slug = String(b.slug || '').replace(/[^\w-]/g, ''); const dir = path.join(WORKSPACE, 'projects', slug);
+      if (!slug || !fs.existsSync(path.join(dir, 'shots.txt'))) return json(res, { error: 'no such project' }, 400);
+      const title = ((() => { try { return fs.readFileSync(path.join(dir, 'script.md'), 'utf8'); } catch { return ''; } })().match(/"([^"]*\?)"/) || [, slug])[1];
+      const done = fs.existsSync(path.join(dir, 'out', 'final.mp4'));
+      const pr = { id: uid(), title: title.replace(/\*/g, ''), slug, source: `Imported existing project projects/${slug}`, notes: '', quality: 'max', builder: 'opus', created: Date.now(), approved: Date.now(), stage: done ? 'done' : 'failed', failedAt: 'render', error: done ? null : 'Not rendered on this PC yet: click Render again.', final: done ? path.join(dir, 'out', 'final.mp4') : null, finished: done ? Date.now() : null, version: 1, log: [], cost: 0 };
+      pr.stats = briefStats(pr); prods.push(pr); pemit(pr, `Imported projects/${slug}.`); return json(res, pub(pr));
     }
     if (p === '/api/productions' && req.method === 'POST') {
       const b = await body(req); if (!String(b.source || '').trim()) return json(res, { error: 'empty' }, 400);
@@ -672,7 +709,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, { ok: r.status === 0 && !r.stderr, aumid: AUMID || '(PowerShell)', error: (r.stderr || r.error?.message || '').slice(0, 600) });
     }
     if (p === '/api/notify/test' && req.method === 'POST') { await notifier.send('done', '📱 War Room test alert', 'Phone alerts work. You will get approvals, finished videos, failures and usage pauses here.', { force: true }); return json(res, { ok: true }); }
-    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open|phone)$/)) && req.method === 'POST') {
+    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open|phone|edit|restore)$/)) && req.method === 'POST') {
       const b = await body(req); const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
       if (b.quality && ['draft', 'standard', 'max'].includes(b.quality)) pr.quality = b.quality;
       if (b.builder) pr.builder = b.builder === 'sonnet' ? 'sonnet' : 'opus';
@@ -682,6 +719,8 @@ const server = http.createServer(async (req, res) => {
       else if (pm[2] === 'render' && pr.slug) { pr.fixes = 0; startRender(pr); }
       else if (pm[2] === 'resume') resumeProd(pr);
       else if (pm[2] === 'phone' && pr.stage === 'done') await sendToPhone(pr);
+      else if (pm[2] === 'edit') { const r = editProd(pr, String(b.text || '')); if (r.error) return json(res, r, 400); }
+      else if (pm[2] === 'restore') { const r = restoreProd(pr, +b.v); if (r.error) return json(res, r, 400); }
       else if (pm[2] === 'open' && pr.final) { if (process.platform === 'win32') spawnProc('explorer.exe', [`/select,${pr.final}`], { detached: true }); }
       return json(res, pub(pr));
     }
@@ -725,7 +764,7 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/tasks' && b.team) { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: `👥 ${b.text.slice(0, 200)}` }); const t = startTeam(b.text.trim(), !!b.deep); return json(res, publicTask(t)); }
       if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
-      if (p === '/api/resume') { limitedUntil = 0; capUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
+      if (p === '/api/resume') { overrideCap('Commander'); return json(res, { ok: true, until: capOverride }); }
       const cancel = (t) => {
         if (!t) return false;
         if (t.status === 'running') { aborts.get(t.id)?.abort(); hive({ agent: null, kind: 'info', text: `stopped @${t.agent}: ${t.title}` }); return true; }

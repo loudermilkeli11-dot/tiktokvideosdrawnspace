@@ -102,14 +102,18 @@ function hardStop() {   // the safety net: running work pushed usage to 95%, so 
 }
 rateBus.fn = onRate;
 let probing = false;
+let lastProbe = 0;
+const readingStale = () => MODE === 'plan' && plan.fiveReset && Date.now() > plan.fiveReset && plan.t < plan.fiveReset;
 async function refreshPlan(force) {   // keep the reading fresh while there is work, so we never start blind
   if (MODE !== 'plan' || probing) return;
   // running agents already report usage with every call, so only probe when work is WAITING and the reading is stale
   const running = store.tasks.some((t) => ['running', 'team'].includes(t.status)), queued = store.tasks.some((t) => t.status === 'queued');
-  if (!force && (running || !queued || Date.now() - plan.t < 15 * 60e3)) return;
-  probing = true; try { await probeUsage(WORKSPACE); } catch {} probing = false; pump();
+  // ...or the 5-hour window has reset since the last reading (the old % is meaningless then): one fresh reading, retried at most every 5 min
+  const stale = readingStale() && Date.now() - lastProbe > 5 * 60e3;
+  if (!force && !stale && (running || !queued || Date.now() - plan.t < 15 * 60e3)) return;
+  probing = true; lastProbe = Date.now(); try { await probeUsage(WORKSPACE); } catch {} probing = false; if (!readingStale()) pump();
 }
-setInterval(() => refreshPlan(false), 5 * 60e3); setTimeout(() => refreshPlan(true), 3000);
+setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error, { photo: alertImg('setup') }); }
@@ -249,6 +253,7 @@ function logTo(task, e) { const entry = { t: Date.now(), ...e }; task.log.push(e
 function pump() {
   const u = usage();
   if (u.paused) return;
+  if (readingStale()) { refreshPlan(); return; }   // the window reset: get a fresh reading before deciding anything
   if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP && !overridden()) { capHit(); return; }
   // production work (an approved video) goes first; other orders never take a slot a waiting Builder needs
   const ready = (t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS;

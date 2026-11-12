@@ -109,3 +109,9 @@ s02 is at street level on the plaza's north edge: the same block, not a new plac
   use); or (b) approve an opt-in `style.halo` in `tools/overlay/ov.html` (e.g. `V2.tight` → `[0, 3, 0.9]` plus a 1 design px
   dark stroke under glyphs, no box) and I set it in overlay.js. (b) reads as outlined TikTok type, not the LOOK serif.
   Recommendation: (a) now, and test (b) on the next film.
+
+## v4 edit (2026-11-12, Commander's 3 fixes)
+- **Pole man bigger:** the lamp moved to the south kerb (z 52.5, about 11.5 m from the lens) and s01/s09 shoot on FRAME1_CAM.mm + 3 (`F1_ZOOM`, plazaLife.js), so s09 still matches s01's frame 0. The clinger's flag spans about 30% of the frame width, left of centre, clear of the button rail. Gag timing is unchanged.
+- **Heavy tower debris (towersBreak.js):** glass glints cut to about 13% of before; the confetti cladding is replaced by concrete slabs (new chip shape 3), whole dark window panels and steel beams (new shape 2) in cool greys. Each heavy piece trails 7 small grey grit bits released along its own path, which gives a thin, crisp dust streak. The pieces fall and tumble under real gravity while moving east at V.
+- **Golden light (kit.js):** the sun is lower (about 19°), warmer and a little stronger, so shadows are longer. The sky uses the engine's altI horizon band: blue above, a warm pale-gold band at the horizon. The haze is warmer and the grade warm but gentle. These changes apply to every ground and bay shot.
+- **Weak spots:** under s03's dust grade the grey slabs still read a little tan; the sky's top is mid-blue, not deep blue (a darker zenith mixes with the gold into lavender in linear light). s02/s04/s05/s06 were rebuilt with the new kit but their key frames were not re-checked (time).

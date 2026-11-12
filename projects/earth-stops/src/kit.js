@@ -34,7 +34,7 @@ PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a
 // a deeper blue zenith over a warm golden horizon band; warmer haze; a gentle warm grade. Still full daylight.
 export const SUN = new THREE.Vector3(-0.84, 0.33, 0.43).normalize();
 export const SUN_COL = 0xffc683, SUN_I = 4.1;
-export const SKY = { zen: 0x1446b0, hor: 0xead8a2, altI: 1.0 };          // deep blue overhead, a warm golden band at the horizon (yellow-gold: a redder one blends to pink)
+export const SKY = { zen: 0x2f7ee6, hor: 0xead8a2, altI: 1.0 };   // zen must stay bright in LINEAR or the gold mixes it to lavender          // deep blue overhead, a warm golden band at the horizon (yellow-gold: a redder one blends to pink)
 export const HAZE = { col: 0xeed3a0, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows gold
 export const HEMI = { sky: 0x9ab8e8, ground: 0x9a7650, i: 0.85 };
 // warm grade (lift/gain) on top of ACES; dust shots push it to amber with gradeDust()

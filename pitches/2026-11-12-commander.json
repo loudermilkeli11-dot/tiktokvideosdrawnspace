@@ -1,0 +1,39 @@
+{
+ "created": "2026-11-12T10:00:00-06:00",
+ "order": "Generate a what-if video prompt that results in something very high quality (Commander, via Claude Code)",
+ "theme": "hand-built flagship",
+ "pitches": [
+  {
+   "id": "p1",
+   "title": "What if the air *vanished* for 5 seconds?",
+   "cover": "WITHOUT AIR, A JET WOULD FALL 122 M IN 5 SECONDS",
+   "score": 72,
+   "scores": { "demand": 4, "hook": 5, "chaos": 5, "novelty": 5, "physics": 5, "cost": 4, "loop": 4, "taste": 5 },
+   "frame1": "A sunny city plaza at lunchtime: fountain, pigeons, cafe tables, cars on the avenue. Counter: AIR VANISHES IN · 03.000 · SEA-LEVEL AIR: 101 KPA. Title: What if the air vanished for 5 seconds?",
+   "beats": [
+    { "t": "0:03", "where": "city plaza", "what": "Every sound cuts out at once. The blue sky drains to black with stars at noon. Pigeons drop like stones. The fountain's water erupts into white boiling foam.", "counter": "AIR PRESSURE · 101 KPA → 0" },
+    { "t": "0:06", "where": "cafe tables", "what": "Coffee and drinks foam and boil over in their cups. People clutch their ears (mid-distance, no faces).", "counter": "WATER BOILS AT · 20 °C" },
+    { "t": "0:09", "where": "the bay", "what": "The whole sea fizzes white to the horizon under a black sky. The Sun is a hard white disc with no glow.", "counter": "SEA · BOILING AT 20 °C" },
+    { "t": "0:13", "where": "above the clouds", "what": "An airliner's engines flame out. It falls silently through a cloud deck that is evaporating to nothing.", "counter": "LIFT · 0 · FALLEN 122.6 M" },
+    { "t": "0:17", "where": "orbit", "what": "Earth's blue rim vanishes and the clouds disappear: the planet looks airless, like the Moon.", "counter": "ATMOSPHERE · 5.15 QUADRILLION T → 0" },
+    { "t": "0:21", "where": "city plaza", "what": "AIR RETURNS 00.000: a planet-wide thunderclap. A shock ring rolls across the plaza, windows flex, every pigeon bursts back into the air.", "counter": "AIR RETURNS · 00.000" },
+    { "t": "0:28", "where": "orbit", "what": "The blue rim snaps back around the whole planet, and a white shock-front ring races around the globe. End card, then a hard cut to frame 1.", "counter": "5 SECONDS · EVERY SOUND ON EARTH STOPPED" }
+   ],
+   "law": "Air vanishes for 5 s: pressure 101.3 kPa → 0. Water boils whenever pressure < its vapour pressure (2.33 kPa at 20 °C), so every open water surface boils at room temperature. With no air there is no lift, so everything flying is in free fall: ½·9.81·5² = 122.6 m in 5 s. No air = no sound. No scattering = black sky with stars at noon.",
+   "source": "https://en.wikipedia.org/wiki/Vapour_pressure_of_water",
+   "dramatization": "The air disappears and reappears in an instant. The return is shown as a planet-wide thunderclap (the one liberty).",
+   "why": [
+    "Fresh in our niche: the hits are 'what if X vanished for 5 seconds' (Clover protons: 465.8K likes), but air hasn't been done in our lane (verify before posting).",
+    "Matches the taste profile: chaos on screen by 0:03, five locations (city → cafe → bay → sky → orbit), and planes in trouble.",
+    "Every beat reuses a finished set: city plaza, bay, cloud deck + airliner, Earth from orbit.",
+    "The cover is a verifiable number (122.6 m), the same free-fall law viewers can check."
+   ],
+   "risk": "Showing 'nothing' is hard. Every beat must show a visible effect (boiling, falling, black sky). The return thunderclap and the shock ring are the payoff, so build them first and check them at phone size.",
+   "build": {
+    "size": "M",
+    "reuse": [ "citykit.js plaza + crowd + fountain", "bay.js + ocean.js", "clouds.js + planes.js", "space.js Earth (atmI, cloudsI)", "sky.js (stars on in daytime)" ],
+    "new": [ "boiling foam on the fountain, the cups and the sea (particles + an ocean fizz term)", "noon sky fading to black with stars", "the shock ring + window flex on the return", "the atmosphere rim fading out and back from orbit" ]
+   }
+  }
+ ]
+}

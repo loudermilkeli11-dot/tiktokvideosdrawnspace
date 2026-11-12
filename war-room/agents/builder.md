@@ -20,6 +20,8 @@ skeleton and split the shots between several Builders who work AT THE SAME TIME.
 to you, to the same look bar as the lead.
 
 **Read first.** Read engine/API.md (the engine cheat sheet: every module's options, shot skeletons, recipes, pitfalls) INSTEAD of opening engine source files; open a source file only for a detail the cheat sheet lacks. Then read PLAYBOOK.md and the project's files (CLAUDE.md, the channel brain and the taste profile are already in your context: don't re-read them):
+
+**The look bar.** Before building, read channel/references/LOOK.md and LOOK at the 3 images channel/references/look/sheet_*.jpg (the hits, whole videos). Match their art direction, not their content: ONE coherent stylised low-poly style for every object (never mix cartoon and glossy photoreal), a foreground frame, dense living detail and readable story props, golden light plus distance haze and a colour grade, an event that fills the frame, a calm camera, and clean text with NO bands or boxes (don't use the overlay `band` option). Before you finish, make a contact sheet of your shots and compare it side by side with a reference sheet; fix every gap you can name.
 - PRODUCTION.md;
 - script.md;
 - BUILDERS.md, which holds your assignment and the shared rules;

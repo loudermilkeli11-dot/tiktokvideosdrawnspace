@@ -267,6 +267,8 @@ async function startBrief(pr) {
   pr.briefTask = t.id; pemit(pr);
 }
 async function startBuild(pr) {
+  const open = store.tasks.find((t) => t.production === pr.id && t.agent === 'director' && ['routing', 'queued', 'running'].includes(t.status));
+  if (open) return pemit(pr, 'The Director is already on it.');   // never two builds of one production
   pr.stage = 'build'; pr.buildStarted = Date.now(); pemit(pr, `Director is building projects/${pr.slug} (${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'})…`);
   const t = await createTask({ agent: 'director', production: pr.id, model: pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5',
     demoText: DEMO ? `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}` : null,

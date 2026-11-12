@@ -1,6 +1,7 @@
 # tsunami-524: "What if a 524 m wave hit town?" (video #3, board v2)
 
 > **Director, 2026-11-11: the build board is `PRODUCTION.md` §3** (9 shots, 915 frames: s05_standup restored, a yellow-raincoat hero, s02 label RUN-UP, cover "IN 1958, WATER RAN 524 M UP AN ALASKA MOUNTAIN"). It overrides this file wherever they differ. Timing lives in `src/story.js` (`SHOT`, `T`).
+> **Director, 2026-11-12 (override rebuild):** the wave is now `engine/src/megawave.js` (a real mesh: lip, tube, face, toe). The bay opens into a mountain fjord (`src/kit.js`). s09 is two pages: `s09_orbit` (60 frames) and `s09_loop` (30 frames, the second before frame 1). The orbit shots (s07–s09) are a **60× time-lapse** (`story.js` `LAPSE`, `shellKm`); the counter still shows the true speed at each moment, so this is part of the DRAMATIZATION.
 > **Roof fact changed:** bay.js waterfront roofs average **17 m** (h = 6 + U·14 + U·10, set 1 m in), so the s04 line is **ROOFS 17 M → WAVE 31× TALLER** (`story.js` `ROOF_H`, `ROOF_X`), not 20 m / 26×.
 
 **Status:** board v2 (Analyst's Scroller fixes applied) for the Commander's pick from the War Room (`channel/war-room/2026-11-12-which-pitch-is-best-or-redraw-if-necessary.md`). The build starts only if Studio's wave test is GO (2026-11-12 18:00 UTC = 12:00 CST). On NO-GO the team falls back to the satellite pitch.

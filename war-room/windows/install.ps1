@@ -70,6 +70,7 @@ $s = Get-ShortcutPaths
 New-WarRoomShortcut -Path $s.Startup -Script (Join-Path $PSScriptRoot 'run.ps1') -Description 'Starts the War Room server at login'
 New-WarRoomShortcut -Path $s.Desktop -Script (Join-Path $PSScriptRoot 'open.ps1') -Description 'Open the War Room'
 New-WarRoomShortcut -Path $s.Menu -Script (Join-Path $PSScriptRoot 'open.ps1') -Description 'Open the War Room'
+& (Join-Path $PSScriptRoot 'register-toast.ps1') | Out-Null   # Windows notifications show as "War Room"
 Write-Host '      Auto-start at login, a "War Room" icon on the desktop and in the Start menu.' -ForegroundColor Green
 
 # 5. Restart the server so it picks up the new key, then open the window

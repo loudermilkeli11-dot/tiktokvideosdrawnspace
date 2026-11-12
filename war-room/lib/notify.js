@@ -17,9 +17,11 @@ export const EVENTS = {
 const PRIORITY = { approval: 'high', failed: 'high', setup: 'high', done: 'default', usage: 'default', tasks: 'low' };
 const TAGS = { approval: 'raised_hand', failed: 'warning', setup: 'key', done: 'clapper', usage: 'pause_button', tasks: 'white_check_mark' };
 
-export function createNotifier(dataDir, { onCommand, log = () => {} } = {}) {
+const escH = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const clock = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+export function createNotifier(dataDir, { onCommand, desktop, log = () => {} } = {}) {
   const F = path.join(dataDir, 'notify.json');
-  let cfg = { ntfy: '', tg: { token: '', chat: '' }, events: { approval: true, done: true, failed: true, usage: true, setup: true, tasks: false } };
+  let cfg = { ntfy: '', desktop: true, tg: { token: '', chat: '' }, events: { approval: true, done: true, failed: true, usage: true, setup: true, tasks: false } };
   try { const c = JSON.parse(fs.readFileSync(F, 'utf8')); cfg = { ...cfg, ...c, tg: { ...cfg.tg, ...(c.tg || {}) }, events: { ...cfg.events, ...(c.events || {}) } }; } catch {}
   const save = () => { try { fs.writeFileSync(F, JSON.stringify(cfg, null, 1)); } catch {} };
   const recent = new Map();   // de-duplicate identical alerts within 2 minutes
@@ -41,9 +43,21 @@ export function createNotifier(dataDir, { onCommand, log = () => {} } = {}) {
     const key = `${kind}|${title}|${text}`; if (!extra.force && recent.has(key) && Date.now() - recent.get(key) < 120e3) return; recent.set(key, Date.now());
     const jobs = [];
     if (cfg.ntfy) jobs.push(ntfy(kind, title, text, extra.url));
+    if (cfg.desktop !== false && desktop) { try { desktop(kind, title, text, extra); } catch (e) { log(`desktop alert: ${e.message}`); } }
     if (cfg.tg.token && cfg.tg.chat) {
       const buttons = (extra.buttons || []).map((b) => ({ text: b.text, callback_data: b.data }));
-      jobs.push(tg('sendMessage', { chat_id: cfg.tg.chat, text: `${title}\n${text}`.slice(0, 4000), ...(buttons.length ? { reply_markup: { inline_keyboard: [buttons] } } : {}) }));
+      const markup = buttons.length ? { inline_keyboard: [buttons] } : undefined;
+      const html = `<b>${escH(title)}</b>\n${escH(text)}${extra.steps ? `\n\n${escH(extra.steps)}` : ''}\n\n<i>🛰 War Room · ${clock()}</i>`.slice(0, 1000);
+      jobs.push((async () => {
+        if (extra.photo && fs.existsSync(extra.photo)) {
+          const form = new FormData(); form.append('chat_id', cfg.tg.chat); form.append('caption', html); form.append('parse_mode', 'HTML');
+          if (markup) form.append('reply_markup', JSON.stringify(markup));
+          form.append('photo', new Blob([fs.readFileSync(extra.photo)], { type: 'image/png' }), 'alert.png');
+          const r = await fetch(`${TG}/bot${cfg.tg.token}/sendPhoto`, { method: 'POST', body: form }).then((x) => x.json()).catch(() => null);
+          if (r?.ok) return r;
+        }
+        return tg('sendMessage', { chat_id: cfg.tg.chat, text: html, parse_mode: 'HTML', ...(markup ? { reply_markup: markup } : {}) });
+      })());
     }
     for (const r of await Promise.allSettled(jobs)) if (r.status === 'rejected') log(`phone alert failed: ${r.reason?.message || r.reason}`);
   }
@@ -88,11 +102,12 @@ export function createNotifier(dataDir, { onCommand, log = () => {} } = {}) {
   }
   return {
     send, sendPackage,
-    view() { return { ntfy: cfg.ntfy, tg: { set: !!cfg.tg.token, linked: !!cfg.tg.chat, link: cfg.tg.link || '', bot: cfg.tg.bot || '' }, events: cfg.events, labels: EVENTS }; },
+    view() { return { ntfy: cfg.ntfy, desktop: cfg.desktop !== false, tg: { set: !!cfg.tg.token, linked: !!cfg.tg.chat, link: cfg.tg.link || '', bot: cfg.tg.bot || '' }, events: cfg.events, labels: EVENTS }; },
     async update(b) {
       if (typeof b.ntfy === 'string') cfg.ntfy = b.ntfy.trim().replace(/^https?:\/\/ntfy\.sh\//, '');
       if (b.newTopic) cfg.ntfy = `ij-warroom-${crypto.randomBytes(9).toString('base64url').toLowerCase()}`;
       if (b.events) for (const k of Object.keys(EVENTS)) if (k in b.events) cfg.events[k] = !!b.events[k];
+      if (typeof b.desktop === 'boolean') cfg.desktop = b.desktop;
       if (typeof b.tgToken === 'string' && b.tgToken.trim()) {
         cfg.tg = { token: b.tgToken.trim(), chat: '', link: crypto.randomBytes(4).toString('hex'), bot: '' };
         const me = await tg('getMe', {}).catch(() => null);

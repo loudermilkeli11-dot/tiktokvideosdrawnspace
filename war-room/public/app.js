@@ -227,7 +227,7 @@ function renderProds() {
   const film = pr.stage === 'done' ? `<video class="film" controls loop playsinline src="/api/productions/${pr.id}/video?v=${pr.finished || 0}"></video>
       <div class="postBox" id="postBox"></div>
       <div class="cmdrow"><button class="ghost" data-pract="phone" data-id="${pr.id}">📱 Send to phone</button><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
-  const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button><button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
+  const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button>${pr.slug && pr.approved ? `<button class="ghost" data-pract="render" data-id="${pr.id}" title="Skip the build and render what is built (unchanged shots are reused)">↻ Render again</button>` : ''}<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
   st.innerHTML = `<div class="stepper">${steps}</div>
     <div class="prHead"><h2>${esc(pr.title)}</h2>${busy ? `<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button>` : ''}</div>
     <p class="muted small">${esc(pr.source.slice(0, 220))}</p>${etaBox}${actions}${tail}${prog}${film}
@@ -269,7 +269,7 @@ document.addEventListener('click', async (e) => {
   else if ((x = el('#dz'))) $('#dropFile').click();
   else if ((x = el('#refreshBrain'))) { await api('/api/tasks', { agent: 'analyst', text: 'Refresh channel/BRAIN.md: re-read channel/results.csv, channel/analytics/, channel/postmortems/, channel/war-room/ (sealed dossiers) and channel/references/. Update Evidence, Lessons and Open questions so they match the data exactly. Keep it under ~1,000 words.' }); toast({ c: '#4fd1ff', title: '↻ Analyst is refreshing the brain' }); }
   else if ((x = el('[data-q]'))) { const t = $('#cmdText'); t.value = x.dataset.q; autosize(); t.focus(); }
-  else if ((x = el('[data-goto]'))) { document.querySelector(`[data-tab="${x.dataset.goto}"]`)?.click(); setTimeout(() => $('#wrQ').focus(), 50); }
+  else if ((x = el('[data-goto]'))) { document.querySelector(`.tabs [data-tab="${x.dataset.goto}"], .view#${x.dataset.goto}`) && (document.querySelector(`.tabs [data-tab="${x.dataset.goto}"]`) ? document.querySelector(`.tabs [data-tab="${x.dataset.goto}"]`).click() : (document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === x.dataset.goto)), document.querySelectorAll('.tabs [data-tab]').forEach((b) => b.classList.remove('on')))); if (x.dataset.goto === 'war') setTimeout(() => $('#wrQ').focus(), 50); }
   else if ((x = el('[data-ap]'))) { x.parentElement.querySelectorAll('button').forEach((b) => (b.disabled = true)); await api('/api/approvals/' + x.dataset.ap, { allow: x.dataset.allow === '1' }); }
   else if ((x = el('[data-retry]'))) { const t = await api(`/api/tasks/${x.dataset.retry}/retry`, {}); openTask(t.id); }
   else if ((x = el('#drawerX')) || e.target.id === 'drawer') { $('#drawer').classList.remove('on'); S.open = null; }
@@ -316,6 +316,7 @@ $('#glForm').addEventListener('submit', async (e) => { e.preventDefault(); const
 // ---------------- phone alerts (Telegram) ----------------
 async function renderPhone(v) {
   v = v || await api('/api/notify'); const el = $('#phoneBody'); if (!el) return;
+  const pd = $('#phoneDot'); if (pd) { pd.className = 'phoneDot' + (v.tg.linked ? ' on' : ''); pd.title = v.tg.linked ? `Phone alerts on (@${v.tg.bot})` : 'Phone alerts are OFF: click to set up Telegram'; }
   const ev = Object.entries(v.labels).map(([k, l]) => `<label class="evt"><input type="checkbox" data-evt="${k}" ${v.events[k] ? 'checked' : ''}> ${esc(l)}</label>`).join('');
   const link = v.tg.bot ? `https://t.me/${v.tg.bot}?start=${v.tg.link}` : '';
   el.innerHTML = !v.tg.set ? `
@@ -329,7 +330,7 @@ async function renderPhone(v) {
     <p><b>Almost done:</b> link your phone to <b>@${esc(v.tg.bot)}</b>. Scan this with your phone camera, or open the link on your phone, then tap <b>Start</b>.</p>
     <div class="tgLink"><div id="tgQr"></div><div><a href="${link}" target="_blank" rel="noopener">${link}</a><p class="muted small">Or in Telegram, open @${esc(v.tg.bot)} and send: <code>/start ${esc(v.tg.link)}</code></p><button class="ghost" id="tgRefresh">I tapped Start ↻</button> <button class="no" id="tgUnlink">Start over</button></div></div>`
     : `<p>✅ Linked to <b>@${esc(v.tg.bot)}</b>. Alerts arrive on your phone, with <b>Approve / Reject / Resume</b> buttons. You can also send <code>/status</code> any time.</p>
-    <div class="evts">${ev}</div>
+    <div class="evts">${ev}<label class="evt"><input type="checkbox" id="desk" ${v.desktop ? 'checked' : ''}> 🖥 Also show Windows notifications on this PC</label></div>
     <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`;
   if (link && !v.tg.linked && window.QRCode && $('#tgQr')) new QRCode($('#tgQr'), { text: link, width: 140, height: 140, colorDark: '#05070b', colorLight: '#ffffff' });
 }
@@ -340,7 +341,9 @@ document.addEventListener('click', async (e) => {
   else if (id === 'tgUnlink') { if (confirm('Disconnect Telegram alerts?')) renderPhone(await api('/api/notify', { tgUnlink: true })); }
   else if (id === 'tgTest') { await api('/api/notify/test', {}); toast({ title: '📱 Test alert sent', text: 'Check your phone.' }); }
 });
-document.addEventListener('change', async (e) => { const k = e.target.dataset?.evt; if (k) await api('/api/notify', { events: { [k]: e.target.checked } }); });
+document.addEventListener('change', async (e) => { const k = e.target.dataset?.evt; if (k) await api('/api/notify', { events: { [k]: e.target.checked } }); if (e.target.id === 'desk') await api('/api/notify', { desktop: e.target.checked }); });
 renderPhone();
 
 document.addEventListener('click', async (e) => { const c = e.target.closest?.('[data-copy]'); if (!c) return; try { await navigator.clipboard.writeText(c.dataset.copy); toast({ title: '📋 Copied' }); } catch {} });
+
+try { const h = location.hash.slice(1); if (h) document.querySelector(`[data-tab="${h}"]`)?.click(); } catch {}

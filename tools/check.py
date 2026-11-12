@@ -208,6 +208,26 @@ def contrast_frame(ov, img):
     return out
 
 
+# ---------------------------------------------------------------- TikTok safe area (design px x2; see PLAYBOOK Layout)
+# a 19.5:9 phone crops a 9:16 video by ~96 px each side (of 1080); the top bar, the right button rail and the bottom
+# caption block cover the picture. Overlay text (bright, >= 90 alpha) must stay inside.
+SAFE = dict(x0=120, x1=960, y0=200, y1=1530, rail_x=880, rail_y=(860, 1740))
+
+
+def safe_frame(ov):
+    a, yl = ov[..., 3], rel_lum(ov[..., :3])
+    m = (a >= 90) & (yl >= 0.2)
+    if m.sum() < 20:
+        return []
+    ys, xs = np.nonzero(m); out = []
+    for name, bad in (('left edge (crop)', xs < SAFE['x0']), ('right edge (crop)', xs > SAFE['x1']), ('top bar', ys < SAFE['y0']),
+                      ('bottom caption', ys > SAFE['y1']),
+                      ('right rail', (xs > SAFE['rail_x']) & (ys > SAFE['rail_y'][0]) & (ys < SAFE['rail_y'][1]))):
+        if bad.sum() >= 20:
+            out.append(f"{name} ({int(bad.sum())} px, e.g. design ({xs[bad][0] // 2},{ys[bad][0] // 2}))")
+    return out
+
+
 def probe_wh(path):
     w, h = run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0',
                 path]).stdout.decode().strip().split(',')[:2]
@@ -391,6 +411,11 @@ def main():
         rows = [(k * step, contrast_frame(o, im)) for k, (im, o) in
                 enumerate(zip(read_frames(video, step, 'rgb24', 3), read_frames(ovp, step, 'rgba', 4)))]
         contrast_report(rows, P, warns, step)
+        bad = [(k * step, v) for k, o in enumerate(read_frames(ovp, step, 'rgba', 4)) for v in [safe_frame(o)] if v]
+        P(f"safe area (TikTok crop + UI): {len(bad)} sampled frames with text outside" + (" — OK" if not bad else ""))
+        for f, v in bad[:20]:
+            P(f"  f{f} {tc(f)}  " + "; ".join(v))
+        if bad: warns.append(f"overlay text outside the TikTok safe area in {len(bad)} sampled frames")
     else:
         P(f"text contrast (A4): skipped ({'no ' + ovp if not os.path.exists(ovp) else 'overlay size differs from the video'})")
 

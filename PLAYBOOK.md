@@ -38,10 +38,12 @@ The owner is the Commander. The target is good quality, fast.
 - A payoff or a visible escalation lands by 0:03, with no calm exposition shot before it.
 
 ### Layout (design px at 540×960)
-- Captions sit at y 230–350, over a calm, darkish background.
-- The counter panel sits at y 129–210.
-- The key action stays in y 350–640.
-- The bottom third (y > 640) is scenery only, because TikTok's UI covers it.
+- **Safe area (measured on the Commander's iPhone, 2026-11-12):** TikTok fills a tall phone by cropping about 48 px off each side of a 9:16 video, and its UI covers the top bar (y < 100), the right button rail (x > 440 for y 430–870) and the caption block (y > 765).
+  - All type stays in x 60–480 and y 100–765, and left of x 440 in the rail band. gravity-flip v1 broke this: the DRAMATIZATION tag and the counter's left edge were cut off.
+  - `ov.html` v2 defaults respect it (tag and counter at x 64, titles ≤ 410 wide, captions ≤ 330 wide). `check.py` WARNs on any overlay text outside it.
+- Title around y 170; counter at y 384–470 (mid-left); captions centred on y 590, over a calm or banded background.
+- The key action stays in y 200–640 and away from the side 60 px.
+- The bottom fifth (y > 765) is scenery only.
 
 ### Topic test (a pitch must pass all of these)
 - It works as a trailer.

@@ -245,10 +245,11 @@ function drawTag(tg, f) {
 //   captions/titles/counter blocks fade in and out over V2.fade s (none at film start; fadeIn/fadeOut: 0 = hard).
 //   band (any title/caption/counter item): a stronger backing band where the picture is bright: a number (alpha) or
 //     {a, padX, padY, plateau} merged over the default band (white clouds, noon sky; A4).
+// TikTok safe area (phones crop ~48 design px off each side; UI: top bar, right rail, bottom caption): see PLAYBOOK Layout
 const V2 = {
   fade: 0.15,
-  title: { font: "'Instrument Serif'", size: 47, lh: 0.98, top: 170, maxW: 492, minSize: 34, shadow: [2, 16, 0.55] },
-  cap: { font: "'Instrument Serif'", size: 34, lh: 1.0, top: 590, maxW: 430, minSize: 26, shadow: [2, 14, 0.65] },
+  title: { font: "'Instrument Serif'", size: 47, lh: 0.98, top: 170, maxW: 410, minSize: 34, shadow: [2, 16, 0.55] },
+  cap: { font: "'Instrument Serif'", size: 34, lh: 1.0, top: 590, maxW: 330, minSize: 26, shadow: [2, 14, 0.65] },
   // bands: rgba(6,10,18,a) ellipses around each text block with a flat core and a soft edge (the mock-up's pure radial
   // fades left the line ends and the fact line at ~0.1 alpha: < 3:1 on a noon sky after yuv420p, A4)
   titleBand: { a: 0.6, padX: 150, padY: 64, minRX: 200, plateau: [0.68, 0.85] },
@@ -257,9 +258,9 @@ const V2 = {
   capBand: { a: 0.6, padX: 110, padY: 42, minRX: 190, plateau: [0.62, 0.85] },
   tight: [0, 2.5, 0.6],   // + a tight dark halo under all text [offsetY, blur, opacity] (tiny type + accent on bright skies)
   emHalo: [0, 7, 0.75],   // + a soft dark halo under accent words only (A4: "a darker key word"; amber needs bg L <= 0.165)
-  ctr: { x: 22, y: 384, bar: 3, pad: 12, lab: { size: 9.5, ls: 2.6, op: 0.95 }, val: { size: 52, ls: -1 }, fact: { size: 8.5, ls: 2, op: 0.92 },
+  ctr: { x: 64, y: 384, bar: 3, pad: 12, lab: { size: 9.5, ls: 2.6, op: 0.95 }, val: { size: 52, ls: -1 }, fact: { size: 8.5, ls: 2, op: 0.92 },
     gap: [5, 6], shadow: [2, 10, 0.6], maxW: 236 },
-  tag: { x: 22, y: 118, size: 8, ls: 2.2, op: 0.9, shadow: [1, 4, 0.6] },
+  tag: { x: 64, y: 118, size: 8, ls: 2.2, op: 0.9, shadow: [1, 4, 0.6] },
 };
 const V2M = {};              // DOM-measured line boxes: key -> { lh, base } (design px), tab -> tabular digit width per font
 let SCR = null, sctx = null; // scratch layer: text is drawn here, then composited with ONE shadow (as CSS text-shadow)

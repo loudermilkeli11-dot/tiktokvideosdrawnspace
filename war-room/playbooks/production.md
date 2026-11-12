@@ -15,7 +15,7 @@ The Commander greenlit an idea. Turn it into **projects/<slug>/PRODUCTION.md**: 
 PRODUCTION.md must contain exactly these sections:
 
 1. **Premise and title:** the title question (one *accent* word), the cover line (a verifiable fact with a number) and the caption.
-2. **The law:** the one rule, its numbers and their source URLs, the one stated liberty (DRAMATIZATION), and a table of the key values the counter will show (computed, not guessed; show the arithmetic briefly).
+2. **The law:** the one rule, its numbers and their source URLs, the one liberty (stated in the post caption, never on screen), and a table of the key values the counter will show (computed, not guessed; show the arithmetic briefly).
 3. **The board:** a table of 9–12 shots with name, frames, film time, location/set, camera (lens mm and move), what visibly happens, caption (≤ 8 words) and counter (label / value / fact line). The total is 30–38 s. Escalate every step in a new place. Payoff or escalation by 0:03. End big, then hard-cut back to frame 1.
 4. **Build map:** for each shot, the existing engine modules to reuse (from CLAUDE.md) and what is NEW. Keep new work small and name it. Flag the 1–2 riskiest shots.
 5. **Sound:** a beat sheet: ticks, risers, the hits on cuts, and silence as the last beat. No voiceover.

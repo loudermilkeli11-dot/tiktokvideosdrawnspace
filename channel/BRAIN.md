@@ -44,13 +44,13 @@ Sources are cited, so check them when a decision depends on a detail.
 
 ## The format that ships (Studio v2; `PLAYBOOK.md`)
 - **Length:** 30–38 s by default. 61–70 s only as a flagged test.
-- **Frame 1:** the title question with one accent word ("What if gravity *flipped* for 5 seconds?"), a mid-left counter (label / number / fact line) already running, and DRAMATIZATION shown.
+- **Frame 1:** the title question with one accent word ("What if gravity *flipped* for 5 seconds?"), a mid-left counter (label / number / fact line) already running (no DRAMATIZATION tag).
 - **By 0:03:** a visible payoff or escalation, with no calm exposition shot first.
 - **Then:** escalating steps, each with a new location or counter, and captions of 6–8 words.
 - **Ending:** ends big (space works) and hard-cuts back to frame 1 for the loop.
 - **Sound:** no voiceover; ticks, risers, hits on cuts, silence as the last beat.
 - **Text:** stays inside TikTok's safe area: x 60–480 and y 100–765 (design px at 540×960), and off the right button rail.
-- **Physics:** ONE honest law per video (`projects/<slug>/src/story.js`), with the one stated liberty shown as DRAMATIZATION. Every number on screen is computed from it.
+- **Physics:** ONE honest law per video (`projects/<slug>/src/story.js`), with the one liberty stated in the post caption (no on-screen tag, Commander 2026-11-12). Every number on screen is computed from it.
 
 ## Posting (sealed)
 - **Cover:** a verifiable fact with a number, e.g. "5 SECONDS OF FLIPPED GRAVITY WOULD THROW YOU 245 M UP".
@@ -71,3 +71,6 @@ Sources are cited, so check them when a decision depends on a detail.
 - **Gate A (2026-11-13):** is moon-2x's average watch above 13.4 s? Yes → video #4 is a 64 s length test; no → stay at 30–38 s.
 - Does the gravity flip beat 1,029 views (the Sun video, our best clean-lane post), or does it stall near 330 like moon-2x? Next check: 8 h, then 48 h (~2026-11-14 00:30 UTC). Both studio films were posted outside the fixed 2 PM CT slot, so slot is a confound.
 - What is the 3 s hold for the v2 format? We need the retention curve.
+- **Pull schedule (no 48 h data exists yet; last row is the 1 h snapshot):** moon-2x 48 h = 2026-11-13 15:30 UTC (Gate A); gravity-flip 48 h = 2026-11-14 00:30 UTC (6:30 PM CST). A pull at 11-13 20:00 UTC is only ~43.5 h for gravity-flip: label it "~44 h", not 48 h.
+- **Pull moved (Producer, 11-12):** the real pull is gravity-flip at 2026-11-14 00:30 UTC (48 h). An earlier read is a "44 h snapshot" and must be labelled so in `results.csv` notes. Analyst's post/hold call is due by 2026-11-14 06:00 UTC; target post slot 2026-11-14 20:00 UTC (2 PM CST). Status: no 48 h numbers logged yet.
+- **Slot call (pre-committed, so the result can't bend it):** post the tsunami in the 2 PM CT slot (20:00 UTC) either way, because slot is the untested variable. Hold only if the Commander wants the 48 h number first or the tsunami wave test hasn't passed its 5 checks. Read the result as: gravity-flip under ~500 views at 48 h means the slot is not the whole story (moon-2x stalled at 314 outside the slot too), so check the cover and hook before blaming the slot.

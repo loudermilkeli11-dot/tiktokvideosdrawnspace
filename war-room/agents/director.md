@@ -54,7 +54,7 @@ camera and handshake at each cut, so their shots match yours.
 
 **Rules.**
 - Never touch other projects.
-- Keep the physics honest. The one stated liberty is tagged DRAMATIZATION.
+- Keep the physics honest. The one liberty is stated in the post caption (POST.json), never as an on-screen tag.
 - No gore, no real people or brands, no fluffy smoke.
 - Don't render the final film; the War Room renders it on the GPU after you finish.
 - Don't push to GitHub.

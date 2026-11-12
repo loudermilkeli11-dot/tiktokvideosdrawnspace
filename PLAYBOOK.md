@@ -28,7 +28,7 @@ The owner is the Commander. The target is good quality, fast.
   - The counter is boxless: an amber rule, a tracked Inter Tight label and a big Inter Tight 800 value.
   - It's the default in `tools/overlay/ov.html`. `style: { look: 'classic' }` restores the old Anton / Azeret Mono look.
   - Use `|` in a caption to choose the line break.
-- Speculative shots are tagged `DRAMATIZATION`.
+- No on-screen DRAMATIZATION tag (Commander, 2026-11-12). State any physics liberty in the post caption instead.
 - **Turn on TikTok's "AI-generated" label on every post.** TikTok requires a label on AI-generated or significantly edited content that shows realistic-looking scenes or people (Community Guidelines → Integrity & Authenticity, checked 2026-11-11). Our renders are realistic, synthetic scenes of events that never happened. Unlabeled posts "may be removed, restricted, or labeled by our team." The on-screen DRAMATIZATION tag does not replace the platform label.
 - No engagement bait. No fluffy smoke or fog.
 
@@ -57,7 +57,7 @@ The owner is the Commander. The target is good quality, fast.
 - Use one fixed post slot (about 20:00 UTC, 2 PM Central) and one fixed hashtag set across the next 5 videos, so the results can be compared.
 - Pre-publish tick-box:
   - the AI label is on;
-  - the DRAMATIZATION tag is visible;
+  - any physics liberty is stated in the post caption (never an on-screen tag);
   - there's no question to the viewer and no comment prompt;
   - the cover states a verifiable fact;
   - the fixed hashtag set and the fixed slot are used.

@@ -3,6 +3,14 @@
 Follow it. Rules are the Commander's own words. "Learned from votes" is distilled from their 👍 / 👎 by the Analyst.
 
 ## Commander's rules
+- 2026-11-12 (earth-stops v1 critique): Better, but not dramatic enough. More drama per beat: the event must hit PEOPLE we have watched.
+  - Put lots of full-colour people in frame like the reference hits, doing ordinary things (walking, chatting, laughing) before the disaster.
+  - Add comedic human moments: someone laughing or goofing off just before it hits, someone clinging to a pole while being blown sideways before letting go and getting swept away (cartoon-style, never gore).
+  - More variety: different places, angles, objects and gags; never the same kind of shot twice.
+  - No buildings sliding off each other in layers: it looks dumb. Destruction must look physical (breaking, tumbling, shattering).
+  - Space views must be sharp and clean, never fuzzy or sloppy.
+- 2026-11-12: NO on-screen "DRAMATIZATION" tag. State any liberty in the post caption only.
+- 2026-11-12: Close views from orbit (a coastline or region from space) must be sharp and match the video's style: no fuzzy, blurred or zoomed-in satellite texture, no streaky motion blur (it looks like an old mobile game). The whole Earth seen from far away is fine as it is.
 - 2026-11-12: The look bar is channel/references/LOOK.md and its reference images (the hits). Match their art direction: one coherent stylised style, one hero place transformed over time, haze and golden light, an event that fills the frame, clean text with no boxes, a calm pace.
 - 2026-11-12: Rules are guides, not cages. An agent may break any rule here or in the brain (number of locations, length, pace) when the story clearly needs it, and must say which rule and why in its hand-over.
 - 2026-11-12: Don't rush. Give each big moment time to land; too fast is worse than a beat too long.

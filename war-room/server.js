@@ -61,6 +61,7 @@ function usage() {
 }
 function noteResult(r) {
   addSpend(r.cost);
+  if (r.needsLogin) emit('login', { text: r.error });
   if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
   emit('usage', usage());
 }

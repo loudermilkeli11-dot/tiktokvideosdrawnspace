@@ -148,6 +148,8 @@ function planRun(p) {
       const limited = !(result && (result.subtype === 'success' && !result.is_error || /max_turns/.test(result.subtype || '')))
         && /usage limit|rate[ _-]?limit(ed)?\b|\b429\b|overloaded_error|\b(5-hour|weekly|session) limit/i.test(all);
       const ep = all.match(/\|(\d{10})\b/);
+      if (/not logged in|please run \/login|invalid api key|OAuth token has expired/i.test(all)) return resolve({ ok: false, text: '', cost: 0, turns: 0, needsLogin: true,
+        error: 'Claude Code is not signed in on this PC. Open PowerShell, type: claude   then type /login, sign in with your Claude account, type /exit, and click Run again.' });
       if (!result) return resolve({ ok: false, text: '', cost: 0, turns: 0, limited, resetAt: ep ? +ep[1] * 1000 : null, error: (err.trim().split('\n').slice(-3).join(' ') || 'Claude Code exited without a result').slice(0, 400) });
       const ok = result.subtype === 'success' && !result.is_error;
       resolve({ ok, text, cost: result.total_cost_usd || 0, turns: result.num_turns || 0, usage: result.usage, limited: limited && !ok, resetAt: ep ? +ep[1] * 1000 : null,

@@ -205,7 +205,10 @@ function pump() {
   const u = usage();
   if (u.paused) return;
   if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP) { capHit(); return; }
-  const next = store.tasks.find((t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
+  // production work (an approved video) goes first; other orders never take a slot a waiting Builder needs
+  const ready = (t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS;
+  const prodWaiting = store.tasks.some((t) => t.status === 'queued' && t.production);
+  const next = store.tasks.find((t) => ready(t) && t.production) || (!prodWaiting && store.tasks.find(ready));
   if (next) { runTask(next); pump(); }
 }
 const waiters = new Map();   // taskId -> resolve(task) for team orders

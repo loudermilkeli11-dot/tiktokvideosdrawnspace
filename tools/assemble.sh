@@ -16,7 +16,7 @@ PROJ="$(cd "$PROJ" && pwd)"; OUT="$PROJ/out"; TMP="$OUT/tmp"
 FPS=30; FF="ffmpeg -hide_banner -nostdin -loglevel error -y"
 # python: python3 on Linux; on Windows (Git Bash) python3 can be the Store stub, so fall back to python
 PY=${PYTHON:-python3}; "$PY" -c "import numpy" >/dev/null 2>&1 || PY=python
-python3() { "$PY" "$@"; }
+python3() { command "$PY" "$@"; }
 rm -rf "$TMP"; mkdir -p "$TMP"; trap 'rm -rf "$TMP"' EXIT
 T0=$(date +%s)
 

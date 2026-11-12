@@ -7,74 +7,104 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23ffb347' stroke-width='10'/><circle cx='50' cy='50' r='12' fill='%23ffb347'/></svg>">
 <link rel="stylesheet" href="/style.css">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#07090d">
+<meta name="theme-color" content="#05070b">
 </head>
 <body>
+<div class="bgfx" aria-hidden="true"><div class="grid"></div><div class="glow g1"></div><div class="glow g2"></div><div class="scan"></div></div>
+
 <header class="top">
-  <div class="brand"><span class="dot"></span><b>INVISIBLE JOURNEYS</b><span class="sep">//</span><span>WAR ROOM</span></div>
+  <div class="brand">
+    <svg class="radar" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17"/><circle cx="20" cy="20" r="10"/><circle cx="20" cy="20" r="2.5" class="c"/><path class="sweep" d="M20 20 L20 3 A17 17 0 0 1 34.7 11.5 Z"/></svg>
+    <div><b>WAR ROOM</b><small>Invisible Journeys</small></div>
+  </div>
   <nav class="tabs" id="tabs">
-    <button data-tab="mission" class="on">Mission Control</button>
-    <button data-tab="war">War Room</button>
-    <button data-tab="hive">Hive Mind</button>
-    <button data-tab="memory">Memory</button>
+    <button data-tab="mission" class="on"><span>Mission Control</span><kbd>1</kbd></button>
+    <button data-tab="war"><span>War Room</span><kbd>2</kbd></button>
+    <button data-tab="hive"><span>Hive Mind</span><kbd>3</kbd></button>
+    <button data-tab="memory"><span>Memory</span><kbd>4</kbd></button>
   </nav>
-  <div class="meta"><span id="mode" class="badge">…</span><span id="usage" class="mono" title="Usage in the last 5 hours (API-equivalent) and agent slots in use"></span><span id="spend" class="mono">$0.00</span><span id="clock" class="mono">--:--:-- UTC</span><span id="conn" class="conn" title="live link"></span></div>
+  <div class="meta">
+    <span id="mode" class="badge">…</span>
+    <div class="meter" id="usageBox" title="Usage in the last 5 hours (API-equivalent dollars) and agent slots in use">
+      <div class="mtop"><span id="usage">5h usage</span><span id="slots" class="slots"></span></div>
+      <div class="bar"><i id="usageFill"></i></div>
+    </div>
+    <span id="spend" class="mono dim" title="Total since install (API-equivalent)">$0.00</span>
+    <span id="clock" class="mono">--:--</span>
+    <span id="conn" class="conn" title="Live link to the server"></span>
+  </div>
 </header>
 
 <main>
   <!-- MISSION CONTROL -->
   <section id="mission" class="view on">
-    <aside class="roster" id="roster"></aside>
+    <aside class="roster">
+      <h3>Squad <i id="nWorking"></i></h3>
+      <div id="roster"></div>
+    </aside>
     <div class="center">
-      <form class="command" id="cmd">
-        <textarea id="cmdText" rows="2" placeholder="Give an order… e.g. “Pitch 3 ideas for next week's video” or “@writer board the Moon idea”"></textarea>
+      <form class="command hud" id="cmd">
+        <div class="prompt"><span class="caret">›</span>
+          <textarea id="cmdText" rows="1" placeholder="Give an order…  e.g. “Pitch 3 ideas for next week's video”"></textarea>
+        </div>
         <div class="cmdrow">
-          <select id="cmdAgent"><option value="">⚡ Auto-assign</option></select>
-          <label class="deep" title="Run this task on Opus (slower, uses about 2x the usage). Default: each agent's own model."><input type="checkbox" id="cmdDeep"> Deep</label>
-          <button class="primary" type="submit">Dispatch ⏎</button>
+          <div class="quick" id="quick">
+            <button type="button" data-q="Pitch 3 what-if ideas for our next video, each with the one real fact and a frame-1 hook.">💡 Pitch ideas</button>
+            <button type="button" data-q="Find what space and science what-if videos are trending on TikTok this week, with links.">🔭 Trends</button>
+            <button type="button" data-q="@analyst Review channel/results.csv and tell me what the latest numbers mean and what to change.">📊 Review stats</button>
+            <button type="button" data-q="@writer Board the next video from the latest sealed War Room dossier.">✍️ Board next video</button>
+            <button type="button" data-goto="war">⚔️ Convene council</button>
+          </div>
+          <div class="send">
+            <select id="cmdAgent"><option value="">⚡ Auto-assign</option></select>
+            <label class="toggle" title="Run this one order on Opus: deeper thinking, about 2× the usage"><input type="checkbox" id="cmdDeep"><span></span>Deep</label>
+            <button class="primary" type="submit">Dispatch <kbd>⏎</kbd></button>
+          </div>
         </div>
       </form>
       <div class="board">
-        <div class="col"><h3>Queued <i id="nQ"></i></h3><div id="colQ"></div></div>
-        <div class="col"><h3>Running <i id="nR"></i></h3><div id="colR"></div></div>
-        <div class="col"><h3>Done <i id="nD"></i></h3><div id="colD"></div></div>
+        <div class="col q"><h3><span class="led"></span>Queued <i id="nQ"></i></h3><div id="colQ" class="list"></div></div>
+        <div class="col r"><h3><span class="led"></span>Running <i id="nR"></i></h3><div id="colR" class="list"></div></div>
+        <div class="col d"><h3><span class="led"></span>Done <i id="nD"></i></h3><div id="colD" class="list"></div></div>
       </div>
     </div>
     <aside class="side">
-      <div class="panel" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"><p class="muted">Nothing waiting. Agents ask here before they edit outside their area or run commands.</p></div></div>
-      <div class="panel grow"><h3>Hive mind</h3><div id="hiveMini" class="feed"></div></div>
+      <div class="panel hud" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"></div></div>
+      <div class="panel hud grow"><h3>Live feed</h3><div id="hiveMini" class="feed"></div></div>
     </aside>
   </section>
 
   <!-- WAR ROOM -->
   <section id="war" class="view">
     <div class="warTop">
-      <form id="wrForm" class="wrForm">
-        <textarea id="wrQ" rows="2" placeholder="Put a hard call to the council… e.g. “Which of the 3 pitches do we make next, and what is its frame 1?”"></textarea>
+      <form id="wrForm" class="wrForm hud">
+        <h3>Put a hard call to the council</h3>
+        <textarea id="wrQ" rows="2" placeholder="e.g. “Which of the 3 pitches do we make next, and what is its frame 1?”"></textarea>
         <div class="cmdrow"><div id="wrOfficers" class="chips"></div><button class="primary" type="submit">Convene ⚔</button></div>
-        <p class="muted small">Officers answer blind to each other through their own lens. The Marshal synthesizes from their reads. The Tenth Man attacks the consensus last. You make the call.</p>
+        <p class="muted small">Officers answer blind to each other, each through their own lens. The Marshal turns their reads into a plan. The Tenth Man attacks it last. You make the call.</p>
       </form>
-      <div class="wrHistory"><h3>Past councils</h3><div id="wrList"></div></div>
+      <div class="wrHistory hud"><h3>Past councils</h3><div id="wrList"></div></div>
     </div>
-    <div id="wrStage" class="wrStage empty"><p class="muted">No council in session.</p></div>
+    <div id="wrStage" class="wrStage empty"></div>
   </section>
 
   <!-- HIVE -->
-  <section id="hive" class="view"><div class="panel full"><h3>Hive mind: everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
+  <section id="hive" class="view"><div class="panel hud full"><h3>Hive mind · everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
 
   <!-- MEMORY -->
   <section id="memory" class="view">
-    <div class="panel full">
+    <div class="panel hud full">
       <h3>Pinned memory</h3>
       <p class="muted small">Every agent reads this before every task. Put the channel's standing orders here: goals, taste, what worked, what never to do again.</p>
       <textarea id="pinned" rows="16"></textarea>
       <div class="cmdrow"><span class="muted small" id="pinnedSaved"></span><button class="primary" id="savePinned">Save</button></div>
-      <p class="muted small">Agents also keep their own memory: any line they write as <code>REMEMBER: …</code> is saved to <code>war-room/data/memory/&lt;agent&gt;.md</code>.</p>
+      <p class="muted small">Agents also keep their own notes: any line they write as <code>REMEMBER: …</code> is saved to <code>war-room/data/memory/&lt;agent&gt;.md</code>.</p>
     </div>
   </section>
 </main>
 
-<div id="drawer" class="drawer"><div class="drawerIn"><button class="x" id="drawerX">✕</button><div id="drawerBody"></div></div></div>
+<div id="drawer" class="drawer"><div class="drawerIn"><button class="x" id="drawerX" title="Close (Esc)">✕</button><div id="drawerBody"></div></div></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
 <script src="/app.js"></script>
 </body>
 </html>

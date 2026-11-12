@@ -143,7 +143,8 @@ function renderWr() {
 
 // ---------------- events ----------------
 function connect() {
-  const es = new EventSource('/api/events');
+  const es = new EventSource('/api/events' + (window.Notification && Notification.permission === 'granted' ? '?n=granted' : ''));
+  es.addEventListener('alert', (e) => showNote(JSON.parse(e.data)));
   es.onopen = () => { $('#conn').classList.add('on'); load(); };
   es.onerror = () => $('#conn').classList.remove('on');
   es.addEventListener('agent', (e) => { const d = JSON.parse(e.data); Object.assign(A(d.id), d); renderRoster(); });
@@ -319,7 +320,9 @@ async function renderPhone(v) {
   const pd = $('#phoneDot'); if (pd) { pd.className = 'phoneDot' + (v.tg.linked ? ' on' : ''); pd.title = v.tg.linked ? `Phone alerts on (@${v.tg.bot})` : 'Phone alerts are OFF: click to set up Telegram'; }
   const ev = Object.entries(v.labels).map(([k, l]) => `<label class="evt"><input type="checkbox" data-evt="${k}" ${v.events[k] ? 'checked' : ''}> ${esc(l)}</label>`).join('');
   const link = v.tg.bot ? `https://t.me/${v.tg.bot}?start=${v.tg.link}` : '';
-  el.innerHTML = !v.tg.set ? `
+  const perm = window.Notification ? Notification.permission : 'unsupported';
+  const pcBox = `<div class="pcNote"><b>🖥 Pop-ups on this PC:</b> ${perm === 'granted' ? '<span class="okc">on</span> (this window shows them with sound, even minimized)' : perm === 'denied' ? '<span class="badc">blocked</span>: allow notifications for this site in the window settings' : '<button class="primary" id="noteOn">Turn on pop-ups</button>'} <button class="ghost" id="noteTestWin" title="Ask Windows directly, without this window">Test Windows notification</button></div>`;
+  el.innerHTML = pcBox + (!v.tg.set ? `
     <ol class="steps">
       <li>On your phone, install <b>Telegram</b> and open a chat with <b>@BotFather</b> (the official bot maker, blue tick).</li>
       <li>Send <code>/newbot</code>, pick any name (e.g. "IJ War Room") and a username ending in <code>bot</code>. BotFather replies with a <b>token</b> like <code>123456:ABC…</code>.</li>
@@ -331,7 +334,7 @@ async function renderPhone(v) {
     <div class="tgLink"><div id="tgQr"></div><div><a href="${link}" target="_blank" rel="noopener">${link}</a><p class="muted small">Or in Telegram, open @${esc(v.tg.bot)} and send: <code>/start ${esc(v.tg.link)}</code></p><button class="ghost" id="tgRefresh">I tapped Start ↻</button> <button class="no" id="tgUnlink">Start over</button></div></div>`
     : `<p>✅ Linked to <b>@${esc(v.tg.bot)}</b>. Alerts arrive on your phone, with <b>Approve / Reject / Resume</b> buttons. You can also send <code>/status</code> any time.</p>
     <div class="evts">${ev}<label class="evt"><input type="checkbox" id="desk" ${v.desktop ? 'checked' : ''}> 🖥 Also show Windows notifications on this PC</label></div>
-    <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`;
+    <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`);
   if (link && !v.tg.linked && window.QRCode && $('#tgQr')) new QRCode($('#tgQr'), { text: link, width: 140, height: 140, colorDark: '#05070b', colorLight: '#ffffff' });
 }
 document.addEventListener('click', async (e) => {
@@ -347,3 +350,23 @@ renderPhone();
 document.addEventListener('click', async (e) => { const c = e.target.closest?.('[data-copy]'); if (!c) return; try { await navigator.clipboard.writeText(c.dataset.copy); toast({ title: '📋 Copied' }); } catch {} });
 
 try { const h = location.hash.slice(1); if (h) document.querySelector(`[data-tab="${h}"]`)?.click(); } catch {}
+
+// ---------------- desktop notifications from this window (real Windows pop-ups with sound) ----------------
+function showNote(a) {
+  try {
+    const n = new Notification(a.title, { body: a.text, icon: '/icon-192.png', image: `/alerts/${a.kind}.png`, badge: '/icon-192.png', tag: `${a.kind}-${a.title}`, renotify: true, requireInteraction: a.kind === 'approval', silent: false });
+    n.onclick = () => { window.focus(); if (a.tab) document.querySelector(`.tabs [data-tab="${a.tab}"]`)?.click(); n.close(); };
+  } catch {}
+  toast({ c: { approval: '#ffb347', done: '#4ade80', failed: '#ff5d6c', usage: '#ffd166', setup: '#4fd1ff' }[a.kind] || '#4fd1ff', title: a.title, text: a.text });
+}
+async function enableNotes() {
+  if (!window.Notification) return toast({ c: '#ff5d6c', title: 'This window cannot show notifications' });
+  const p = await Notification.requestPermission();
+  if (p === 'granted') { showNote({ kind: 'done', title: '🛰 War Room notifications are on', text: 'Pop-ups with sound will appear here, even when this window is minimized.' }); setTimeout(() => location.reload(), 1500); }
+  else toast({ c: '#ff5d6c', title: 'Notifications blocked', text: 'Allow them for this site: click the lock/site icon left of the address, or Settings → Site permissions → Notifications.' });
+  renderPhone();
+}
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'noteOn') enableNotes();
+  else if (e.target.id === 'noteTestWin') { const r = await api('/api/notify/test-desktop', {}); toast({ c: r.ok ? '#4ade80' : '#ff5d6c', title: r.ok ? 'Sent a Windows notification' : 'Windows refused the notification', text: r.ok ? `If nothing popped up, check Windows Settings → System → Notifications (and Do not disturb / Focus). App: ${r.aumid}` : r.error }); }
+});

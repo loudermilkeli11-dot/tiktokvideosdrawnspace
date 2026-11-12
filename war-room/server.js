@@ -506,6 +506,7 @@ const ACT_KEY = crypto.randomBytes(12).toString('hex');   // action links in des
 let AUMID = '';
 if (process.platform === 'win32') setTimeout(() => { try { const r = spawnProc('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(ROOT, 'windows', 'register-toast.ps1')], { windowsHide: true }); let o = ''; r.stdout.on('data', (d) => (o += d)); r.on('close', () => { AUMID = o.trim().split(/\r?\n/).pop() || ''; }); } catch {} }, 1500);
 function desktopToast(kind, title, text, extra = {}) {
+  if ([...clients].some((c) => c.notif)) return emit('alert', { kind, title, text: text.slice(0, 300), tab: extra.tab || '', buttons: (extra.buttons || []).map((b) => ({ text: b.text, data: b.data })) });
   if (process.platform !== 'win32') return;
   const base = `http://localhost:${PORT}`, act = (d) => { const [c, id] = String(d).split(':'); return `${base}/act/${ACT_KEY}/${c}/${id || '-'}`; };
   const buttons = (extra.buttons || []).map((b) => ({ text: b.text.replace(/^[^\w]+\s*/u, ''), url: act(b.data) })).slice(0, 2);
@@ -599,7 +600,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      res.write('retry: 2000\n\n'); clients.add(res);
+      res.write('retry: 2000\n\n'); clients.add(res); res.notif = url.searchParams.get('n') === 'granted';
       const ka = setInterval(() => res.write(': ka\n\n'), 20000);
       req.on('close', () => { clients.delete(res); clearInterval(ka); });
       return;
@@ -638,6 +639,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/notify' && req.method === 'GET') return json(res, notifier.view());
     if (p === '/api/notify' && req.method === 'POST') { try { return json(res, await notifier.update(await body(req))); } catch (e) { return json(res, { error: e.message }, 400); } }
+    if (p === '/api/notify/test-desktop' && req.method === 'POST') {
+      if (process.platform !== 'win32') return json(res, { ok: false, error: 'Windows only' });
+      const f = path.join(ROOT, 'data', 'toast', `test-${Date.now()}.json`); fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, JSON.stringify({ title: '🛰 War Room test', body: 'If you can see and hear this, Windows notifications work.', attribution: 'War Room', hero: path.join(ROOT, 'public', 'alerts', 'done.png'), logo: path.join(ROOT, 'public', 'icon-192.png'), buttons: [{ text: 'Open War Room', url: `http://localhost:${PORT}/` }], aumid: AUMID }));
+      const r = (await import('node:child_process')).spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'windows', 'toast.ps1'), '-Json', f], { encoding: 'utf8', timeout: 20000, windowsHide: true });
+      return json(res, { ok: r.status === 0 && !r.stderr, aumid: AUMID || '(PowerShell)', error: (r.stderr || r.error?.message || '').slice(0, 600) });
+    }
     if (p === '/api/notify/test' && req.method === 'POST') { await notifier.send('done', '📱 War Room test alert', 'Phone alerts work. You will get approvals, finished videos, failures and usage pauses here.', { force: true }); return json(res, { ok: true }); }
     if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open|phone)$/)) && req.method === 'POST') {
       const b = await body(req); const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);

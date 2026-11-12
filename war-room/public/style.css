@@ -313,3 +313,6 @@ video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-
 .pCap{white-space:pre-wrap}
 
 .phoneDot{cursor:pointer;filter:grayscale(1);opacity:.45;font-size:15px} .phoneDot.on{filter:none;opacity:1;text-shadow:0 0 10px var(--ok)}
+
+.pcNote{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line2);border-radius:12px;margin-bottom:12px;background:rgba(79,209,255,.05)}
+.okc{color:var(--ok)} .badc{color:var(--bad)}

@@ -1,16 +1,18 @@
 {
- "_note": "earth-stops score (65.0 s). Times from src/story.js: T_STOP = 1.0 (the jolt), HITS = [29.0, 43.5, 52.0, 63.5] (the 4 hard cuts: bay, coast, whole Earth, loop), T_RESTORE = 61.0 (shot sound: a soft low swell). TASTE 11-12 / brief section 5: NO ticks block (the ms counter is silent), nothing repeating above ~3 kHz, low thuds (impact = the low body; a soft crack at -13 dB gives each cut its 200 Hz-3 kHz onset for check.py), risers + rumble build the tension, silence as the last beat. Soft cuts (8.0, 15.0, 22.0, 36.5) carry only low whooshes in the shot sound. Riser 1 climbs the upwind debris river into the bay cut; riser 2 climbs from the coast into the whole-Earth braaam. TRUE silence 62.85-63.45 (after SPIN RESTORED lands), then the soft loop thud at 63.5; 63.5-65.0 = plaza room tone only (s09 sound = s01's pre-stop bed, so the loop is seamless).",
+ "_note": "earth-stops score (65.0 s). Times from src/story.js: T_STOP = 1.0 (the jolt), HITS = [29.0, 43.5, 52.0, 63.5] (the 4 hard cuts: bay, coast, whole Earth, loop), T_RESTORE = 61.0 (shot sound: a soft low swell). TASTE 11-12 / brief section 5: NO ticks block (the ms counter is silent), nothing repeating above ~3 kHz, low thuds (impact = the low body; a soft crack gives each cut its 200 Hz-3 kHz onset for check.py), risers + rumble build the tension, silence as the last beat. QC fix round (11-12): check.py reads 8.0 and 15.0 as hard cuts too, and the risers/roar left every cut under +6 dB onset. Each cut now gets a short suck-out (true silence ~0.1 s before the cut, the breath before a hit) and a firmer mid-range crack; 8.0/15.0 get a low debris thud. Riser 1 climbs the upwind debris river into the bay cut; riser 2 climbs from the coast into the whole-Earth braaam. TRUE silence 62.85-63.45 (after SPIN RESTORED lands), then the soft loop thud at 63.5; 63.5-65.0 = plaza room tone only (s09 sound = s01's pre-stop bed, so the loop is seamless).",
  "master_peak_db": -3.0,
  "reverb": { "decay": 3.0, "send": 0.18, "predelay": 0.02 },
  "risers": [
-  { "_cue": "riser 1: the upwind debris river, into the hard cut to the bay", "t0": 22.0, "t1": 29.0, "gain_db": -16, "speed": 0.22, "noise": 0.25 },
-  { "_cue": "riser 2: the coast takes the surge, into the whole-Earth braaam", "t0": 43.5, "t1": 52.0, "gain_db": -15, "speed": 0.15, "noise": 0.2 }
+  { "_cue": "riser 1: the upwind debris river, into the hard cut to the bay", "t0": 22.0, "t1": 28.88, "gain_db": -16, "speed": 0.22, "noise": 0.25 },
+  { "_cue": "riser 2: the coast takes the surge, into the whole-Earth braaam", "t0": 43.5, "t1": 51.88, "gain_db": -15, "speed": 0.15, "noise": 0.2 }
  ],
  "braaams": [
   { "_cue": "hit 3: the cut to the whole planet (-6 dB per the brief)", "t": 52.0, "gain_db": -6, "decay": 3.6, "root": 41.2 }
  ],
  "impacts": [
   { "_cue": "THE STOP: the ground halts (frame-1 sound hit; the deep boom lives here, the rumble in s01 sound)", "t": 1.0, "gain_db": -3 },
+  { "_cue": "debris wall reaches the street (8.0 cut)", "t": 8.0, "gain_db": -10 },
+  { "_cue": "tilt up to the towers (15.0 cut)", "t": 15.0, "gain_db": -11 },
   { "_cue": "hit 1: cut to the bay", "t": 29.0, "gain_db": -4 },
   { "_cue": "hit 2: cut to orbit, the coast", "t": 43.5, "gain_db": -4 },
   { "_cue": "hit 3: cut to the whole Earth (under the braaam)", "t": 52.0, "gain_db": -5 },
@@ -18,11 +20,13 @@
  ],
  "cracks": [
   { "_cue": "the stop: low-mid snap under the boom (no ding)", "t": 1.0, "gain_db": -12 },
-  { "_cue": "soft mid-range onsets under the 4 hard cuts (check.py cut-hit rule)", "t": 29.0, "gain_db": -13 },
-  { "t": 43.5, "gain_db": -13 },
-  { "t": 52.0, "gain_db": -14 },
+  { "_cue": "mid-range onsets under every cut (check.py cut-hit rule: >= +6 dB above 200 Hz)", "t": 8.0, "gain_db": -11 },
+  { "t": 15.0, "gain_db": -12 },
+  { "t": 29.0, "gain_db": -9 },
+  { "t": 43.5, "gain_db": -9 },
+  { "t": 52.0, "gain_db": -9 },
   { "t": 63.5, "gain_db": -16 }
  ],
- "silent": [[62.85, 63.45]],
+ "silent": [[7.89, 7.99], [14.89, 14.99], [28.87, 28.99], [43.37, 43.49], [51.87, 51.99], [62.85, 63.45]],
  "loop_silence_frames": 0
 }

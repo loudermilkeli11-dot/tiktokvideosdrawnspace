@@ -8,6 +8,21 @@ Builder hand-overs: `FINAL/groupA.txt`, `groupB.txt`, `groupC.txt` (detail per s
 plaza (s01–s04, 29 s, all from or next to the one hero balcony) → bay (s05–s06, one terrace) → orbit (s07–s08) → plaza (s09 = frame 1, loop).
 s02 is at street level on the plaza's north edge: the same block, not a new place.
 
+## QC fix round (2026-11-12 evening): RESULT PASS
+- **White flash at 63.5 (FAIL → OK):** s09 cut from black space (luma 0.23) straight to the bright plaza (0.66). s09 now
+  opens from near-black and eases up over 0.4 s (`post.p.fade`, 0.85 → 0); measured 0.28 → 0.68, about 0.05 per frame.
+  Fade = 0 from 0.4 s on, so the last frame still equals s01 frame 0 (loop diff 0.005, unchanged).
+- **Cut hits (5 weak onsets → all +12 to +30 dB):** a ~0.1 s suck-out (true silence) before each cut + firmer cracks
+  (−9 dB) at 29.0/43.5/52.0; 8.0 and 15.0 (check.py reads them as hard cuts) got a low thud + crack. Risers end at the gap.
+- Verified by a real partial run: `render_all.js --quality max --shots s09_loop --reuse` → `check.py`: **RESULT PASS**
+  (flash 0, 6/6 cuts on hits, −14.1 LUFS, 93.35 MB, safe area OK). out/final.mp4 is that PASS build.
+- **Still WARN: text contrast (129/130 frames < 3:1).** Not fixable without bands from this project: A4 measures glyphs
+  against the 90th-percentile pixel 1.5–6 design px around them, so white type needs that ring at L ≤ 0.30 and the
+  amber accent at L ≤ 0.165 (a dark navy). Over a daylight plaza that is only reachable with a band (LOOK rule 9 forbids it),
+  a baked dark blob in the picture (same thing), or a stronger glyph halo in tools/overlay/ov.html (outside my write area).
+  Phone read: the type is legible on the contact sheets (soft shadow, LOOK rule 9 style) but thin over the pale bay.
+  See NEEDS APPROVAL.
+
 ## Phase 3 changes
 - **Kit sky** (`kit.js SKY.hor` 0xd8dccf → 0xc9d6dc = group A's plazaLook): the sky now matches across the 15.0/22.0 soft cuts
   (s03/s04 had the old grey-cream horizon) and the bay is a touch bluer. Changes s03, s04, s05, s06 (re-render them).
@@ -50,3 +65,7 @@ s02 is at street level on the plaza's north edge: the same block, not a new plac
 - Edit `tools/overlay/ov.html` line 440 to honour the tag's own band:
   `const B = v2B(V2.tagBand, tg.band); if (B.a > 0) v2BandAt(...)` (default unchanged for every other project). overlay.js
   already passes `band: 0` on the tag, so the blob disappears with no change here. LOOK rule 9: no blobs behind text.
+- Text contrast (choose one): (a) accept the A4 WARN for this film (QC PASSES; LOOK's soft-shadow type, as the hits
+  use); or (b) approve an opt-in `style.halo` in `tools/overlay/ov.html` (e.g. `V2.tight` → `[0, 3, 0.9]` plus a 1 design px
+  dark stroke under glyphs, no box) and I set it in overlay.js. (b) reads as outlined TikTok type, not the LOOK serif.
+  Recommendation: (a) now, and test (b) on the next film.

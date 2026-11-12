@@ -1,0 +1,11 @@
+# tsunami-524: 30.5 s = 915 frames. Board: PRODUCTION.md §3 (overrides script.md). Law: src/story.js (SHOT table: t0, dur)
+# <name> <frames>
+s01_bay 45
+s02_cliff 90
+s03_wall 90
+s04_town 150
+s05_standup 105
+s06_lift 105
+s07_peel 135
+s08_tail 105
+s09_loop 90

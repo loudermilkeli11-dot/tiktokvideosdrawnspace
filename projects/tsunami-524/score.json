@@ -1,0 +1,140 @@
+{
+ "_note": "tsunami-524 score (30.5 s). Times from src/story.js T table: crack 0.0, impact 1.5 (the fuse ends; THE big hit), run-up top 4.1, whip 4.5, lighthouse 6.5, spray wipe 7.5, roofs 9.0, x2 10.5, x4 12.5 (braaam on the cut), x8 16.0, speed ramp 19.5-23.0 (riser 2 peaks at 23.0), ocean gone 24.0-27.5, loop cut 29.5. A crack (mid-range, >200 Hz) on EVERY cut: 1.5, 4.5, 7.5, 12.5, 16.0, 19.5, 24.0, 27.5 (soft), 29.5. Ticks at 0.5 and 1.0 only (the 1.5 tick is replaced by the boom). Near silence 27.5-29.5 (no cues except one soft crack at the cut). TRUE silence 29.85-30.5: the loop hit's click rings 0.35 s, then nothing until the loop's stone crack at 0.0. Space shots (19.5-29.5): score only.",
+ "master_peak_db": -3.0,
+ "reverb": {
+  "decay": 3.0,
+  "send": 0.22,
+  "predelay": 0.02
+ },
+ "ticks": {
+  "t0": 0.5,
+  "t1": 1.4,
+  "rate": 2.0,
+  "steps": [],
+  "max_rate": 8,
+  "gain_db": -12,
+  "pitch": 1800,
+  "spread": 0.25
+ },
+ "risers": [
+  {
+   "_cue": "riser 1: the run-up climbing the slope, into the whip-pan",
+   "t0": 1.6,
+   "t1": 4.5,
+   "gain_db": -14,
+   "speed": 0.4,
+   "noise": 0.5
+  },
+  {
+   "_cue": "low swell + rock groan into the x4 boom",
+   "t0": 10.5,
+   "t1": 12.5,
+   "gain_db": -12,
+   "speed": 0.5,
+   "noise": 0.6
+  },
+  {
+   "_cue": "riser 2: climbs with the speed counter, peaks at escape speed (23.0)",
+   "t0": 19.5,
+   "t1": 23.0,
+   "gain_db": -9,
+   "speed": 0.6,
+   "noise": 0.7
+  }
+ ],
+ "braaams": [
+  {
+   "_cue": "x4: the cut to the standing wall",
+   "t": 12.5,
+   "gain_db": -5,
+   "decay": 3.2,
+   "root": 49.0
+  },
+  {
+   "_cue": "x8: through the clouds",
+   "t": 16.0,
+   "gain_db": -8,
+   "decay": 2.8,
+   "root": 46.25
+  },
+  {
+   "_cue": "escape speed reached: the riser drops to a single fading sub tone",
+   "t": 23.0,
+   "gain_db": -9,
+   "decay": 4.5,
+   "root": 41.2
+  }
+ ],
+ "impacts": [
+  {
+   "t": 9.0,
+   "gain_db": -6
+  },
+  {
+   "t": 12.5,
+   "gain_db": -6
+  },
+  {
+   "t": 29.5,
+   "gain_db": -14
+  }
+ ],
+ "cracks": [
+  {
+   "_cue": "frame 1: the stone crack",
+   "t": 0.0,
+   "gain_db": -5
+  },
+  {
+   "t": 1.5,
+   "gain_db": -3
+  },
+  {
+   "t": 4.5,
+   "gain_db": -9
+  },
+  {
+   "t": 7.5,
+   "gain_db": -8
+  },
+  {
+   "t": 12.5,
+   "gain_db": -4
+  },
+  {
+   "t": 16.0,
+   "gain_db": -7
+  },
+  {
+   "t": 19.5,
+   "gain_db": -8
+  },
+  {
+   "t": 24.0,
+   "gain_db": -9
+  },
+  {
+   "_cue": "soft: s08 -> s09 inside the near-silence",
+   "t": 27.5,
+   "gain_db": -18
+  },
+  {
+   "_cue": "the loop cut to the bay: soft click above 200 Hz",
+   "t": 29.5,
+   "gain_db": -10
+  }
+ ],
+ "big_hit": {
+  "t": 1.5,
+  "gain_db": 0,
+  "decay": 4.0,
+  "reverb_decay": 5.0
+ },
+ "silent": [
+  [
+   29.85,
+   30.5
+  ]
+ ],
+ "loop_silence_frames": 0
+}

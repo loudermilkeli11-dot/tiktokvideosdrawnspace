@@ -27,10 +27,15 @@ export function breakTowers(S, W, E_S03) {
       let x, z; if (face < 0.7) { x = b.x - b.w / 2 + R() * b.w; z = front; } else if (face < 0.85) { x = b.x - b.w / 2 - 0.4; z = b.z - b.d / 2 + R() * b.d; } else { x = b.x + b.w / 2 + 0.4; z = b.z - b.d / 2 + R() * b.d; }
       list.push({ p: [x, y, z], t0: e1 + (down * 4.0 + R() * 2.5) / 12, size: far * (0.9 + R() * 1.6), shape: R() < 0.75 ? 1 : 0, kind: 1, col: GLASS[Math.floor(R() * 4)] }); }
     // cladding panels and mullions (heavier, mostly the upper half)
-    for (let c = 0; c < b.w * 7; c++) { const y = b.h * (0.35 + 0.65 * Math.pow(R(), 0.6));
+    for (let c = 0; c < b.w * 16; c++) { const y = b.h * (0.25 + 0.75 * Math.pow(R(), 0.6));
       list.push({ p: [b.x - b.w / 2 + R() * b.w, y, front], t0: e1 + (0.3 + R() * 5.0) / 12, size: far * (1.4 + R() * 2.4), shape: R() < 0.7 ? 1 : 0, kind: 2, col: CLAD[Math.floor(R() * 4)] }); }
+    // v3 wall blow-outs: 3-4 bursts per tower, each a cluster of big wall chunks and whole window panels torn off together
+    for (let k = 0; k < 4; k++) { const by = b.h * (0.3 + 0.65 * R()), bx = b.x - b.w / 2 + R() * b.w, tb = e1 + (0.4 + k * 1.1 + R() * 0.6) / 12;
+      for (let c = 0; c < 26; c++) { const glass = R() < 0.4;
+        list.push({ p: [bx + (R() - 0.5) * 7, by + (R() - 0.5) * 6, front + R() * 0.6], t0: tb + R() * 0.15 / 12, size: far * (glass ? 3 + R() * 2.5 : 2.5 + R() * 4.5),
+          shape: glass ? 1 : (R() < 0.7 ? 0 : 1), kind: glass ? 1 : 2, col: glass ? GLASS[Math.floor(R() * 4)] : CLAD[Math.floor(R() * 4)] }); } }
     // signs: 2-3 big coloured boards per tower (shopfront band and the roof edge), ripped off whole
-    for (let c = 0; c < 3; c++) { const roof = c === 2;
+    for (let c = 0; c < 5; c++) { const roof = c >= 3;
       list.push({ p: [b.x + (R() - 0.5) * b.w * 0.7, roof ? b.h + 1.5 : 4 + R() * 6, front + 0.3], t0: e1 + (0.2 + c * 0.7 + R() * 0.3) / 12, size: roof ? 6 + R() * 3 : 3.5 + R() * 2, shape: 1, kind: 2, col: SIGN[Math.floor(R() * 7)] }); }
     // roof clutter: AC units / vents (tetra boxes), then a tank on the bigger roofs
     for (let c = 0; c < 10; c++) list.push({ p: [b.x + (R() - 0.5) * b.w * 0.8, b.h + 0.8, b.z + (R() - 0.5) * b.d * 0.8], t0: e1 + (0.1 + R() * 1.5) / 12, size: 1.6 + R() * 1.4, shape: 0, kind: 2, col: [0x8a8680, 0xb0aca4, 0x6a6660][Math.floor(R() * 3)] });

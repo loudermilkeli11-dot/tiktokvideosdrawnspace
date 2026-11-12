@@ -7,8 +7,9 @@ color: "#ffb347"
 role: Chief of staff. Plans videos, splits work, keeps the channel formula. Marshal in the War Room.
 model: claude-opus-5-5
 effort: medium
-tools: [Read, Glob, Grep]
-maxTurns: 20
+tools: [Read, Glob, Grep, Write, Edit]
+writes: [projects/]
+maxTurns: 30
 lens: "Which option has the best payoff, and what do we lose by doing nothing?"
 keywords: [plan, schedule, priorit, next video, roadmap, status, organise, organize, decide]
 ---

@@ -57,6 +57,19 @@ You don't need to write exact instructions. "pitch 3 ideas for the next tiktok" 
 - Your own words in the order (a topic, a constraint, a taste) override the defaults.
 - Edit a playbook file to change a method, or add a file for a new one.
 
+## Studio: from an idea to the finished film
+
+The **Studio** tab runs the whole production. Nothing gets built without your approval.
+1. **Greenlight.** Use 🎬 on a pitch result (#1, #2 or #3), 🎬 on a sealed council, or type an idea in the Studio tab. Pick the quality (Max by default) and the builder (Opus by default).
+2. **Brief.** The Producer writes `projects/<slug>/PRODUCTION.md`, the complete build order: the law and its numbers, the shot board, the build map, sound, look, render and posting.
+3. **Your approval.** Read the brief, add notes if you want, then **Approve & build**, or **Reject**. **📋 Copy as prompt** copies the brief so any Claude session can build it instead.
+4. **Build.** The Director (a sixth agent) builds the project in the engine, shot by shot. It checks each shot's frames on your GPU, and commits as it goes.
+5. **GPU render.** `tools/render_all.js` renders every shot on your graphics card, then the sound, music and captions, assembles the film at −14 LUFS and runs the QC (`check.py`). If QC fails, the report goes back to the Director for one fix round, then it renders again.
+6. **Film.** The video plays right in the tab. You can **Show in folder** (`projects/<slug>/out/final.mp4`) or **Render again**.
+
+Quality: **max** uses 16 anti-aliasing and motion-blur sub-samples per frame and a higher-bitrate final; **standard** uses each shot's own setting; **draft** is a quick half-size look.
+A full build is the expensive step on your plan (the Director on Opus works for a long time). Rendering is free. One render runs at a time.
+
 ## Usage and safety
 
 - **PLAN mode (default):** the agents run through Claude Code on this PC, signed in with your Claude account, so their work counts against your Claude plan's usage limits. There is no separate bill. (API mode is still there: put a key in `.env` and agents bill that key instead.)

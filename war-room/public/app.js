@@ -1,7 +1,7 @@
 // War Room dashboard: vanilla JS, live via Server-Sent Events.
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const S = { agents: [], tasks: [], hive: [], approvals: [], warrooms: [], open: null, wrOpen: null, demo: false };
+const S = { agents: [], tasks: [], hive: [], approvals: [], warrooms: [], productions: [], open: null, wrOpen: null, prOpen: null, demo: false };
 const A = (id) => S.agents.find((a) => a.id === id) || { name: id || 'Commander', emoji: '🎖️', color: '#ffb347' };
 const ago = (t) => { const s = (Date.now() - t) / 1000; return s < 60 ? `${s | 0}s` : s < 3600 ? `${(s / 60) | 0}m` : s < 86400 ? `${(s / 3600) | 0}h` : `${(s / 86400) | 0}d`; };
 const hhmm = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '');
@@ -99,6 +99,7 @@ async function openTask(id) {
     <details ${t.text.length < 300 ? 'open' : ''}><summary class="muted small">Order</summary><div class="md">${md(t.text)}</div></details>
     <h3 style="margin-top:14px">Live log</h3><div class="log" id="dLog">${t.log.map(logRow).join('')}</div>
     <div class="cmdrow">${t.status === 'running' || t.status === 'queued' ? `<button class="no" data-stop="${t.id}">Stop</button>` : `<button class="ghost" data-retry="${t.id}">Run again</button>`}</div>
+    ${t.status === 'done' && t.playbook === 'pitch' ? `<div class="glRow"><span class="muted small">Greenlight a pitch:</span>${[1, 2, 3].map((k) => `<button class="ghost" data-gl="${esc(`Pitch #${k} from ${(t.result.match(/pitches\/[\w.-]+\.md/) || ['the latest pitches file in pitches/'])[0]}`)}">🎬 #${k}</button>`).join('')}</div>` : ''}
     ${t.result ? `<h3 style="margin-top:14px">Result</h3><div class="md">${md(t.result)}</div>` : ''}`;
   $('#drawer').classList.add('on'); const L = $('#dLog'); L.scrollTop = L.scrollHeight;
 }
@@ -130,7 +131,7 @@ function renderWr() {
   const verdict = w.stage === 'awaiting' ? `<div class="verdict"><h3>Commander's call</h3>
       <input id="verdictTxt" data-wrdraft="${w.id}" value="${esc((S.drafts || {})[w.id] || '')}" placeholder="Your decision (e.g. “Go with the Marshal's plan, and fix the Tenth Man's failure mode first”)">
       <div class="cmdrow"><button class="ghost" data-wrplan="${w.id}" ${w.planSent ? 'disabled' : ''}>${w.planSent ? 'Battle plan sent ✓' : 'Send battle plan to Mission Control'}</button><button class="primary" data-wrseal="${w.id}">Seal dossier</button></div></div>`
-    : w.stage === 'sealed' ? `<div class="verdict"><h3>Sealed</h3><p>${esc(w.verdict)}</p><p class="muted small">Dossier saved to <code>${esc(w.dossier || '')}</code></p>${w.planSent ? '' : `<button class="ghost" data-wrplan="${w.id}">Send battle plan to Mission Control</button>`}</div>`
+    : w.stage === 'sealed' ? `<div class="verdict"><h3>Sealed</h3><button class="primary" style="float:right" data-gl="${esc(`The sealed War Room decision in ${w.dossier || 'channel/war-room/'}: ${w.question}. Commander's call: ${w.verdict}`)}">🎬 Greenlight</button><p>${esc(w.verdict)}</p><p class="muted small">Dossier saved to <code>${esc(w.dossier || '')}</code></p>${w.planSent ? '' : `<button class="ghost" data-wrplan="${w.id}">Send battle plan to Mission Control</button>`}</div>`
     : w.stage === 'failed' ? `<div class="verdict" style="border-color:rgba(255,93,108,.6)"><h3>Council failed</h3><p>${esc(w.error || 'An officer could not answer.')}</p></div>`
     : ['convening', 'synthesis', 'dissent'].includes(w.stage) ? `<div class="cmdrow"><button class="no" data-wrstop="${w.id}">Stop council</button></div>` : '';
   const order = ['convening', 'synthesis', 'dissent', 'awaiting', 'sealed'], k = order.indexOf(w.stage);
@@ -151,6 +152,8 @@ function connect() {
     if (was && was !== t.status && ['done', 'failed'].includes(t.status)) { const a = A(t.agent); toast({ c: t.status === 'done' ? a.color : '#ff5d6c', title: `${a.emoji} ${a.name} ${t.status === 'done' ? 'finished' : 'failed'}`, text: t.summary || t.title, task: t.id }); } if (i >= 0) S.tasks[i] = t; else S.tasks.push(t); renderBoard(); renderRoster(); if (S.open === t.id && ['done', 'failed', 'stopped'].includes(t.status)) openTask(t.id); else if (S.open === t.id) $('#dStatus').textContent = t.status; });
   es.addEventListener('log', (e) => { const d = JSON.parse(e.data); if (S.open === d.taskId) { const L = $('#dLog'); if (L) { const stick = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.insertAdjacentHTML('beforeend', logRow(d.entry)); if (stick) L.scrollTop = L.scrollHeight; } } });
   es.addEventListener('usage', (e) => renderUsage(JSON.parse(e.data)));
+  es.addEventListener('production', (e) => { const pr = JSON.parse(e.data); const i = S.productions.findIndex((x) => x.id === pr.id); if (i >= 0) S.productions[i] = pr; else S.productions.push(pr); if (!S.prOpen) S.prOpen = pr.id; if (document.activeElement?.id !== 'apNotes') renderProds(); });
+  es.addEventListener('notify', (e) => { const d = JSON.parse(e.data); toast({ c: '#ff7ab6', title: d.title, text: d.text }); });
   es.addEventListener('login', (e) => { const d = JSON.parse(e.data); toast({ c: '#ff5d6c', title: d.title || '🔑 Claude Code needs signing in', text: d.text }); });
   es.addEventListener('hive', (e) => { S.hive.unshift(JSON.parse(e.data)); renderHive(); });
   es.addEventListener('approval', (e) => { const ap = JSON.parse(e.data); S.approvals.push(ap); renderApprovals(); toast({ c: '#ffd166', title: `${A(ap.agent).emoji} ${A(ap.agent).name} needs approval`, text: `${ap.tool}: ${ap.summary.slice(0, 90)}` }); try { navigator.vibrate?.(80); } catch {} });
@@ -196,6 +199,35 @@ async function uploadShots(files) {
     toast({ c: '#4fd1ff', title: r.ok ? `📥 ${r.saved.length} screenshot(s) sent to the Analyst` : 'Upload failed', text: r.ok ? 'The numbers go into results.csv and the brain. Watch Mission Control.' : r.error, task: r.task });
   } finally { box.classList.remove('busy'); }
 }
+// ---------------- studio: productions ----------------
+const PST = [['brief', 'Brief'], ['approval', 'Your approval'], ['build', 'Build'], ['render', 'GPU render'], ['done', 'Film']];
+const prStage = (pr) => (pr.stage === 'failed' || pr.stage === 'paused' || pr.stage === 'cancelled' ? pr.stage : (PST.find((x) => x[0] === pr.stage) || [pr.stage, pr.stage])[1]);
+function renderProds() {
+  const L = [...S.productions].reverse();
+  $('#prodList').innerHTML = L.map((pr) => `<div class="wrItem ${pr.id === S.prOpen ? 'on' : ''}" data-pr="${pr.id}"><b class="st-${pr.stage}">${esc(prStage(pr))}</b> · ${esc(pr.title)}<div class="muted small">${ago(pr.created)} ago · ${esc(pr.quality)}${pr.slug ? ' · ' + esc(pr.slug) : ''}${pr.cost ? ' · $' + pr.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">No productions yet. Greenlight an idea above, or use 🎬 on a pitch.</p>';
+  const pr = S.productions.find((x) => x.id === S.prOpen) || L[0]; const st = $('#prodStage');
+  if (!pr) { st.innerHTML = '<div class="empty">🎬<br>Greenlit ideas appear here: the brief, your approval, the build, the GPU render and the finished film.</div>'; return; }
+  S.prOpen = pr.id;
+  const k = PST.findIndex((x) => x[0] === (pr.stage === 'failed' || pr.stage === 'paused' ? pr.failedAt || pr.pausedFrom : pr.stage));
+  const steps = PST.map((x, i) => `<div class="${pr.stage === 'done' || k > i ? 'done' : k === i ? (pr.stage === 'failed' ? 'bad' : 'now') : ''}">${i + 1} · ${x[1]}</div>`).join('');
+  const busy = ['brief', 'build', 'render'].includes(pr.stage);
+  const actions = pr.stage === 'approval' ? `<div class="verdict"><h3>Your call</h3><p class="small">Read the brief below. Approve starts the Director's build, then the GPU render on this PC. Nothing runs until you press it.</p>
+      <input id="apNotes" placeholder="Optional changes for the Director, e.g. “swap shot 4 for a city street”">
+      <div class="cmdrow"><label class="sel">Quality <select id="apQuality">${['max', 'standard', 'draft'].map((q) => `<option ${q === pr.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label><label class="sel">Builder <select id="apBuilder"><option value="opus" ${pr.builder !== 'sonnet' ? 'selected' : ''}>Opus</option><option value="sonnet" ${pr.builder === 'sonnet' ? 'selected' : ''}>Sonnet</option></select></label>
+      <button class="ghost" data-prcopy="${pr.id}" title="Copy the brief as a prompt for any Claude session">📋 Copy as prompt</button><button class="no" data-pract="cancel" data-id="${pr.id}">Reject</button><button class="primary" data-pract="approve" data-id="${pr.id}">Approve & build ⏎</button></div></div>` : '';
+  const prog = pr.stage === 'render' ? `<div class="pbar"><i style="width:${Math.round((pr.progress || 0) * 100)}%"></i></div><div class="muted small">${pr.waiting ? 'Waiting for the other render (one GPU)…' : `${Math.round((pr.progress || 0) * 100)}% of frames rendered`}</div>` : '';
+  const film = pr.stage === 'done' ? `<video class="film" controls loop playsinline src="/api/productions/${pr.id}/video?v=${pr.finished || 0}"></video>
+      <div class="cmdrow"><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
+  const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button><button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
+  st.innerHTML = `<div class="stepper">${steps}</div>
+    <div class="prHead"><h2>${esc(pr.title)}</h2>${busy ? `<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button>` : ''}</div>
+    <p class="muted small">${esc(pr.source.slice(0, 220))}</p>${actions}${tail}${prog}${film}
+    <h3 style="margin-top:14px">Production log</h3><div class="log" id="prLog">${(pr.log || []).map((l) => `<div>${hhmm(l.t)} ${esc(l.text)}</div>`).join('')}</div>
+    ${pr.slug ? `<details ${pr.stage === 'approval' ? 'open' : ''}><summary class="muted small" style="margin-top:12px;cursor:pointer">Production brief · projects/${esc(pr.slug)}/PRODUCTION.md</summary><div class="md" id="prBrief">loading…</div></details>` : ''}`;
+  const L2 = $('#prLog'); if (L2) L2.scrollTop = L2.scrollHeight;
+  if (pr.slug) api(`/api/productions/${pr.id}/brief`).then((d) => { const b = $('#prBrief'); if (b) b.innerHTML = md(d.text || '(not written yet)'); S.briefText = d.text; });
+}
+function greenlight(source, title) { document.querySelector('[data-tab="studio"]').click(); $('#glSource').value = source; if (title) $('#glSource').dataset.title = title; $('#glSource').focus(); }
 async function load() {
   const st = await api('/api/state'); Object.assign(S, st); S.mode = st.mode || (st.demo ? 'demo' : 'api');
   const M = { plan: ['PLAN', 'live', 'Real agents through Claude Code on this PC, on your Claude plan'], api: ['API', 'live', 'Real agents billed to the API key in war-room/.env'], demo: ['DEMO', 'demo', 'Simulated agents. Install Claude Code and sign in, then restart, for real ones.'] }[st.mode || (st.demo ? 'demo' : 'api')];
@@ -203,7 +235,7 @@ async function load() {
   renderUsage(st.usage);
   if (document.activeElement !== $('#pinned')) $('#pinned').value = st.pinned || '';
   if (!S.wrOpen && S.warrooms.length) S.wrOpen = S.warrooms[S.warrooms.length - 1].id;
-  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); loadIntel();
+  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); renderProds(); loadIntel();
 }
 
 // ---------------- interactions ----------------
@@ -216,6 +248,11 @@ document.addEventListener('click', async (e) => {
   else if ((x = el('[data-task]'))) { openTask(x.dataset.task); x.classList.contains('toast') && x.remove(); }
   else if ((x = el('[data-agent]'))) { const sel = $('#cmdAgent'); sel.value = sel.value === x.dataset.agent ? '' : x.dataset.agent; renderRoster(); $('#cmdText').focus(); }
   else if ((x = el('[data-resume]'))) { await api('/api/resume', {}); }
+  else if ((x = el('[data-gl]'))) { $('#drawer').classList.remove('on'); greenlight(x.dataset.gl); }
+  else if ((x = el('[data-pr]'))) { S.prOpen = x.dataset.pr; renderProds(); }
+  else if ((x = el('[data-prcopy]'))) { const txt = `Build this approved Invisible Journeys production in the repo (read CLAUDE.md first), render it, and check it:\n\n${S.briefText || ''}`; try { await navigator.clipboard.writeText(txt); toast({ title: '📋 Copied', text: 'Paste it into any Claude Code session.' }); } catch { toast({ title: 'Copy failed', text: 'Open the brief and copy it by hand.' }); } }
+  else if ((x = el('[data-pract]'))) { const a = x.dataset.pract; if (a === 'cancel' && !confirm('Cancel this production?')) return; x.disabled = true;
+    await api(`/api/productions/${x.dataset.id}/${a}`, a === 'approve' ? { quality: $('#apQuality')?.value, builder: $('#apBuilder')?.value, notes: $('#apNotes')?.value } : {}); }
   else if ((x = el('#dz'))) $('#dropFile').click();
   else if ((x = el('#refreshBrain'))) { await api('/api/tasks', { agent: 'analyst', text: 'Refresh channel/BRAIN.md: re-read channel/results.csv, channel/analytics/, channel/postmortems/, channel/war-room/ (sealed dossiers) and channel/references/. Update Evidence, Lessons and Open questions so they match the data exactly. Keep it under ~1,000 words.' }); toast({ c: '#4fd1ff', title: '↻ Analyst is refreshing the brain' }); }
   else if ((x = el('[data-q]'))) { const t = $('#cmdText'); t.value = x.dataset.q; autosize(); t.focus(); }
@@ -258,3 +295,7 @@ $('#dropFile').addEventListener('change', (e) => { uploadShots(e.target.files); 
 ['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
 $('#drop').addEventListener('drop', (e) => uploadShots(e.dataTransfer.files));
 document.addEventListener('paste', (e) => { if (!$('#intel').classList.contains('on')) return; const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); uploadShots(f); } });
+
+$('#glForm').addEventListener('submit', async (e) => { e.preventDefault(); const source = $('#glSource').value.trim(); if (!source) return;
+  const pr = await api('/api/productions', { source, title: $('#glSource').dataset.title || '', notes: $('#glNotes').value, quality: $('#glQuality').value, builder: $('#glBuilder').value });
+  $('#glSource').value = ''; $('#glNotes').value = ''; delete $('#glSource').dataset.title; S.prOpen = pr.id; if (!S.productions.find((x) => x.id === pr.id)) S.productions.push(pr); renderProds(); toast({ c: '#ff7ab6', title: '🎬 Greenlit', text: 'The Producer is writing the brief. You will be asked to approve it.' }); });

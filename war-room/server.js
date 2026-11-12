@@ -6,6 +6,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { spawn as spawnProc } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -151,15 +152,15 @@ async function route(text) {
 }
 
 // ---------------- tasks ----------------
-async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false }) {
-  const task = { deep: !!deep, id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
+async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false, playbook = null, model = null, production = null, demoText = null }) {
+  const task = { deep: !!deep, production, demoText, id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
   store.tasks.push(task); store.save(); emit('task', publicTask(task));
   try { if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; } }
   catch (e) { task.status = 'failed'; task.summary = `Could not route this order: ${e?.message || e}`; task.log.push({ t: Date.now(), kind: 'error', text: task.summary }); store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
   if (!byId[task.agent]) { task.status = 'failed'; task.summary = `No agent "${task.agent}" is loaded (check war-room/agents).`; store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
   else task.routeReason = by === 'Commander' ? 'assigned by the Commander' : `delegated by ${by}`;
-  if (by === 'Commander') { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
-  task.model = deep ? DEEP_MODEL : byId[task.agent].model;
+  if (playbook) task.playbook = playbook; else if (by === 'Commander') { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
+  task.model = model || (deep ? DEEP_MODEL : byId[task.agent].model);
   task.status = 'queued'; store.save(); emit('task', publicTask(task));
   hive({ agent: by === 'Commander' ? null : by, kind: 'task', text: `→ @${task.agent}: ${task.title}` });
   pump();
@@ -180,7 +181,7 @@ async function runTask(task) {
   let r;
   try {
     const pb = task.playbook && playbooks.find((x) => x.id === task.playbook);
-    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
@@ -191,7 +192,8 @@ async function runTask(task) {
   task.summary = summary; store.save(); emit('task', publicTask(task));
   hive({ agent: agent.id, kind: task.status, text: summary });
   setAgent(agent.id, { status: 'idle', taskId: null, last: summary });
-  if (r.ok) {
+  if (task.production) onProductionTask(task, r);
+  if (r.ok && !task.production) {
     for (const m of r.text.matchAll(/^REMEMBER:\s*(.+)$/gm)) { store.remember(agent.id, m[1]); hive({ agent: agent.id, kind: 'memory', text: `remembered: ${m[1]}` }); }
     const dels = [...r.text.matchAll(/^DELEGATE\s+@([a-z]+)\s*:\s*(.+)$/gm)].slice(0, 2);
     for (const m of dels) {
@@ -201,6 +203,77 @@ async function runTask(task) {
     }
   }
   pump();
+}
+
+// ---------------- productions: greenlight -> brief -> Commander approval -> Director build -> GPU render -> QC -> done ----------------
+const PSTAGES = ['brief', 'approval', 'build', 'render', 'done'];
+const prods = store.productions;
+const pub = (pr) => ({ ...pr, log: (pr.log || []).slice(-80) });
+function pemit(pr, line) { if (line) { (pr.log ||= []).push({ t: Date.now(), text: String(line).slice(0, 400) }); if (pr.log.length > 600) pr.log.splice(0, pr.log.length - 600); } store.save(); emit('production', pub(pr)); }
+async function startBrief(pr) {
+  pr.stage = 'brief'; pemit(pr, 'Producer is writing the production brief…');
+  const t = await createTask({ agent: byId.producer ? 'producer' : agents[0].id, playbook: 'production', production: pr.id, model: DEEP_MODEL,
+    demoText: DEMO ? `SUMMARY: (demo) brief written.\nBRIEF READY: projects/${process.env.WARROOM_DEMO_SLUG || 'gravity-flip'}/PRODUCTION.md` : null,
+    text: `Greenlit by the Commander. Write the production brief.\nSource: ${pr.source}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
+  pr.briefTask = t.id; pemit(pr);
+}
+async function startBuild(pr) {
+  pr.stage = 'build'; pemit(pr, `Director is building projects/${pr.slug} (${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'})…`);
+  const t = await createTask({ agent: 'director', production: pr.id, model: pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5',
+    demoText: DEMO ? `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}` : null,
+    text: `Build the approved production: projects/${pr.slug}/PRODUCTION.md (slug: ${pr.slug}).${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
+  pr.buildTask = t.id; pemit(pr);
+}
+function onProductionTask(task, r) {
+  const pr = prods.find((x) => x.id === task.production); if (!pr || pr.stage === 'cancelled') return;
+  pr.cost = (pr.cost || 0) + (task.cost || 0);
+  if (task.status !== 'done') { pr.failedAt = pr.stage; pr.stage = 'failed'; pr.error = `${byId[task.agent]?.name || task.agent} ${task.status}: ${r.error || task.summary || ''}`.slice(0, 500); return pemit(pr, pr.error); }
+  if (pr.stage === 'brief') {
+    const m = (r.text || '').match(/BRIEF READY:\s*(projects\/([a-z0-9-]+))\/PRODUCTION\.md/i);
+    if (!m) { pr.stage = 'failed'; pr.error = 'The Producer did not report BRIEF READY.'; return pemit(pr, pr.error); }
+    pr.slug = m[2]; pr.title = (fs.existsSync(briefPath(pr)) ? (fs.readFileSync(briefPath(pr), 'utf8').match(/What if[^\n*]*(\*[^*]+\*)?[^\n]*\?/i) || [])[0] : null)?.replace(/\*/g, '') || pr.title;
+    pr.stage = 'approval'; pemit(pr, `Brief ready: projects/${pr.slug}/PRODUCTION.md. Waiting for your approval.`);
+    hive({ agent: 'producer', kind: 'info', text: `Production brief ready for approval: ${pr.title}` }); emit('notify', { title: '🎬 Brief ready for your approval', text: pr.title, production: pr.id });
+  } else if (pr.stage === 'build') {
+    if (!/BUILD COMPLETE/i.test(r.text || '')) { pr.stage = 'failed'; pr.error = ((r.text || '').match(/BUILD BLOCKED:.*$/m) || ['The Director did not report BUILD COMPLETE.'])[0]; return pemit(pr, pr.error); }
+    pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
+  }
+}
+let rendering = null;
+function startRender(pr) {
+  if (rendering && rendering !== pr.id) { pr.stage = 'render'; pr.waiting = true; return pemit(pr, 'Waiting for the other render to finish (one GPU).'); }
+  rendering = pr.id; pr.stage = 'render'; pr.waiting = false; pr.progress = 0; pr.renderStarted = Date.now(); pemit(pr, `Rendering at quality ${pr.quality}…`);
+  const ch = spawnProc(process.execPath, [path.join(WORKSPACE, 'tools', 'render_all.js'), `projects/${pr.slug}`, '--quality', pr.quality], { cwd: WORKSPACE, env: { ...process.env, IJ_GPU: process.env.IJ_GPU ?? (process.platform === 'win32' ? '1' : '0') }, windowsHide: true });
+  pr.pid = ch.pid; let buf = '', result = '';
+  const onData = (d) => { buf += d; let i; while ((i = buf.search(/\r?\n/)) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1).replace(/^\n/, ''); if (!line) continue;
+    const pg = line.match(/^PROGRESS (\d+)\/(\d+)/); if (pg) pr.progress = +pg[1] / +pg[2];
+    if (/^RESULT /.test(line)) result = line;
+    if (/^(STEP|PROGRESS|RESULT|render_all|WARN|FAIL|  frames|  loudness|text contrast|safe area|white-flash)/.test(line) || /error/i.test(line)) pemit(pr, line); } };
+  ch.stdout.on('data', onData); ch.stderr.on('data', onData);
+  ch.on('close', (code) => {
+    rendering = null; pr.pid = null;
+    if (pr.stage === 'cancelled') return pemit(pr, 'Render cancelled.');
+    const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
+    if (code === 0 && fs.existsSync(final)) {
+      pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
+      hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
+    } else if (fs.existsSync(final) && (pr.fixes || 0) < 1) {
+      pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n');
+      pemit(pr, 'QC failed: sending the report back to the Director for one fix round.'); startBuild(pr);
+    } else { pr.failedAt = 'render'; pr.stage = 'failed'; pr.error = result || `Render exited with code ${code}`; pemit(pr, pr.error); }
+    const next = prods.find((x) => x.stage === 'render' && x.waiting); if (next) startRender(next);
+  });
+}
+const briefPath = (pr) => path.join(WORKSPACE, 'projects', pr.slug || '_', 'PRODUCTION.md');
+function cancelProduction(pr) {
+  for (const id of [pr.briefTask, pr.buildTask]) { const t = store.tasks.find((x) => x.id === id); if (t && ['queued', 'running', 'routing'].includes(t.status)) { aborts.get(t.id)?.abort(); if (t.status !== 'running') { t.status = 'stopped'; emit('task', publicTask(t)); } } }
+  if (pr.pid) { try { if (process.platform === 'win32') spawnProc('taskkill', ['/pid', String(pr.pid), '/T', '/F']); else process.kill(pr.pid); } catch {} }
+  pr.stage = 'cancelled'; pemit(pr, 'Cancelled by the Commander.');
+}
+function sendVideo(req, res, f) {
+  const st = fs.statSync(f), m = (req.headers.range || '').match(/bytes=(\d*)-(\d*)/);
+  if (m) { const a = m[1] ? +m[1] : 0, b = m[2] ? +m[2] : st.size - 1; res.writeHead(206, { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'content-range': `bytes ${a}-${b}/${st.size}`, 'content-length': b - a + 1 }); return fs.createReadStream(f, { start: a, end: b }).pipe(res); }
+  res.writeHead(200, { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'content-length': st.size }); fs.createReadStream(f).pipe(res);
 }
 
 // ---------------- War Room ----------------
@@ -302,12 +375,36 @@ const server = http.createServer(async (req, res) => {
       const t = await createTask({ agent: byId.analyst ? 'analyst' : null, text: `Log the new analytics screenshots${note ? ` (Commander's note: ${note})` : ''}.\nFiles: ${saved.join(', ')}\n1. Read each image. Identify the video by its cover/caption and the numbers shown.\n2. Append one row per video to channel/results.csv (same columns; a new snapshot is a new row; leave unknown fields empty, never guess).\n3. Update channel/BRAIN.md: the Evidence table, Lessons (what the numbers now show, with the sample-size caveat) and Open questions. Keep it under ~1,000 words.\n4. Finish with SUMMARY and the ONE change the next video should make.` });
       return json(res, { ok: true, saved, task: t.id });
     }
+    let pm;
+    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(video|brief)$/)) && req.method === 'GET') {
+      const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
+      if (pm[2] === 'video') { const f = path.join(WORKSPACE, 'projects', pr.slug || '_', 'out', 'final.mp4'); return fs.existsSync(f) ? sendVideo(req, res, f) : json(res, { error: 'no video yet' }, 404); }
+      return json(res, { text: fs.existsSync(briefPath(pr)) ? fs.readFileSync(briefPath(pr), 'utf8') : '' });
+    }
+    if (p === '/api/productions' && req.method === 'POST') {
+      const b = await body(req); if (!String(b.source || '').trim()) return json(res, { error: 'empty' }, 400);
+      const pr = { id: uid(), title: String(b.title || b.source).split('\n')[0].slice(0, 90), source: String(b.source).trim(), notes: String(b.notes || '').trim(), quality: ['draft', 'standard', 'max'].includes(b.quality) ? b.quality : 'max', builder: b.builder === 'sonnet' ? 'sonnet' : 'opus', created: Date.now(), stage: 'brief', log: [], cost: 0 };
+      prods.push(pr); hive({ agent: null, kind: 'order', text: `🎬 greenlit: ${pr.title}` }); startBrief(pr); return json(res, pub(pr));
+    }
+    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open)$/)) && req.method === 'POST') {
+      const b = await body(req); const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
+      if (b.quality && ['draft', 'standard', 'max'].includes(b.quality)) pr.quality = b.quality;
+      if (b.builder) pr.builder = b.builder === 'sonnet' ? 'sonnet' : 'opus';
+      if (b.notes) pr.notes = [pr.notes, String(b.notes)].filter(Boolean).join('\n');
+      if (pm[2] === 'approve' && pr.stage === 'approval') { pr.approved = Date.now(); hive({ agent: null, kind: 'order', text: `🎬 approved: ${pr.title}` }); startBuild(pr); }
+      else if (pm[2] === 'cancel') cancelProduction(pr);
+      else if (pm[2] === 'render' && pr.slug) { pr.fixes = 0; startRender(pr); }
+      else if (pm[2] === 'resume') { const from = pr.stage === 'paused' ? pr.pausedFrom : pr.failedAt; pr.error = null; if (!pr.slug) startBrief(pr); else if (!pr.approved) { pr.stage = 'approval'; pemit(pr); } else if (from === 'render') startRender(pr); else startBuild(pr); }
+      else if (pm[2] === 'open' && pr.final) { if (process.platform === 'win32') spawnProc('explorer.exe', [`/select,${pr.final}`], { detached: true }); }
+      return json(res, pub(pr));
+    }
     if (p === '/api/state') return json(res, {
       demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE,
       agents: agents.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji, color: a.color, role: a.role, model: a.model, tools: a.tools, lens: a.lens, ...live[a.id], done: store.tasks.filter((t) => t.agent === a.id && t.status === 'done').length, cost: store.tasks.filter((t) => t.agent === a.id).reduce((s, t) => s + t.cost, 0) })),
       tasks: store.tasks.slice(-200).map(publicTask), hive: store.recentHive(120),
       approvals: [...approvals.values()].map(({ resolve, ...a }) => a),
       warrooms: store.warrooms.slice(-30).map(({ abort, ...w }) => w), pinned: store.pinned(),
+      productions: prods.slice(-30).map(pub),
     });
     if (p.startsWith('/api/tasks/') && req.method === 'GET') { const t = store.tasks.find((x) => x.id === p.split('/')[3]); return t ? json(res, t) : json(res, { error: 'not found' }, 404); }
     if (req.method === 'POST') {

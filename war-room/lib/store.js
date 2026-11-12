@@ -8,6 +8,8 @@ export class Store {
     fs.mkdirSync(path.join(dir, 'memory'), { recursive: true });
     this.tasks = this._read('tasks.json', []);
     this.warrooms = this._read('warrooms.json', []);
+    this.productions = this._read('productions.json', []);
+    for (const pr of this.productions) if (['brief', 'build', 'render'].includes(pr.stage)) { pr.pausedFrom = pr.stage; pr.stage = 'paused'; pr.note = 'The War Room restarted during this stage. Click Resume.'; }
     this.hive = fs.existsSync(this._p('hive.jsonl'))
       ? fs.readFileSync(this._p('hive.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)
       : [];
@@ -22,6 +24,7 @@ export class Store {
     this._timer = setTimeout(() => {
       fs.writeFileSync(this._p('tasks.json'), JSON.stringify(this.tasks.slice(-500), null, 1));
       fs.writeFileSync(this._p('warrooms.json'), JSON.stringify(this.warrooms.slice(-100), null, 1));
+      fs.writeFileSync(this._p('productions.json'), JSON.stringify(this.productions.slice(-60), null, 1));
     }, 300);
   }
   addHive(entry) {

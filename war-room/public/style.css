@@ -272,3 +272,20 @@ button.mini{font:800 10px var(--sans);padding:1px 7px;border-radius:6px;border:1
 .hbtn:hover{border-color:rgba(255,93,108,.5);color:var(--bad)}
 
 .pill.pb{color:var(--amber);border-color:rgba(255,179,71,.45)}
+
+/* studio */
+#studio{grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+.stuL{display:flex;flex-direction:column;gap:16px;min-width:0}
+#glForm textarea,#glForm input,.verdict input{width:100%;margin-bottom:8px}
+#glForm input,#apNotes{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:10px;padding:8px 10px;outline:none}
+.sel{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.prodP{min-height:420px}
+.prHead{display:flex;align-items:center;gap:12px} .prHead h2{font:700 20px var(--disp);margin:0;flex:1}
+.stepper div.bad{color:var(--bad);border-color:rgba(255,93,108,.5)}
+.verdict.bad{border-color:rgba(255,93,108,.6);background:linear-gradient(180deg,rgba(255,93,108,.1),rgba(13,18,27,.85))}
+.pbar{height:8px;border-radius:9px;background:rgba(126,160,214,.12);overflow:hidden;margin:12px 0 4px}
+.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--ok));transition:width .5s;box-shadow:0 0 12px var(--cyan)}
+video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-radius:14px;border:1px solid var(--line2);background:#000;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.glRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px dashed rgba(255,122,182,.4);border-radius:12px}
+.wrItem b.st-done{color:var(--ok)} .wrItem b.st-failed,.wrItem b.st-cancelled{color:var(--bad)} .wrItem b.st-approval{color:var(--violet)}
+@media (max-width:1180px){ #studio{grid-template-columns:minmax(0,1fr)} }

@@ -20,7 +20,7 @@
   <nav class="tabs" id="tabs">
     <button data-tab="mission" class="on"><span>Mission Control</span><kbd>1</kbd></button>
     <button data-tab="war"><span>War Room</span><kbd>2</kbd></button>
-    <button data-tab="hive"><span>Hive Mind</span><kbd>3</kbd></button>
+    <button data-tab="studio"><span>Studio</span><kbd>3</kbd></button>
     <button data-tab="intel"><span>Intel</span><kbd>4</kbd></button>
     <button data-tab="memory"><span>Memory</span><kbd>5</kbd></button>
   </nav>
@@ -71,7 +71,7 @@
     </div>
     <aside class="side">
       <div class="panel hud" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"></div></div>
-      <div class="panel hud grow"><h3>Live feed</h3><div id="hiveMini" class="feed"></div></div>
+      <div class="panel hud grow"><h3>Live feed <button class="hbtn" data-tab="hive" title="Open the full Hive Mind">All</button></h3><div id="hiveMini" class="feed"></div></div>
     </aside>
   </section>
 
@@ -91,6 +91,25 @@
 
   <!-- HIVE -->
   <section id="hive" class="view"><div class="panel hud full"><h3>Hive mind · everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
+
+  <!-- STUDIO: greenlight -> brief -> your approval -> Director builds -> GPU render -> QC -> the film -->
+  <section id="studio" class="view">
+    <div class="stuL">
+      <form class="panel hud" id="glForm">
+        <h3>🎬 Greenlight an idea</h3>
+        <textarea id="glSource" rows="3" placeholder="Which idea? e.g. “pitch #1 from the latest pitches”, or describe it in your own words"></textarea>
+        <input id="glNotes" placeholder="Optional notes, e.g. “make the ending at night”">
+        <div class="cmdrow">
+          <label class="sel">Quality <select id="glQuality"><option value="max">Max (16 samples)</option><option value="standard">Standard</option><option value="draft">Draft (quick look)</option></select></label>
+          <label class="sel">Builder <select id="glBuilder"><option value="opus">Opus (best)</option><option value="sonnet">Sonnet (lighter)</option></select></label>
+          <button class="primary" type="submit">Greenlight ⏎</button>
+        </div>
+        <p class="muted small">The Producer writes the production brief. Nothing is built until you press <b>Approve</b>. Then the Director builds it, your PC renders it on the GPU, and it is checked.</p>
+      </form>
+      <div class="panel hud"><h3>Productions</h3><div id="prodList"></div></div>
+    </div>
+    <div class="panel hud prodP" id="prodStage"></div>
+  </section>
 
   <!-- INTEL: the channel brain every agent reads, the numbers, and a drop zone for analytics screenshots -->
   <section id="intel" class="view">

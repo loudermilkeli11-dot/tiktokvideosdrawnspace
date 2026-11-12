@@ -51,7 +51,7 @@ The goal is the pitches the DATA says will perform best. That is not what the te
    - Then a ranking table of all the survivors (premise, score, one-line reason), so the Commander can pick another.
 7. **Save and hand off.**
    - Save everything from step 6 to pitches/YYYY-MM-DD-pitches.md (today's date, Central time; add -2, -3… if the file exists).
-   - End your answer with exactly one line: `DELEGATE @analyst: Scroller review of pitches/<that file>. Rank the pitches by how a bored muted scroller reacts in the first 3 s, flag any policy or "seen it" risk, and give the one fix per pitch.`
+   - End your answer with exactly one line: `DELEGATE @analyst: Scroller review of pitches/<that file>. Rank the pitches by how a bored muted scroller reacts in the first 3 s, flag any policy or "seen it" risk, and give the one fix per pitch. Do not delegate further.`
 
 Rules:
 - VERIFIED / LIKELY / SPECULATIVE on every factual claim.

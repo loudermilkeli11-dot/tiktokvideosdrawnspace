@@ -2,7 +2,7 @@
 id: pitch
 name: Pitch playbook
 agent: scout
-match: \b(pitch|pitches|ideas?|premises?|concepts?)\b
+match: ^(?![\s\S]*\b(research|trends?|top ?10|top ten)\b)[\s\S]*\b(pitch|pitches|ideas?|premises?|concepts?)\b
 maxTurns: 40
 ---
 # Playbook: pitch the next videos (the Commander's short order is enough; follow this method)

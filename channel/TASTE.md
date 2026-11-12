@@ -3,10 +3,10 @@
 Follow it. Rules are the Commander's own words. "Learned from votes" is distilled from their 👍 / 👎 by the Analyst.
 
 ## Commander's rules
-- 2026-11-12 (earth-stops v1 critique): Better, but not dramatic enough. More drama per beat: the event must hit PEOPLE we have watched.
-  - Put lots of full-colour people in frame like the reference hits, doing ordinary things (walking, chatting, laughing) before the disaster.
-  - Add comedic human moments: someone laughing or goofing off just before it hits, someone clinging to a pole while being blown sideways before letting go and getting swept away (cartoon-style, never gore).
-  - More variety: different places, angles, objects and gags; never the same kind of shot twice.
+- 2026-11-12 (from the earth-stops v1 critique; general guidance, not a checklist): Make it dramatic, and let the event hit people we have watched.
+  - Show plenty of full-colour people, like the reference hits, living ordinary life before the disaster.
+  - When it fits the story, add a light comedic human moment. Invent a new one each video; don't repeat the same gag (the earth-stops pole-cling was one example, not a template). Cartoon-style, never gore.
+  - Variety: different places, angles, objects and moments; never the same kind of shot twice.
   - No buildings sliding off each other in layers: it looks dumb. Destruction must look physical (breaking, tumbling, shattering).
   - Space views must be sharp and clean, never fuzzy or sloppy.
 - 2026-11-12: NO on-screen "DRAMATIZATION" tag. State any liberty in the post caption only.

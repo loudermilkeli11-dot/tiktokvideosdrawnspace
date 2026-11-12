@@ -55,3 +55,17 @@
 1. Push to `main` (Commander: I don't push).
 2. Run `.\pc\render_project.ps1 tsunami-524`, or `node tools/render_all.js … --quality max`.
 3. Then `tools/check.py` on `final.mp4`.
+
+## QC fix round (2026-11-12)
+- **Assemble failed, file ≥ 100 MB.** This is a tools mismatch, not a project bug: `render_all.js` max asks for `--target-mb 120`,
+  but `assemble.sh` refuses anything ≥ 100 MB (30.5 s at its 30 Mbps cap = 114 MB). Re-assembled with
+  `bash tools/assemble.sh projects/tsunami-524 --target-mb 95 --preset slow`, giving **92.4 MB** at 24.4 Mbps.
+- **White flash at f885** (orbit → bay loop cut, luma jumped 0.156 → 0.51, over the 0.35 limit). In s09_orbit, the slow pull-back
+  became a slow push-in (30,000 → 26,500 km), with exposure easing 1.0 → 1.4 and vignette 0.42 → 0.28. The last frame is now luma 0.27,
+  so the jump is about 0.24. Re-rendered at max on the GPU.
+- `check.py` on the new `final.mp4`: **RESULT PASS** (915 frames, 92.4 MB, −14.2 LUFS, 0 flashes, safe area OK).
+- Still a WARN: the fixed "DRAMATIZATION" tag (top left, y 118) falls to 1.9–2.9:1 over the noon sky. Its band is hard-coded
+  (`V2.tagBand` in `tools/overlay/ov.html`, with no per-tag override), so the project can't fix it.
+- WARN: the loop's first and last frames differ by 0.053 (the counter and crowd motion). Same as before; accepted.
+- **NEEDS APPROVAL:** a tools change, either `render_all.js` max `targetMb: 120 → 95` or an assemble limit raised to match. Until then,
+  every max-quality War Room render of a film over about 26 s fails at assemble.

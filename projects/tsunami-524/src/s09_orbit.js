@@ -14,7 +14,9 @@ S.run((t) => {
   const tt = t - 4, u = ease.inOutSine(clamp(tt / DUR));
   SH.update(S, t, { h: 0, show: false });
   SP.earth.rotation.y = 0.035 + tt * 0.012;
-  const mm = 40, pos = CAMDIR.clone().multiplyScalar(lerp(30000, 31500, u));
+  const mm = 40, pos = CAMDIR.clone().multiplyScalar(lerp(30000, 26500, u));
   applyCam(S.camera, { pos, look: aimFor(pos, 270, qn('sy', 460), mm), mm, roll: lerp(-10, -11, u) }, shake(t, 0.012, 0.4, 9));
+  // QC: the hard cut to the noon bay (luma 0.51) must not jump UP > 0.35; the orbit "eye-adjusts" brighter toward it
+  S.post.p.exposure = lerp(1.0, 1.4, u); S.post.p.vignette = lerp(0.42, 0.28, u);
   SP.update(S, t); sun.position.copy(S.camera.position).add(SUN); sun.target.position.copy(S.camera.position);
 });

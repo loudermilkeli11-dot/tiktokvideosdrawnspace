@@ -225,7 +225,8 @@ function renderProds() {
   const etaBox = etaTxt ? `<div class="eta">⏱ ${esc(etaTxt)}${pr.stats ? `<span class="muted small"> · ${pr.stats.shots} shots, ${pr.stats.frames} frames, ${esc(pr.quality)}, ${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'} builder</span>` : ''}</div>` : '';
   const prog = pr.stage === 'render' ? `<div class="pbar"><i style="width:${Math.round((pr.progress || 0) * 100)}%"></i></div><div class="muted small">${pr.waiting ? 'Waiting for the other render (one GPU)…' : `${Math.round((pr.progress || 0) * 100)}% of frames rendered`}</div>` : '';
   const film = pr.stage === 'done' ? `<video class="film" controls loop playsinline src="/api/productions/${pr.id}/video?v=${pr.finished || 0}"></video>
-      <div class="cmdrow"><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
+      <div class="postBox" id="postBox"></div>
+      <div class="cmdrow"><button class="ghost" data-pract="phone" data-id="${pr.id}">📱 Send to phone</button><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
   const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button><button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
   st.innerHTML = `<div class="stepper">${steps}</div>
     <div class="prHead"><h2>${esc(pr.title)}</h2>${busy ? `<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button>` : ''}</div>
@@ -233,6 +234,8 @@ function renderProds() {
     <h3 style="margin-top:14px">Production log</h3><div class="log" id="prLog">${(pr.log || []).map((l) => `<div>${hhmm(l.t)} ${esc(l.text)}</div>`).join('')}</div>
     ${pr.slug ? `<details ${pr.stage === 'approval' ? 'open' : ''}><summary class="muted small" style="margin-top:12px;cursor:pointer">Production brief · projects/${esc(pr.slug)}/PRODUCTION.md</summary><div class="md" id="prBrief">loading…</div></details>` : ''}`;
   const L2 = $('#prLog'); if (L2) L2.scrollTop = L2.scrollHeight;
+  if (pr.stage === 'done') api(`/api/productions/${pr.id}/post`).then((d) => { const b = $('#postBox'); if (!b || d.error) return; const cap = [d.caption, (d.hashtags || []).join(' ')].filter(Boolean).join('\n\n');
+    b.innerHTML = `<h3>Ready to post</h3>${d.cover ? `<div class="pRow"><span class="muted small">Cover</span><b>${esc(d.cover)}</b><button class="mini" data-copy="${esc(d.cover)}">Copy</button></div>` : ''}<div class="pRow"><span class="muted small">Caption + tags</span><span class="pCap">${esc(cap)}</span><button class="mini" data-copy="${esc(cap)}">Copy</button></div><p class="muted small">Turn on TikTok's AI-generated label.${d.slot ? ' Post at ' + esc(d.slot) + '.' : ''}</p>`; });
   if (pr.slug) api(`/api/productions/${pr.id}/brief`).then((d) => { const b = $('#prBrief'); if (b) b.innerHTML = md(d.text || '(not written yet)'); S.briefText = d.text; });
 }
 function greenlight(source, title) { document.querySelector('[data-tab="studio"]').click(); $('#glSource').value = source; if (title) $('#glSource').dataset.title = title; $('#glSource').focus(); }
@@ -339,3 +342,5 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('change', async (e) => { const k = e.target.dataset?.evt; if (k) await api('/api/notify', { events: { [k]: e.target.checked } }); });
 renderPhone();
+
+document.addEventListener('click', async (e) => { const c = e.target.closest?.('[data-copy]'); if (!c) return; try { await navigator.clipboard.writeText(c.dataset.copy); toast({ title: '📋 Copied' }); } catch {} });

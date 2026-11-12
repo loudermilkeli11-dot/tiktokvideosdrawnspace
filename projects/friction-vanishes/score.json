@@ -1,0 +1,89 @@
+{
+ "_note": "friction-vanishes score (38.0 s). Times from src/story.js: grip returns 5.0 (T_GRIP1, in-shot s02), slide reaches the quay 15.0 (T_QUAYHIT = s04 t0 + T_QUAY - tau0), grip returns 22.0 (T_GRIP2, hard cut to s06), loop cut 37.0 (T_LOOP). NO TICKS AT ALL and NO CRACKS (brief section 0: the tsunami 'ding'). Hits only at 5.0 / 22.0 / 37.0, low thud/crunch (impact + braaam + sub; main energy < 1 kHz); every other transition is a low whoosh in the shot sound. Risers keep noise low (no hiss sweep to 9 kHz dominating). Near-silence 26.5-30.5 = no score cues (only the 22.0 braaam tail decays out by ~26). Space 30.5-36.0: one slow low swell. TRUE silence 36.0-37.0, then the soft loop thud at 37.0. Known WARN: check.py's 'mid-range hit on every cut' rule will flag the cuts at 4.0/8.5/13.0/17.5/26.5/30.5 — by design (Studio open item: loosen the cut-hit rule). Do NOT add cracks to pass it.",
+ "master_peak_db": -3.0,
+ "reverb": {
+  "decay": 2.8,
+  "send": 0.18,
+  "predelay": 0.02
+ },
+ "risers": [
+  {
+   "_cue": "riser 1: from the match cut (8.5) climbing with the speed counter, peaks as the slide hits the quay (15.0)",
+   "t0": 8.5,
+   "t1": 15.0,
+   "gain_db": -15,
+   "speed": 0.25,
+   "noise": 0.25
+  },
+  {
+   "_cue": "riser 2: the town draining, rebuilds into the 22.0 hit",
+   "t0": 17.5,
+   "t1": 22.0,
+   "gain_db": -14,
+   "speed": 0.3,
+   "noise": 0.3
+  },
+  {
+   "_cue": "space: one slow low swelling drone, cut dead by the 36.0 silence",
+   "t0": 30.5,
+   "t1": 36.0,
+   "gain_db": -16,
+   "speed": 0.12,
+   "noise": 0.1
+  }
+ ],
+ "braaams": [
+  {
+   "_cue": "grip returns (step 1): under the shot's tyre-bite crunch",
+   "t": 5.0,
+   "gain_db": -7,
+   "decay": 2.6,
+   "root": 49.0
+  },
+  {
+   "_cue": "grip returns (step 2) on the hard cut to the hills: deep earth groan",
+   "t": 22.0,
+   "gain_db": -4,
+   "decay": 3.4,
+   "root": 41.2
+  }
+ ],
+ "impacts": [
+  {
+   "_cue": "frame 1: low thud under the brake squeal (loop partner of 37.0)",
+   "t": 0.0,
+   "gain_db": -10
+  },
+  {
+   "t": 5.0,
+   "gain_db": -3
+  },
+  {
+   "_cue": "first cars leave the quay edge (T_EDGE ~ 15.7) — the shot sound carries the water slams; this is the low body",
+   "t": 15.7,
+   "gain_db": -9
+  },
+  {
+   "t": 22.0,
+   "gain_db": -2
+  },
+  {
+   "_cue": "soft loop thud on the cut to the crossing",
+   "t": 37.0,
+   "gain_db": -9
+  }
+ ],
+ "big_hit": {
+  "t": 5.0,
+  "gain_db": -1,
+  "decay": 4.0,
+  "reverb_decay": 5.0
+ },
+ "silent": [
+  [
+   36.0,
+   37.0
+  ]
+ ],
+ "loop_silence_frames": 0
+}

@@ -1,0 +1,11 @@
+# friction-vanishes: 38.0 s = 1140 frames. Board: script.md. Law: src/story.js (SHOT table: t0, dur, T, tau0)
+# <name> <frames>
+s01_crossing 120
+s02_grip 135
+s03_minute 135
+s04_quay 135
+s05_town 135
+s06_hills 135
+s07_after 120
+s08_orbit 195
+s09_loop 30

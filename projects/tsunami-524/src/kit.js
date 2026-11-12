@@ -117,7 +117,8 @@ export function mountainMaterial(U, rest = null) {
           float sM = smoothstep(sl - 60., sl + 120., p.y) * (1. - smoothstep(0.55, 0.78, slope + 0.25*(n2 - 0.5)));
           c = mix(c, vec3(0.86,0.89,0.94)*(0.9 + 0.15*n2), sM);
           // the TRIMLINE: everything the water reached is stripped to bare, wet soil and rock (the real Lituya signature)
-          float lim = max(stripG, stripA.w*(1. - smoothstep(stripA.z*0.75, stripA.z, length(p.xz - stripA.xy))));
+          float tpA = 1. - smoothstep(0.7, 1.0, abs(p.x - stripA.x)/max(stripA.y, 1.));         // the run-up's strip (s02): x-centre, half-width
+          float lim = max(stripG, stripA.w*tpA - 25.*(1. - tpA));
           float tr = (1. - smoothstep(lim - 6., lim + 6. + 18.*(n2 - 0.5), p.y)) * step(-50., lim);
           vec3 bare = mix(vec3(0.24,0.20,0.15), vec3(0.36,0.31,0.24), n2) * (0.75 + 0.4*n3);
           bare = mix(bare, rock*0.8, smoothstep(0.5, 0.75, slope));

@@ -76,7 +76,9 @@ export function createMegaWave(S, o = {}) {
           f += topM * smoothstep(0.42, 0.66, n1*0.65 + n2*0.4);
           f += lipF * (smoothstep(0.62, 0.8, n1*0.6 + n2*0.45) * 0.75 + smoothstep(0.86, 0.97, lace)*0.5);
           f += tipM * smoothstep(0.3, 0.55, n2 + 0.15*n1);
-          f += faceM * (smoothstep(0.66, 0.82, n1*0.55 + w1*0.45 + 0.06*(1. - y01)) * 0.7 + smoothstep(0.86, 0.97, lace)*smoothstep(0.45, 0.62, w1)*0.55);
+          float lace2 = 1. - abs(2.*fbm2(wq*vec2(1./(0.018*Hs), 1./(0.03*Hs)) + 17.) - 1.);
+          f += faceM * (smoothstep(0.7, 0.86, n1*0.55 + w1*0.45 + 0.06*(1. - y01)) * 0.6 + smoothstep(0.86, 0.97, lace)*smoothstep(0.45, 0.62, w1)*0.5
+               + smoothstep(0.9, 0.98, lace2)*smoothstep(0.4, 0.6, n1)*0.45);
           f += toeM * smoothstep(0.42, 0.66, n1*0.6 + n2*0.45 + 0.08*smoothstep(15.5, 16.5, cp));
           f += backM * smoothstep(0.55, 0.75, n1*0.6 + w1*0.5) * 0.75;
           f += underM * smoothstep(0.66, 0.82, n1*0.7 + n2*0.3) * 0.45;

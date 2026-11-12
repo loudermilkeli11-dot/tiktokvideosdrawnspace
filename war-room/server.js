@@ -15,7 +15,7 @@ try { for (const l of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n
 
 const { loadAgents, READ_ONLY } = await import('./lib/agents.js');
 const { Store } = await import('./lib/store.js');
-const { runAgent, DEMO, MODE, CLAUDE_BIN } = await import('./lib/runner.js');
+const { runAgent, DEMO, MODE, CLAUDE_BIN, rateBus, probeUsage } = await import('./lib/runner.js');
 
 const PORT = +(process.env.WARROOM_PORT || 4747);
 const HOST = process.env.WARROOM_HOST || '127.0.0.1';
@@ -29,6 +29,12 @@ const WINDOW_MS = 5 * 3600e3, WINDOW_USD = +(process.env.WARROOM_WINDOW_USD || 2
 const DEEP_MODEL = process.env.WARROOM_DEEP_MODEL || 'claude-opus-5-5', ROUTER_MODEL = process.env.WARROOM_ROUTER_MODEL || 'claude-haiku-5-5';
 const weight = (model) => (/opus/.test(model || '') ? 2 : /haiku/.test(model || '') ? 0.5 : 1);
 let limitedUntil = 0;   // set when Claude says the plan's limit is reached
+// The Commander's rule: never go above PLAN_CAP (default 80%) of the plan's current 5-hour window. Real readings come from
+// Claude Code (rate_limit_event). At the cap: new work waits, running agents pause and re-queue (their saved files stay),
+// and everything resumes on its own when the 5-hour window resets.
+const PLAN_CAP = +(process.env.WARROOM_PLAN_CAP || 0.8);
+const plan = { five: null, fiveReset: null, seven: null, t: 0 };
+let capUntil = 0;
 const MAX_DEPTH = 2; // how many delegation hops an agent chain may take on its own
 
 const gitHead = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return '?'; } };
@@ -59,9 +65,35 @@ const windowSpend = () => spendLog.filter((e) => e.t > Date.now() - WINDOW_MS).r
 function usage() {
   const w = windowSpend(), used = store.tasks.filter((t) => t.status === 'running').reduce((a, t) => a + weight(t.model || byId[t.agent]?.model), 0);
   const oldest = spendLog.find((e) => e.t > Date.now() - WINDOW_MS);
-  const paused = limitedUntil > Date.now() ? 'limit' : w >= WINDOW_USD ? 'cap' : '';
-  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, resumeAt: paused === 'limit' ? limitedUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
+  const paused = limitedUntil > Date.now() ? 'limit' : capUntil > Date.now() ? 'plan' : (MODE !== 'plan' || plan.five == null) && w >= WINDOW_USD ? 'cap' : '';
+  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, plan: { ...plan, cap: PLAN_CAP }, resumeAt: paused === 'limit' ? limitedUntil : paused === 'plan' ? capUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
 }
+function onRate(info) {
+  const f = info.unifiedWindows?.five_hour, sv = info.unifiedWindows?.seven_day;
+  if (f && typeof f.utilization === 'number') { plan.five = f.utilization; plan.fiveReset = f.resetsAt ? f.resetsAt * 1000 : null; }
+  else if (info.rateLimitType === 'five_hour' && typeof info.utilization === 'number') { plan.five = info.utilization; plan.fiveReset = info.resetsAt ? info.resetsAt * 1000 : null; }
+  if (sv && typeof sv.utilization === 'number') plan.seven = sv.utilization;
+  plan.t = Date.now();
+  if (plan.five != null && plan.five >= PLAN_CAP && capUntil <= Date.now()) capHit();
+  else if (plan.five != null && plan.five < PLAN_CAP && capUntil > Date.now() && (!plan.fiveReset || plan.fiveReset < capUntil - 60e3)) capUntil = 0;   // the window already reset
+  emit('usage', usage());
+}
+function capHit() {
+  capUntil = Math.max(Date.now() + 5 * 60e3, (plan.fiveReset || Date.now() + 30 * 60e3) + 60e3);
+  const n = store.tasks.filter((t) => t.status === 'running');
+  for (const t of n) { t.capStop = true; aborts.get(t.id)?.abort(); }
+  const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): ${n.length} running task(s) paused, everything resumes about ${at}` });
+  emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.` });
+}
+rateBus.fn = onRate;
+let probing = false;
+async function refreshPlan(force) {   // keep the reading fresh while there is work, so we never start blind
+  if (MODE !== 'plan' || probing) return; const busy = store.tasks.some((t) => ['queued', 'running', 'team'].includes(t.status));
+  if (!force && (!busy || Date.now() - plan.t < 4 * 60e3)) return;
+  probing = true; try { await probeUsage(WORKSPACE); } catch {} probing = false; pump();
+}
+setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) emit('login', { text: r.error });
@@ -172,6 +204,7 @@ function logTo(task, e) { const entry = { t: Date.now(), ...e }; task.log.push(e
 function pump() {
   const u = usage();
   if (u.paused) return;
+  if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP) { capHit(); return; }
   const next = store.tasks.find((t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
   if (next) { runTask(next); pump(); }
 }
@@ -190,6 +223,7 @@ async function runTask(task) {
     r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
+  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(PLAN_CAP * 100)}% of your 5-hour usage; it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
   task.finished = Date.now(); task.result = r.text; task.cost += r.cost; task.turns = r.turns;
   task.status = abort.signal.aborted ? 'stopped' : r.ok ? 'done' : 'failed';
@@ -536,7 +570,7 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/tasks' && b.team) { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: `👥 ${b.text.slice(0, 200)}` }); const t = startTeam(b.text.trim(), !!b.deep); return json(res, publicTask(t)); }
       if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
-      if (p === '/api/resume') { limitedUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
+      if (p === '/api/resume') { limitedUntil = 0; capUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
       const cancel = (t) => {
         if (!t) return false;
         if (t.status === 'running') { aborts.get(t.id)?.abort(); hive({ agent: null, kind: 'info', text: `stopped @${t.agent}: ${t.title}` }); return true; }
@@ -594,6 +628,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  War Room ready → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${TOKEN ? '/?token=' + TOKEN : ''}`);
   console.log(`  Mode: ${MODE === 'plan' ? `PLAN (Claude Code on this PC, your Claude plan: ${CLAUDE_BIN})` : MODE === 'api' ? 'API (Claude Agent SDK, billed to ANTHROPIC_API_KEY)' : 'DEMO (simulated agents; install Claude Code and sign in for real ones)'}`);
-  console.log(`  Slots: ${SLOTS} (Haiku 0.5, Sonnet 1, Opus 2)   5-hour soft cap: $${WINDOW_USD} API-equivalent`);
+  console.log(`  Slots: ${SLOTS} (Haiku 0.5, Sonnet 1, Opus 2)   usage cap: ${Math.round(PLAN_CAP * 100)}% of the plan's 5-hour window${MODE === 'plan' ? '' : ` ($${WINDOW_USD} API-equivalent)`}`);
   console.log(`  Workspace: ${WORKSPACE}\n  Agents: ${agents.map((a) => a.emoji + ' ' + a.name).join('  ')}\n`);
 });

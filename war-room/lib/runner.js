@@ -27,6 +27,10 @@ export const MODE = process.argv.includes('--demo') ? 'demo'
   : (process.env.WARROOM_BACKEND || (process.env.ANTHROPIC_API_KEY ? 'api' : CLAUDE ? 'plan' : 'demo'));
 export const DEMO = MODE === 'demo';
 export const CLAUDE_BIN = CLAUDE;
+// Claude Code reports the plan's real usage windows (rate_limit_event: five_hour / seven_day utilization 0..1) on every run.
+export const rateBus = { fn: null };
+// a tiny 1-turn Haiku call that only refreshes the usage reading (costs a fraction of a cent)
+export async function probeUsage(cwd) { if (MODE !== 'plan') return null; return planRun1({ agent: { id: 'probe', prompt: '', model: 'claude-haiku-5-5', maxTurns: 1 }, tools: [], maxTurns: 1, prompt: 'Reply with OK.', cwd, onLog: () => {} }); }
 
 function toolSummary(b) {
   const i = b.input || {};
@@ -148,6 +152,7 @@ function planRun1(p) {
             else if (b.type === 'tool_use') p.onLog({ kind: 'tool', text: toolSummary(b) });
           }
         } else if (m.type === 'result') result = m;
+        else if (m.type === 'rate_limit_event' && m.rate_limit_info) { try { rateBus.fn?.(m.rate_limit_info); } catch {} }
       }
     });
     child.stderr.on('data', (d) => { err += d; if (err.length > 8000) err = err.slice(-8000); });

@@ -61,6 +61,7 @@ function taskCard(t) {
 function waitWhy(t) {
   const u = S.usage || {}, a = A(t.agent);
   if (u.paused === 'limit') return 'Paused: Claude reported a usage limit. Click Resume in the top bar to retry now.';
+  if (u.paused === 'plan') return `Paused: your 5-hour usage reached the ${Math.round((u.plan?.cap || 0.8) * 100)}% cap. It starts by itself after the reset.`;
   if (u.paused === 'cap') return `Paused: the 5-hour soft cap ($${u.cap}) was reached.`;
   if (a.status && a.status !== 'idle') return `Waiting for ${a.name} to finish its current task (one task per agent).`;
   const w = /opus/.test(t.model || a.model || '') ? 2 : /haiku/.test(t.model || a.model || '') ? 0.5 : 1;
@@ -164,14 +165,19 @@ function connect() {
 function renderUsage(u) {
   if (!u) return; S.usage = u;
   const at = u.resumeAt ? new Date(u.resumeAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-  const pct = Math.min(100, (u.window / u.cap) * 100);
-  $('#usage').innerHTML = u.paused === 'limit' ? `⏸ plan limit · back ${at} <button class="mini" data-resume>Resume</button>` : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+  const pl = u.plan && u.plan.five != null ? u.plan : null, capPct = Math.round((u.plan?.cap || 0.8) * 100);
+  const pct = pl ? Math.min(100, pl.five * 100) : Math.min(100, (u.window / u.cap) * 100);
+  $('#usage').innerHTML = u.paused === 'limit' ? `⏸ plan limit · back ${at} <button class="mini" data-resume>Resume</button>`
+    : u.paused === 'plan' ? `⏸ ${capPct}% cap · back ${at} <button class="mini" data-resume title="Override: start work anyway">Resume</button>`
+    : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : pl ? `5h plan · ${Math.round(pl.five * 100)}% <span class="dim">/ cap ${capPct}%</span>` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+  $('#usageBox').style.setProperty('--capx', capPct + '%');
+  $('#usageBox').title = pl ? `Your Claude plan: ${Math.round(pl.five * 100)}% of the current 5-hour window used${pl.fiveReset ? ' (resets ' + new Date(pl.fiveReset).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')' : ''}${pl.seven != null ? ', ' + Math.round(pl.seven * 100) + '% of the week' : ''}. New work pauses at ${capPct}% and resumes after the reset. This session: $${u.window.toFixed(2)} API-equivalent.` : 'Usage in the last 5 hours (API-equivalent dollars) and agent slots in use';
   renderBoard();
   $('#usageFill').style.width = pct + '%';
-  $('#usageBox').className = 'meter' + (u.paused ? ' paused hot' : pct > 80 ? ' hot' : pct > 50 ? ' mid' : '');
+  $('#usageBox').className = 'meter' + (pl ? ' plan' : '') + (u.paused ? ' paused hot' : pct >= capPct - 5 ? ' hot' : pct > 50 ? ' mid' : '');
   let dots = ''; for (let i = 0; i < u.slots; i++) dots += `<b class="${u.used >= i + 1 ? 'on' : u.used > i ? 'half' : ''}"></b>`;
   $('#slots').innerHTML = dots; $('#slots').title = `${u.used} of ${u.slots} agent slots in use (Haiku 0.5 · Sonnet 1 · Opus 2)`;
-  if (u.paused && S.lastPaused !== u.paused) toast({ c: '#ffd166', title: 'New work paused', text: u.paused === 'limit' ? `Your Claude plan's limit was reached. Resumes about ${at}.` : `The 5-hour soft cap was reached. Resumes about ${at}.` });
+  if (u.paused && S.lastPaused !== u.paused) toast({ c: '#ffd166', title: 'New work paused', text: u.paused === 'limit' ? `Your Claude plan's limit was reached. Resumes about ${at}.` : u.paused === 'plan' ? `Usage reached your ${capPct}% cap. Resumes about ${at}.` : `The 5-hour soft cap was reached. Resumes about ${at}.` });
   S.lastPaused = u.paused;
 }
 function toast({ c, title, text, task }) {

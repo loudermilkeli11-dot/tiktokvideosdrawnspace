@@ -296,3 +296,6 @@ video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-
 .task .why.team{color:var(--amber)}
 .task.team{border-color:rgba(255,179,71,.4);box-shadow:0 0 22px rgba(255,179,71,.08)}
 .task.team::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber),transparent);background-size:200% 100%;animation:shimmer 1.6s linear infinite}
+
+.meter .bar{position:relative}
+.meter.plan .bar::after{content:"";position:absolute;top:-2px;bottom:-2px;left:var(--capx,80%);width:2px;background:var(--warn);box-shadow:0 0 6px var(--warn)}

@@ -6,3 +6,7 @@ node_modules/
 projects/*/dist/
 projects/*/out/
 tools/_*
+
+# Obsidian (vault = channel/): app settings, and a private notes folder no agent reads
+channel/.obsidian/
+channel/private/

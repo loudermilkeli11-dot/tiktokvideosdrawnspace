@@ -139,7 +139,10 @@ function addFeedback(e) {
   // newest vote per item wins
   const latest = new Map(); for (const v of votes) latest.set(v.key, v);
   const recent = [...latest.values()].slice(-20).reverse().map((v) => `- ${v.vote > 0 ? '👍' : '👎'} "${v.title}"${v.reason ? `: ${v.reason}` : ''}`).join('\n');
-  const rules = all.filter((x) => x.type === 'rule').reverse().map((r) => `- ${new Date(r.t).toISOString().slice(0, 10)}: ${r.text}`).join('\n');
+  // the rules section is the Commander's to edit by hand (Obsidian): a new taught rule goes on top, nothing is rebuilt,
+  // so hand-added, edited or deleted rules stay that way (feedback.jsonl keeps the full history)
+  const old = tasteSection(tasteRead(), "Commander's rules");
+  const rules = e.type === 'rule' ? [`- ${new Date().toISOString().slice(0, 10)}: ${e.text}`, old].filter(Boolean).join('\n') : undefined;
   tasteWrite({ rules, recent });
   emit('taste', { md: tasteRead() });
   // every 5 new votes, the Analyst (cheap) re-distills the patterns
@@ -165,6 +168,7 @@ ${pinned}
 ${mine}
 
 # Team protocol
+- Never open channel/private/ or channel/.obsidian/: they are the Commander's private notes and app settings.
 - Start your final answer with one line: "SUMMARY: <what you did / found, one sentence>".
 - To hand work to a teammate, put on its own line: "DELEGATE @<agent-id>: <task>" (at most 2 per answer, only when needed).
 - To keep a durable lesson for future tasks: "REMEMBER: <fact>" on its own line.

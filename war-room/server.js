@@ -85,7 +85,7 @@ function capHit() {
   for (const t of n) { t.capStop = true; aborts.get(t.id)?.abort(); }
   const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): ${n.length} running task(s) paused, everything resumes about ${at}` });
-  notifier.send('usage', `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.`, { buttons: [{ text: '▶ Resume anyway', data: 'unpause' }] });
+  notifier.send('usage', `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.`, { photo: alertImg('usage'), buttons: [{ text: '▶ Resume anyway', data: 'unpause' }] });
   emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.` });
 }
 rateBus.fn = onRate;
@@ -98,7 +98,7 @@ async function refreshPlan(force) {   // keep the reading fresh while there is w
 setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
-  if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error); }
+  if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error, { photo: alertImg('setup') }); }
   if (r.needsUpdate && !globalThis.__updWarned) { globalThis.__updWarned = 1; emit('login', { title: '⬆️ Update Claude Code', text: r.updateNote }); hive({ agent: null, kind: 'info', text: r.updateNote }); }
   if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
   emit('usage', usage());
@@ -305,10 +305,11 @@ const pub = (pr) => ({ ...pr, log: (pr.log || []).slice(-80), eta: typeof etaOf 
 function prodAlert(pr) {
   const sig = `${pr.stage}|${pr.error || ''}`; if (pr.alertSig === sig) return; pr.alertSig = sig;
   const eta = etaOf(pr), when = eta ? ` If approved now, ready about ${new Date(eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : '';
-  if (pr.stage === 'approval') notifier.send('approval', `🎬 Approve "${pr.title}"?`, `The production brief is ready (projects/${pr.slug}/PRODUCTION.md).${when}`, { buttons: [{ text: '✅ Approve & build', data: `approve:${pr.id}` }, { text: '✖ Reject', data: `reject:${pr.id}` }] });
-  else if (pr.stage === 'done') { notifier.send('done', `🎬 Video ready: ${pr.title}`, `projects/${pr.slug}/out/final.mp4 is rendered and passed QC. Sending it to you now…`); sendToPhone(pr); }
-  else if (pr.stage === 'failed') notifier.send('failed', `⚠️ Production stopped: ${pr.title}`, (pr.error || 'Unknown problem').slice(0, 600), { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
-  else if (pr.stage === 'paused') notifier.send('failed', `⏸ Production paused: ${pr.title}`, pr.note || 'The War Room restarted during this stage.', { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
+  const steps = (k) => ['Brief', 'Approval', 'Build', 'Render', 'Film'].map((x, i) => (i < k ? '✅ ' : i === k ? '▶️ ' : '▫️ ') + x).join('  ');
+  if (pr.stage === 'approval') notifier.send('approval', `🎬 Approve "${pr.title}"?`, `The production brief is ready (projects/${pr.slug}/PRODUCTION.md).${pr.stats ? ` ${pr.stats.shots} shots, ${pr.quality} quality.` : ''}${when}`, { photo: alertImg('approval'), steps: steps(1), tab: 'studio', buttons: [{ text: '✅ Approve & build', data: `approve:${pr.id}` }, { text: '✖ Reject', data: `reject:${pr.id}` }] });
+  else if (pr.stage === 'done') { notifier.send('done', `🎬 Video ready: ${pr.title}`, `Rendered and passed QC. The video, caption and hashtags are on their way.`, { photo: alertImg('done'), steps: steps(5), tab: 'studio' }); sendToPhone(pr); }
+  else if (pr.stage === 'failed') notifier.send('failed', `⚠️ Production stopped: ${pr.title}`, (pr.error || 'Unknown problem').slice(0, 600), { photo: alertImg('failed'), steps: steps(['brief', 'approval', 'build', 'render'].indexOf(pr.failedAt || 'build')), tab: 'studio', buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
+  else if (pr.stage === 'paused') notifier.send('failed', `⏸ Production paused: ${pr.title}`, pr.note || 'The War Room restarted during this stage.', { photo: alertImg('usage'), tab: 'studio', buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
 }
 function postInfo(pr) {
   let j = {}; try { j = JSON.parse(fs.readFileSync(path.join(WORKSPACE, 'projects', pr.slug, 'POST.json'), 'utf8')); } catch {}
@@ -501,7 +502,21 @@ async function phoneCommand(raw) {
   }
   return 'Commands: /status · /approve · /reject · /resume';
 }
-const notifier = createNotifier(path.join(ROOT, 'data'), { onCommand: phoneCommand, log: (m) => console.error(m) });
+const ACT_KEY = crypto.randomBytes(12).toString('hex');   // action links in desktop notifications (this run only)
+let AUMID = '';
+if (process.platform === 'win32') setTimeout(() => { try { const r = spawnProc('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(ROOT, 'windows', 'register-toast.ps1')], { windowsHide: true }); let o = ''; r.stdout.on('data', (d) => (o += d)); r.on('close', () => { AUMID = o.trim().split(/\r?\n/).pop() || ''; }); } catch {} }, 1500);
+function desktopToast(kind, title, text, extra = {}) {
+  if (process.platform !== 'win32') return;
+  const base = `http://localhost:${PORT}`, act = (d) => { const [c, id] = String(d).split(':'); return `${base}/act/${ACT_KEY}/${c}/${id || '-'}`; };
+  const buttons = (extra.buttons || []).map((b) => ({ text: b.text.replace(/^[^\w]+\s*/u, ''), url: act(b.data) })).slice(0, 2);
+  buttons.push({ text: 'Open War Room', url: `${base}/${extra.tab ? '#' + extra.tab : ''}` });
+  const dir = path.join(ROOT, 'data', 'toast'); fs.mkdirSync(dir, { recursive: true });
+  const f = path.join(dir, `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.json`);
+  fs.writeFileSync(f, JSON.stringify({ title, body: text.slice(0, 300), attribution: `War Room · ${kind === 'approval' ? 'needs you' : kind}`, hero: path.join(ROOT, 'public', 'alerts', `${kind}.png`), logo: path.join(ROOT, 'public', 'icon-192.png'), buttons: buttons.slice(0, 3), scenario: kind === 'approval' ? 'reminder' : 'default', open: `${base}/`, aumid: AUMID }));
+  spawnProc('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(ROOT, 'windows', 'toast.ps1'), '-Json', f], { windowsHide: true, detached: true, stdio: 'ignore' }).unref();
+}
+const notifier = createNotifier(path.join(ROOT, 'data'), { onCommand: phoneCommand, desktop: desktopToast, log: (m) => console.error(m) });
+const alertImg = (kind) => path.join(ROOT, 'public', 'alerts', `${kind}.png`);
 
 // ---------------- War Room ----------------
 const demoSeat = (a, role, q) => () => role === 'marshal'
@@ -554,8 +569,8 @@ async function convene(wr) {
   finishWr(wr, 'awaiting');
 }
 function finishWr(wr, stage) {
-  if (stage === 'awaiting') notifier.send('approval', '⚔️ The council has a verdict', `"${wr.question.slice(0, 140)}": open the War Room tab to read the strategy and the Tenth Man, then seal it.`);
-  else if (stage === 'failed') notifier.send('failed', '⚠️ Council failed', (wr.error || wr.question).slice(0, 400));
+  if (stage === 'awaiting') notifier.send('approval', '⚔️ The council has a verdict',  `"${wr.question.slice(0, 140)}": open the War Room tab to read the strategy and the Tenth Man, then seal it.`, { photo: alertImg('approval'), tab: 'war' });
+  else if (stage === 'failed') notifier.send('failed', '⚠️ Council failed', (wr.error || wr.question).slice(0, 400), { photo: alertImg('failed'), tab: 'war' });
   wr.stage = stage; wr.finished = Date.now(); store.save(); emit('warroom', wr); hive({ agent: null, kind: 'warroom', text: `War Room ${stage === 'awaiting' ? 'returned a verdict on' : stage + ':'} "${wr.question.slice(0, 80)}"` }); }
 function dossierMarkdown(wr) {
   const d = new Date(wr.created).toISOString();
@@ -571,6 +586,10 @@ const json = (res, data, code = 200) => { res.writeHead(code, { 'content-type': 
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  { const am = url.pathname.match(/^\/act\/([0-9a-f]{24})\/(approve|reject|resume|unpause)\/([\w-]+)$/);
+    if (am) { const msg = am[1] === ACT_KEY ? await phoneCommand(`${am[2]}${am[3] !== '-' ? ':' + am[3] : ''}`) : 'This link has expired (the War Room restarted).';
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end(`<!doctype html><meta charset=utf-8><title>War Room</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#05070b;color:#e3e9f3;font:600 18px system-ui"><div style="padding:28px 34px;border:1px solid #4fd1ff55;border-radius:16px;background:#0d121b;max-width:520px">${msg.replace(/[<>&]/g, '')}<p style="color:#7f8ba0;font-size:13px">You can close this tab. <a style="color:#4fd1ff" href="/">Open the War Room</a></p></div><script>setTimeout(()=>window.close(),4000)</script></body>`); } }
   if (TOKEN) {
     const ok = (req.headers.cookie || '').includes(`wr_token=${TOKEN}`) || url.searchParams.get('token') === TOKEN;
     if (!ok) { res.writeHead(401, { 'content-type': 'text/plain' }); return res.end('War Room locked. Open with ?token=YOUR_TOKEN once.'); }

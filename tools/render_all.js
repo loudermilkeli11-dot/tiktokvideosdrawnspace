@@ -13,7 +13,7 @@ const ROOT = path.resolve(__dirname, '..'); process.chdir(ROOT);
 const P = A[0] && path.normalize(A[0]).replace(/[\\/]+$/, '').replace(/\\/g, '/');
 if (!P || !fs.existsSync(path.join(P, 'shots.txt'))) { console.error('usage: node tools/render_all.js projects/<slug> [--quality draft|standard|max] [--shots a,b] [--reuse] [--jobs N]'); process.exit(2); }
 const Q = opt('quality', 'standard'), only = opt('shots', '') ? opt('shots').split(',').map((x) => x.trim()) : null, assemble = !A.includes('--no-assemble') && Q !== 'draft';
-const PROFILE = { draft: { scale: 0.5, mb: 1, crf: 18 }, standard: { scale: 1, mb: '', crf: 12 }, max: { scale: 1, mb: 16, crf: 8, targetMb: 120, preset: 'slow' } }[Q];
+const PROFILE = { draft: { scale: 0.5, mb: 1, crf: 18 }, standard: { scale: 1, mb: '', crf: 12 }, max: { scale: 1, mb: 16, crf: 8, targetMb: 95, preset: 'slow' } }[Q];
 if (!PROFILE) { console.error('quality must be draft, standard or max'); process.exit(2); }
 if (process.platform === 'win32' && process.env.IJ_GPU === undefined) process.env.IJ_GPU = '1';   // the PC's graphics card
 const GPU = process.env.IJ_GPU === '1', JOBS = Math.max(1, +opt('jobs', GPU ? 2 : 1));      // 2 shots at once keep the GPU busy

@@ -12,12 +12,12 @@ TAIL=0.6; TARGET_MB=85; PRESET=medium
 while [ $# -gt 0 ]; do case "$1" in
   --tail) TAIL="$2"; shift 2;; --target-mb) TARGET_MB="$2"; shift 2;; --preset) PRESET="$2"; shift 2;;
   *) echo "unknown arg $1" >&2; exit 2;; esac; done
-PROJ="$(cd "$PROJ" && pwd)"; OUT="$PROJ/out"; TMP="$OUT/tmp"
+PROJ="$(cd "$PROJ" && pwd)"; OUT="$PROJ/out"; TMP="$OUT/tmp.$$"   # per-run folder: a folder locked by a crashed run (Windows) never blocks the next one
 FPS=30; FF="ffmpeg -hide_banner -nostdin -loglevel error -y"
 # python: python3 on Linux; on Windows (Git Bash) python3 can be the Store stub, so fall back to python
 PY=${PYTHON:-python3}; "$PY" -c "import numpy" >/dev/null 2>&1 || PY=python
 python3() { command "$PY" "$@"; }
-rm -rf "$TMP"; mkdir -p "$TMP"; trap 'rm -rf "$TMP"' EXIT
+rm -rf "$OUT"/tmp "$OUT"/tmp.* 2>/dev/null; mkdir -p "$TMP"; trap 'rm -rf "$TMP"' EXIT
 T0=$(date +%s)
 
 # ---------- shots

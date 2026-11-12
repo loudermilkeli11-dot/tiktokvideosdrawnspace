@@ -14,6 +14,11 @@ foreach ($p in ($procs | Sort-Object { if ($_.Name -eq 'node.exe') { 1 } else { 
     Write-Host "  stopping $($p.Name) (pid $($p.ProcessId))"
     Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
 }
+# 1b. leftover render processes from a crashed or cancelled render (they lock files in projects\<slug>\out)
+Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and (
+    ($_.Name -eq 'node.exe' -and $_.CommandLine -match 'tools[\\/](render_all|render|audio|frames)\.js') -or
+    ($_.Name -eq 'ffmpeg.exe' -and $_.CommandLine -match 'projects[\\/]')) } |
+    ForEach-Object { Write-Host "  stopping leftover $($_.Name) (pid $($_.ProcessId))"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 # 2. anything still holding the port
 Start-Sleep -Milliseconds 800
 try {
@@ -29,6 +34,7 @@ New-WarRoomShortcut -Path $s.Startup -Script (Join-Path $PSScriptRoot 'run.ps1')
 New-WarRoomShortcut -Path $s.Desktop -Script (Join-Path $PSScriptRoot 'open.ps1') -Description 'Open the War Room'
 New-WarRoomShortcut -Path $s.Menu -Script (Join-Path $PSScriptRoot 'open.ps1') -Description 'Open the War Room'
 
+& (Join-Path $PSScriptRoot 'register-toast.ps1') | Out-Null   # Windows notifications show as "War Room"
 # 4. start + open, then report what is running
 & (Join-Path $PSScriptRoot 'open.ps1')
 for ($i = 0; $i -lt 40; $i++) { if (Test-WarRoomUp -Port $port) { break }; Start-Sleep -Milliseconds 250 }

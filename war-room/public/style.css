@@ -311,3 +311,5 @@ video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-
 .postBox{margin:10px 0;padding:12px 14px;border:1px solid rgba(74,222,128,.35);border-radius:12px;background:rgba(74,222,128,.05)}
 .pRow{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:start;margin:6px 0}
 .pCap{white-space:pre-wrap}
+
+.phoneDot{cursor:pointer;filter:grayscale(1);opacity:.45;font-size:15px} .phoneDot.on{filter:none;opacity:1;text-shadow:0 0 10px var(--ok)}

@@ -31,7 +31,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 - `check.py`: contact sheets plus checks for frames, size, loudness, flashes (upward jumps only), jumps, cut hits (above 200 Hz), silence and text contrast (A4, ≥ 3:1 after yuv420p). `--contrast overlay.mov --bg clean.mp4 --every 0.2` checks type before assembly.
 - `overlay/`: Studio v2 look (`style: {look: 'v2'}`); any title, caption or counter item takes `band` for a stronger backing band over bright picture.
 - `cloud/`: `RENDER_BRANCH=render-<x> snapshot.sh` (pages → a per-batch branch, so batches can run while others build) → `plan.py --chunk N --shots a,b` (chunks + worker prompts) → `create_session` per chunk (source_revision `render`, clone_depth 1, model claude-fable-5-2) → `collect.sh` → `join.sh`. Proven: about 2 min for 6 frames; cloud and local frames match.
-- Commander's PC (Dragon1, Intel Iris Xe, D3D11): 0.10 s per frame on gravity-flip s07 with `IJ_GPU=1` (2026-11-11), vs about 9 s in the cloud. Prefer it for renders.
+- Commander's PC (Dragon1, Intel Iris Xe, D3D11): 0.10 s per frame on gravity-flip s07 with `IJ_GPU=1` (2026-11-11), vs about 9 s in the cloud. Prefer it for renders: the Commander runs `.\pc\render_project.ps1 <slug>` in PowerShell (pull, build, GPU render, sound, score, captions, assemble, QC; `-Shots a,b` for a partial redo). Push the project to `main` first.
 - Measured speed (cloud CPU): about 9 s per frame alone, or about 18 s per frame with 2 renderers in parallel, at full size with 4 samples (hook shot).
 
 ## Projects

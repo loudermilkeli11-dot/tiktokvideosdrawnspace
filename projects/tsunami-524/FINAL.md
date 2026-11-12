@@ -1,4 +1,24 @@
-# tsunami-524: Director hand-over (2026-11-11): BLOCKED at Gate 0
+# tsunami-524: Director hand-over: Gate 0 FAILED (2026-11-12)
+
+## Gate 0 verdict, 2026-11-12 (GPU, IJ_GPU=1): FAIL on 3 of 5 checks
+Pages built from `src/t01_light.js` and `src/t02_town.js`, unchanged (crest 100 m, 150 m/s). Key frames at scale 0.5 are in `out/gate0/` (t01: 0.5 / 2.2 / 4.0 / 5.8 s; t02: 0.5 / 3.0 / 5.0 / 7.5 s). The full-size 4-sample frames are in `out/gate0/full/`.
+| # | check | result | what the frames show |
+|---|---|---|---|
+| 1 | lighthouse + crest in frame ≥ 2 s, "taller than the lighthouse" with no caption | **FAIL** | t01 frames the mouth's headland and buildings; the lighthouse is at most a thin sliver on the right edge, so there's no scale read. |
+| 2 | face has body: dark green-blue, foam streaks, breaking lip; no white strip, no "rain" | **FAIL** | The face is a blue gradient covered in evenly spaced vertical white streaks. It reads as rain or a curtain. There's no breaking lip, and the crest is a soft haze. Close up (t02 5.0 s) the whole frame is a pale sheet of streaks. |
+| 3 | the town shore is hit and the surge visibly climbs over buildings | **FAIL** | No impact is shown. At t02 7.5 s the town is already under a flat, see-through sheet, with the buildings showing as ghost rectangles below it. Nothing climbs over anything. After the crest passes the camera (t01 4.0 / 5.8 s), the scene inverts: the water surface is overhead like a sky, above a dry sand floor. |
+| 4 | ≤ 40 px/frame without blur, no white flashes | not verified | 4 stills can't show it. No white flash appears in them. |
+| 5 | ≤ 0.5 s/frame on the GPU, full size, 4 samples | **PASS** | 0.3 s/frame (t01 at 2.2 / 2.3 s, scale 1, mb 4) |
+
+**Per the brief:** any failed check moves the build to the fallback, pitch #2 "every satellite collides". The Director reports the switch to the Producer and does not patch around the failure. So no tsunami shots were built. The fallback has no PRODUCTION.md yet, so the Producer needs to write one and the Commander needs to approve it before anything is built.
+
+**If the Commander wants to save the tsunami anyway (NEEDS APPROVAL, the Commander's call, not the brief's):** it needs a real wave rebuild, not tweaks:
+- a front face with an overhanging lip (a mesh, not a height field), with the streak foam swapped for flow-aligned noise;
+- opaque, churned water with debris over the town, instead of a see-through plane;
+- a camera that never ends up inside the water volume;
+- a lighthouse framing pass.
+
+Estimate: 1–2 Director sessions before a new Gate 0, with no guarantee it passes.
 
 ## Re-run 2026-11-12 06:02 UTC: still blocked
 I re-sent the order unchanged. `node tools/frames.js` and `python tools/build_page.py` were refused again, and `war-room/lib/runner.js:101` still emits `Bash(${b}:*)`. Gate 0 can't run, so I wrote no shots: the brief forbids build work before Gate 0 passes.

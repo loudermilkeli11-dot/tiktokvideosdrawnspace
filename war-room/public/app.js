@@ -50,11 +50,11 @@ function renderRoster() {
 function taskCard(t) {
   const a = A(t.agent);
   const dur = t.started ? ((t.finished || Date.now()) - t.started) / 1000 : 0;
-  const live = ['queued', 'routing', 'running'].includes(t.status);
+  const live = ['queued', 'routing', 'running', 'team'].includes(t.status);
   return `<div class="task ${t.status}" style="--c:${a.color}" data-task="${t.id}">${live ? `<button class="cx" data-stop="${t.id}" data-running="${t.status === 'running' ? 1 : ''}" title="${t.status === 'running' ? 'Stop this task' : 'Cancel this task'}">✕</button>` : ''}
     <div class="t">${a.emoji} ${esc(t.title)}</div>
     ${t.summary ? `<div class="s">${esc(t.summary)}</div>` : t.routeReason ? `<div class="s">→ ${esc(a.name)} · ${esc(t.routeReason)}</div>` : ''}
-    ${t.status === 'queued' ? `<div class="why">⏳ ${esc(waitWhy(t))}</div>` : ''}
+    ${t.status === 'queued' ? `<div class="why">⏳ ${esc(waitWhy(t))}</div>` : ''}${t.kind === 'team' ? `<div class="why team">👥 ${t.status === 'team' ? (t.plan ? `team at work: ${S.tasks.filter((c) => c.parent === t.id && c.status === 'done').length}/${t.plan.length} done` : 'Producer is planning…') : 'whole-team order'}</div>` : ''}
     <div class="f"><span class="pill">${t.status}</span>${t.deep ? '<span class="pill deep">deep</span>' : ''}${t.playbook ? `<span class="pill pb" title="Runs the ${esc(t.playbook)} playbook (war-room/playbooks/${esc(t.playbook)}.md)">📋 ${esc(t.playbook)}</span>` : ''}${t.by && t.by !== 'Commander' ? `<span>from ${A(t.by).emoji}</span>` : ''}${t.status === 'running' ? `<span data-start="${t.started}">${fmtDur(dur)}</span>` : dur ? `<span>${fmtDur(dur)}</span>` : ''}${t.cost ? `<span>$${t.cost.toFixed(2)}</span>` : ''}<span>${ago(t.created)} ago</span></div>
   </div>`;
 }
@@ -70,7 +70,7 @@ function waitWhy(t) {
 const fmtDur = (d) => (d < 60 ? (d | 0) + 's' : `${(d / 60) | 0}m ${String((d % 60) | 0).padStart(2, '0')}s`);
 function renderBoard() {
   const T = [...S.tasks].reverse();
-  const q = T.filter((t) => t.status === 'queued' || t.status === 'routing'), r = T.filter((t) => t.status === 'running'), d = T.filter((t) => ['done', 'failed', 'stopped'].includes(t.status)).slice(0, 40);
+  const q = T.filter((t) => t.status === 'queued' || t.status === 'routing'), r = T.filter((t) => t.status === 'running' || t.status === 'team'), d = T.filter((t) => ['done', 'failed', 'stopped'].includes(t.status)).slice(0, 40);
   $('#colQ').innerHTML = q.map(taskCard).join('') || '<div class="empty">Nothing queued.<br>Type an order above, or tap a quick order.</div>';
   $('#colR').innerHTML = r.map(taskCard).join('') || '<div class="empty">All agents standing by.</div>';
   $('#colD').innerHTML = d.map(taskCard).join('') || '<div class="empty">Finished work lands here.</div>';
@@ -204,7 +204,7 @@ const PST = [['brief', 'Brief'], ['approval', 'Your approval'], ['build', 'Build
 const prStage = (pr) => (pr.stage === 'failed' || pr.stage === 'paused' || pr.stage === 'cancelled' ? pr.stage : (PST.find((x) => x[0] === pr.stage) || [pr.stage, pr.stage])[1]);
 function renderProds() {
   const L = [...S.productions].reverse();
-  $('#prodList').innerHTML = L.map((pr) => `<div class="wrItem ${pr.id === S.prOpen ? 'on' : ''}" data-pr="${pr.id}"><b class="st-${pr.stage}">${esc(prStage(pr))}</b> · ${esc(pr.title)}<div class="muted small">${ago(pr.created)} ago · ${esc(pr.quality)}${pr.slug ? ' · ' + esc(pr.slug) : ''}${pr.cost ? ' · $' + pr.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">No productions yet. Greenlight an idea above, or use 🎬 on a pitch.</p>';
+  $('#prodList').innerHTML = L.map((pr) => `<div class="wrItem ${pr.id === S.prOpen ? 'on' : ''}" data-pr="${pr.id}"><b class="st-${pr.stage}">${esc(prStage(pr))}</b> · ${esc(pr.title)}<div class="muted small">${pr.eta && !pr.eta.waitingOnYou ? '⏱ ' + new Date(pr.eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' : ''}${ago(pr.created)} ago · ${esc(pr.quality)}${pr.slug ? ' · ' + esc(pr.slug) : ''}${pr.cost ? ' · $' + pr.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">No productions yet. Greenlight an idea above, or use 🎬 on a pitch.</p>';
   const pr = S.productions.find((x) => x.id === S.prOpen) || L[0]; const st = $('#prodStage');
   if (!pr) { st.innerHTML = '<div class="empty">🎬<br>Greenlit ideas appear here: the brief, your approval, the build, the GPU render and the finished film.</div>'; return; }
   S.prOpen = pr.id;
@@ -215,13 +215,15 @@ function renderProds() {
       <input id="apNotes" placeholder="Optional changes for the Director, e.g. “swap shot 4 for a city street”">
       <div class="cmdrow"><label class="sel">Quality <select id="apQuality">${['max', 'standard', 'draft'].map((q) => `<option ${q === pr.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label><label class="sel">Builder <select id="apBuilder"><option value="opus" ${pr.builder !== 'sonnet' ? 'selected' : ''}>Opus</option><option value="sonnet" ${pr.builder === 'sonnet' ? 'selected' : ''}>Sonnet</option></select></label>
       <button class="ghost" data-prcopy="${pr.id}" title="Copy the brief as a prompt for any Claude session">📋 Copy as prompt</button><button class="no" data-pract="cancel" data-id="${pr.id}">Reject</button><button class="primary" data-pract="approve" data-id="${pr.id}">Approve & build ⏎</button></div></div>` : '';
+  const e = pr.eta, etaTxt = e ? `${e.waitingOnYou ? 'If approved now, ready' : 'Ready'} ${e.approx ? 'about' : 'at'} ${new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })} · ${e.minutes < 60 ? e.minutes + ' min' : (e.minutes / 60).toFixed(1) + ' h'} left` : '';
+  const etaBox = etaTxt ? `<div class="eta">⏱ ${esc(etaTxt)}${pr.stats ? `<span class="muted small"> · ${pr.stats.shots} shots, ${pr.stats.frames} frames, ${esc(pr.quality)}, ${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'} builder</span>` : ''}</div>` : '';
   const prog = pr.stage === 'render' ? `<div class="pbar"><i style="width:${Math.round((pr.progress || 0) * 100)}%"></i></div><div class="muted small">${pr.waiting ? 'Waiting for the other render (one GPU)…' : `${Math.round((pr.progress || 0) * 100)}% of frames rendered`}</div>` : '';
   const film = pr.stage === 'done' ? `<video class="film" controls loop playsinline src="/api/productions/${pr.id}/video?v=${pr.finished || 0}"></video>
       <div class="cmdrow"><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
   const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button><button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
   st.innerHTML = `<div class="stepper">${steps}</div>
     <div class="prHead"><h2>${esc(pr.title)}</h2>${busy ? `<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button>` : ''}</div>
-    <p class="muted small">${esc(pr.source.slice(0, 220))}</p>${actions}${tail}${prog}${film}
+    <p class="muted small">${esc(pr.source.slice(0, 220))}</p>${etaBox}${actions}${tail}${prog}${film}
     <h3 style="margin-top:14px">Production log</h3><div class="log" id="prLog">${(pr.log || []).map((l) => `<div>${hhmm(l.t)} ${esc(l.text)}</div>`).join('')}</div>
     ${pr.slug ? `<details ${pr.stage === 'approval' ? 'open' : ''}><summary class="muted small" style="margin-top:12px;cursor:pointer">Production brief · projects/${esc(pr.slug)}/PRODUCTION.md</summary><div class="md" id="prBrief">loading…</div></details>` : ''}`;
   const L2 = $('#prLog'); if (L2) L2.scrollTop = L2.scrollHeight;
@@ -266,7 +268,7 @@ document.addEventListener('click', async (e) => {
   else if ((x = el('[data-wrplan]'))) { x.disabled = true; const r = await api(`/api/warroom/${x.dataset.wrplan}/plan`, {}); x.textContent = `Sent ${r.tasks} tasks ✓`; }
   else if ((x = el('[data-wrstop]'))) await api(`/api/warroom/${x.dataset.wrstop}/stop`, {});
 });
-$('#cmd').addEventListener('submit', async (e) => { e.preventDefault(); const text = $('#cmdText').value.trim(); if (!text) return; $('#cmdText').value = ''; await api('/api/tasks', { text, agent: $('#cmdAgent').value, deep: $('#cmdDeep').checked }); $('#cmdDeep').checked = false; });
+$('#cmd').addEventListener('submit', async (e) => { e.preventDefault(); const text = $('#cmdText').value.trim(); if (!text) return; $('#cmdText').value = ''; await api('/api/tasks', { text, agent: $('#cmdAgent').value, deep: $('#cmdDeep').checked, team: $('#cmdTeam').checked }); $('#cmdDeep').checked = false; });
 $('#cmdText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#cmd').requestSubmit(); } });
 function autosize() { const t = $('#cmdText'); t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; }
 $('#cmdText').addEventListener('input', autosize);

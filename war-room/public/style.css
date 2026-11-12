@@ -289,3 +289,10 @@ video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-
 .glRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px dashed rgba(255,122,182,.4);border-radius:12px}
 .wrItem b.st-done{color:var(--ok)} .wrItem b.st-failed,.wrItem b.st-cancelled{color:var(--bad)} .wrItem b.st-approval{color:var(--violet)}
 @media (max-width:1180px){ #studio{grid-template-columns:minmax(0,1fr)} }
+
+.eta{margin:10px 0;padding:9px 12px;border-radius:10px;border:1px solid rgba(79,209,255,.35);background:rgba(79,209,255,.06);font-weight:800;color:var(--cyan)}
+.toggle.team input:checked + span{background:var(--amber);box-shadow:0 0 12px rgba(255,179,71,.5)}
+.toggle.team:has(input:checked){color:var(--amber)}
+.task .why.team{color:var(--amber)}
+.task.team{border-color:rgba(255,179,71,.4);box-shadow:0 0 22px rgba(255,179,71,.08)}
+.task.team::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber),transparent);background-size:200% 100%;animation:shimmer 1.6s linear infinite}

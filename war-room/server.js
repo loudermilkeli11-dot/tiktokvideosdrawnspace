@@ -67,7 +67,7 @@ function noteResult(r) {
   if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
   emit('usage', usage());
 }
-setInterval(() => { emit('usage', usage()); pump(); }, 60e3);
+setInterval(() => { emit('usage', usage()); pump(); for (const pr of store.productions) if (['brief', 'approval', 'build', 'render'].includes(pr.stage)) emit('production', { ...pr, log: (pr.log || []).slice(-80), eta: etaOf(pr) }); }, 60e3);
 
 // ---------------- context every agent gets ----------------
 const BRAIN_F = () => path.join(WORKSPACE, 'channel', 'BRAIN.md');
@@ -152,14 +152,14 @@ async function route(text) {
 }
 
 // ---------------- tasks ----------------
-async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false, playbook = null, model = null, production = null, demoText = null }) {
+async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false, playbook = null, model = null, production = null, demoText = null, usePlaybooks = false }) {
   const task = { deep: !!deep, production, demoText, id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
   store.tasks.push(task); store.save(); emit('task', publicTask(task));
   try { if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; } }
   catch (e) { task.status = 'failed'; task.summary = `Could not route this order: ${e?.message || e}`; task.log.push({ t: Date.now(), kind: 'error', text: task.summary }); store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
   if (!byId[task.agent]) { task.status = 'failed'; task.summary = `No agent "${task.agent}" is loaded (check war-room/agents).`; store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
   else task.routeReason = by === 'Commander' ? 'assigned by the Commander' : `delegated by ${by}`;
-  if (playbook) task.playbook = playbook; else if (by === 'Commander') { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
+  if (playbook) task.playbook = playbook; else if (by === 'Commander' || usePlaybooks) { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
   task.model = model || (deep ? DEEP_MODEL : byId[task.agent].model);
   task.status = 'queued'; store.save(); emit('task', publicTask(task));
   hive({ agent: by === 'Commander' ? null : by, kind: 'task', text: `→ @${task.agent}: ${task.title}` });
@@ -173,6 +173,9 @@ function pump() {
   const next = store.tasks.find((t) => t.status === 'queued' && live[t.agent]?.status === 'idle' && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
   if (next) { runTask(next); pump(); }
 }
+const waiters = new Map();   // taskId -> resolve(task) for team orders
+const settle = (t) => { const w = waiters.get(t.id); if (w) { waiters.delete(t.id); w(t); } };
+const waitFor = (t) => (['done', 'failed', 'stopped'].includes(t.status) ? Promise.resolve(t) : new Promise((r) => waiters.set(t.id, r)));
 async function runTask(task) {
   const agent = byId[task.agent];
   task.status = 'running'; task.started = Date.now(); store.save(); emit('task', publicTask(task));
@@ -202,13 +205,59 @@ async function runTask(task) {
       createTask({ text: m[2], agent: m[1], parent: task.id, depth: task.depth + 1, by: agent.id });
     }
   }
+  settle(task);
   pump();
+}
+
+// ---------------- team orders: one prompt to the whole War Room ----------------
+// The Producer (Opus) plans: NOW lines run in parallel, THEN lines run after them with their results, and the Producer
+// writes one answer for the Commander from everything the team produced. Each step is a normal task (playbooks apply).
+function startTeam(text, deep) {
+  const lead = byId.producer || agents[0];
+  const task = { id: uid(), kind: 'team', title: text.split('\n')[0].slice(0, 90), text, agent: lead.id, status: 'team', created: Date.now(), started: Date.now(), finished: null, result: '', cost: 0, turns: 0, log: [], parent: null, depth: 0, by: 'Commander', routeReason: 'whole team', model: DEEP_MODEL, deep };
+  Object.defineProperty(task, 'abort', { value: new AbortController(), enumerable: false });
+  store.tasks.push(task); store.save(); emit('task', publicTask(task));
+  runTeam(task).catch((e) => { task.status = 'failed'; task.summary = String(e?.message || e); task.finished = Date.now(); store.save(); emit('task', publicTask(task)); });
+  return task;
+}
+async function teamCall(task, prompt, maxTurns = 12) {
+  const lead = byId[task.agent];
+  const r = await runAgent({ agent: { ...lead, model: DEEP_MODEL }, prompt: `${teamContext(lead.id)}\n\n${prompt}`, cwd: WORKSPACE, tools: ['Read', 'Glob', 'Grep'], maxTurns,
+    onLog: (e) => logTo(task, e), canUseTool: async (n, i) => (READ_ONLY.has(n) ? { behavior: 'allow', updatedInput: i } : { behavior: 'deny', message: 'read-only' }), abort: task.abort,
+    demoText: () => (prompt.startsWith('TEAM PLAN') ? 'SUMMARY: (demo) plan.\nNOW @scout: Pitch 3 ideas for the next TikTok\nNOW @analyst: Review the latest stats\nTHEN @writer: Outline a board for the strongest pitch, using the stats review' : 'SUMMARY: (demo) the team answered.\nHere is the combined answer from the Scout, Analyst and Writer.') });
+  noteResult(r); task.cost += r.cost || 0; return r;
+}
+async function runTeam(task) {
+  logTo(task, { kind: 'info', text: 'Producer is planning who does what…' });
+  const roster = agents.filter((a) => a.id !== 'director').map((a) => `@${a.id}: ${a.role}`).join('\n');
+  const plan = await teamCall(task, `TEAM PLAN. The Commander gave the whole War Room this order:\n${task.text}\n\nYour team:\n${roster}\n\nPlan the smallest set of tasks (1–5) that fully answers it. Use the Channel brain. Write each task on its own line:\nNOW @<id>: <task>   (these run at the same time)\nTHEN @<id>: <task>  (these run after all NOW tasks, with their results)\nIf the order is a simple question you can answer yourself from the brain and files, skip the plan and answer it directly, starting with ANSWER:.\nNever plan building or rendering a video (the Studio tab does that, after the Commander approves).`, 10);
+  if (task.abort.signal.aborted) return endTeam(task, 'stopped', 'Stopped by the Commander.');
+  if (!plan.ok) return endTeam(task, 'failed', plan.error || 'The plan failed.');
+  const lines = [...(plan.text || '').matchAll(/^\s*(NOW|THEN)\s+@([a-z]+)\s*:\s*(.+)$/gim)].filter((m) => byId[m[2].toLowerCase()] && m[2].toLowerCase() !== 'director').slice(0, 6);
+  if (!lines.length) return endTeam(task, 'done', plan.text);
+  task.plan = lines.map((m) => `${m[1].toUpperCase()} @${m[2].toLowerCase()}: ${m[3]}`); store.save(); emit('task', publicTask(task));
+  logTo(task, { kind: 'info', text: `Plan: ${task.plan.join(' · ')}` });
+  const run = async (m, extra = '') => { const t = await createTask({ text: `${m[3]}\n\n(Part of the Commander's team order: "${task.text.slice(0, 300)}")${extra}`, agent: m[2].toLowerCase(), parent: task.id, depth: 1, by: 'producer', usePlaybooks: true }); return waitFor(t); };
+  const now = await Promise.all(lines.filter((m) => /now/i.test(m[1])).map((m) => run(m)));
+  if (task.abort.signal.aborted) return endTeam(task, 'stopped', 'Stopped by the Commander.');
+  const digest = (ts) => ts.map((t) => `## @${t.agent} (${t.status}): ${t.title}\n${(t.result || t.summary || '').slice(0, 6000)}`).join('\n\n');
+  const thenLines = lines.filter((m) => /then/i.test(m[1]));
+  const then = thenLines.length ? await Promise.all(thenLines.map((m) => run(m, `\n\nResults from the first wave:\n${digest(now).slice(0, 12000)}`))) : [];
+  if (task.abort.signal.aborted) return endTeam(task, 'stopped', 'Stopped by the Commander.');
+  logTo(task, { kind: 'info', text: 'Producer is writing the answer…' });
+  const fin = await teamCall(task, `TEAM ANSWER. The Commander's order:\n${task.text}\n\nWhat your team produced:\n${digest([...now, ...then]).slice(0, 30000)}\n\nWrite the ONE answer the Commander reads: lead with the answer, then the key numbers and evidence, then any decision they need to make. Name files the team saved. Flag disagreements between agents and where the data is thin. Start with "SUMMARY:".`, 6);
+  endTeam(task, fin.ok ? 'done' : 'failed', fin.text || fin.error);
+}
+function endTeam(task, status, text) {
+  task.status = status; task.result = text || ''; task.finished = Date.now();
+  task.summary = ((text || '').match(/^SUMMARY:\s*(.+)$/m) || [])[1] || (text || '').replace(/^ANSWER:\s*/, '').split('\n').find((l) => l.trim())?.slice(0, 200) || status;
+  store.save(); emit('task', publicTask(task)); hive({ agent: task.agent, kind: status, text: `👥 ${task.summary}` });
 }
 
 // ---------------- productions: greenlight -> brief -> Commander approval -> Director build -> GPU render -> QC -> done ----------------
 const PSTAGES = ['brief', 'approval', 'build', 'render', 'done'];
 const prods = store.productions;
-const pub = (pr) => ({ ...pr, log: (pr.log || []).slice(-80) });
+const pub = (pr) => ({ ...pr, log: (pr.log || []).slice(-80), eta: typeof etaOf === 'function' ? etaOf(pr) : null });
 function pemit(pr, line) { if (line) { (pr.log ||= []).push({ t: Date.now(), text: String(line).slice(0, 400) }); if (pr.log.length > 600) pr.log.splice(0, pr.log.length - 600); } store.save(); emit('production', pub(pr)); }
 async function startBrief(pr) {
   pr.stage = 'brief'; pemit(pr, 'Producer is writing the production brief…');
@@ -218,7 +267,7 @@ async function startBrief(pr) {
   pr.briefTask = t.id; pemit(pr);
 }
 async function startBuild(pr) {
-  pr.stage = 'build'; pemit(pr, `Director is building projects/${pr.slug} (${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'})…`);
+  pr.stage = 'build'; pr.buildStarted = Date.now(); pemit(pr, `Director is building projects/${pr.slug} (${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'})…`);
   const t = await createTask({ agent: 'director', production: pr.id, model: pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5',
     demoText: DEMO ? `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}` : null,
     text: `Build the approved production: projects/${pr.slug}/PRODUCTION.md (slug: ${pr.slug}).${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
@@ -232,10 +281,12 @@ function onProductionTask(task, r) {
     const m = (r.text || '').match(/BRIEF READY:\s*(projects\/([a-z0-9-]+))\/PRODUCTION\.md/i);
     if (!m) { pr.stage = 'failed'; pr.error = 'The Producer did not report BRIEF READY.'; return pemit(pr, pr.error); }
     pr.slug = m[2]; pr.title = (fs.existsSync(briefPath(pr)) ? (fs.readFileSync(briefPath(pr), 'utf8').match(/What if[^\n*]*(\*[^*]+\*)?[^\n]*\?/i) || [])[0] : null)?.replace(/\*/g, '') || pr.title;
+    pr.stats = briefStats(pr); calib.briefMin = ema(calib.briefMin, (Date.now() - pr.created) / 60e3); saveCalib();
     pr.stage = 'approval'; pemit(pr, `Brief ready: projects/${pr.slug}/PRODUCTION.md. Waiting for your approval.`);
     hive({ agent: 'producer', kind: 'info', text: `Production brief ready for approval: ${pr.title}` }); emit('notify', { title: '🎬 Brief ready for your approval', text: pr.title, production: pr.id });
   } else if (pr.stage === 'build') {
     if (!/BUILD COMPLETE/i.test(r.text || '')) { pr.stage = 'failed'; pr.error = ((r.text || '').match(/BUILD BLOCKED:.*$/m) || ['The Director did not report BUILD COMPLETE.'])[0]; return pemit(pr, pr.error); }
+    if (!pr.fixes && pr.stats?.shots) { const b = pr.builder === 'sonnet' ? 'sonnet' : 'opus'; calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / pr.stats.shots); saveCalib(); }
     pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
   }
 }
@@ -255,6 +306,7 @@ function startRender(pr) {
     if (pr.stage === 'cancelled') return pemit(pr, 'Render cancelled.');
     const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
     if (code === 0 && fs.existsSync(final)) {
+      if (pr.stats?.frames && pr.quality !== 'draft') { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); saveCalib(); }
       pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
       hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
     } else if (fs.existsSync(final) && (pr.fixes || 0) < 1) {
@@ -274,6 +326,28 @@ function sendVideo(req, res, f) {
   const st = fs.statSync(f), m = (req.headers.range || '').match(/bytes=(\d*)-(\d*)/);
   if (m) { const a = m[1] ? +m[1] : 0, b = m[2] ? +m[2] : st.size - 1; res.writeHead(206, { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'content-range': `bytes ${a}-${b}/${st.size}`, 'content-length': b - a + 1 }); return fs.createReadStream(f, { start: a, end: b }).pipe(res); }
   res.writeHead(200, { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'content-length': st.size }); fs.createReadStream(f).pipe(res);
+}
+
+// ---------------- ETA: estimates that learn from real runs (data/calib.json) ----------------
+const CALIB_F = path.join(ROOT, 'data', 'calib.json');
+const calib = Object.assign({ briefMin: 5, buildMinPerShot: { opus: 12, sonnet: 8 }, renderSecPerFrame: { max: 1.0, standard: 0.25, draft: 0.12 }, renderOverheadMin: 4 }, (() => { try { return JSON.parse(fs.readFileSync(CALIB_F, 'utf8')); } catch { return {}; } })());
+const saveCalib = () => { try { fs.writeFileSync(CALIB_F, JSON.stringify(calib, null, 1)); } catch {} };
+const ema = (old, v) => +(old * 0.6 + v * 0.4).toFixed(3);
+function briefStats(pr) {   // shots and frames from the board table in PRODUCTION.md
+  try { const md = fs.readFileSync(briefPath(pr), 'utf8'); const rows = md.split('\n').filter((l) => /^\|\s*`?s?\d{1,2}/i.test(l));
+    const frames = rows.map((l) => +((l.split('|')[2] || '').match(/\d{2,4}/) || [0])[0]).reduce((a, b) => a + b, 0);
+    return { shots: rows.length || 11, frames: frames > 300 ? frames : (rows.length || 11) * 100 }; } catch { return { shots: 11, frames: 1100 }; }
+}
+function etaOf(pr) {   // minutes left per stage -> finish time
+  const now = Date.now(), st = pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
+  const build = st.shots * calib.buildMinPerShot[b], render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1)) / 60 + calib.renderOverheadMin;
+  let left = 0;
+  if (pr.stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;
+  else if (pr.stage === 'approval') left = build + render;
+  else if (pr.stage === 'build') left = Math.max(2, build - (now - (pr.buildStarted || now)) / 60e3) + render;
+  else if (pr.stage === 'render') left = pr.progress > 0.03 ? ((now - pr.renderStarted) / 60e3) * (1 - pr.progress) / pr.progress + 2 : render;
+  else return null;
+  return { minutes: Math.round(left), at: now + left * 60e3, approx: pr.stage !== 'render' || !(pr.progress > 0.03), waitingOnYou: pr.stage === 'approval' };
 }
 
 // ---------------- War Room ----------------
@@ -409,13 +483,15 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/tasks/') && req.method === 'GET') { const t = store.tasks.find((x) => x.id === p.split('/')[3]); return t ? json(res, t) : json(res, { error: 'not found' }, 404); }
     if (req.method === 'POST') {
       const b = await body(req);
+      if (p === '/api/tasks' && b.team) { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: `👥 ${b.text.slice(0, 200)}` }); const t = startTeam(b.text.trim(), !!b.deep); return json(res, publicTask(t)); }
       if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
       if (p === '/api/resume') { limitedUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
       const cancel = (t) => {
         if (!t) return false;
         if (t.status === 'running') { aborts.get(t.id)?.abort(); hive({ agent: null, kind: 'info', text: `stopped @${t.agent}: ${t.title}` }); return true; }
-        if (t.status === 'queued' || t.status === 'routing') { t.status = 'stopped'; t.finished = Date.now(); t.log.push({ t: Date.now(), kind: 'info', text: 'Cancelled by the Commander.' }); emit('task', publicTask(t)); hive({ agent: null, kind: 'info', text: `cancelled: ${t.title}` }); return true; }
+        if (t.status === 'queued' || t.status === 'routing') { t.status = 'stopped'; t.finished = Date.now(); t.log.push({ t: Date.now(), kind: 'info', text: 'Cancelled by the Commander.' }); emit('task', publicTask(t)); hive({ agent: null, kind: 'info', text: `cancelled: ${t.title}` }); settle(t); return true; }
+        if (t.status === 'team') { t.abort?.abort(); for (const c of store.tasks.filter((x) => x.parent === t.id)) cancel(c); return true; }
         return false;
       };
       if ((m = p.match(/^\/api\/tasks\/(\w+)\/stop$/))) { const ok = cancel(store.tasks.find((x) => x.id === m[1])); store.save(); return json(res, { ok }); }

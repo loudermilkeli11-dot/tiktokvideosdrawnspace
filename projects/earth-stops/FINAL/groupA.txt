@@ -1,0 +1,88 @@
+earth-stops · Builder group A · s01_plaza, s02_street, s09_loop (2026-11-12)
+All frames checked on the GPU (IJ_GPU=1) with tools/frames.js. Nothing committed.
+
+FILES (all new; no shared file and no engine file edited)
+  src/s01_plaza.js + s01_plaza_sound.js
+  src/s02_street.js + s02_street_sound.js
+  src/s09_loop.js + s09_loop_sound.js
+  src/groupA_plaza.js   plazaSet(S) = the s01/s09 world (cityWorld + balcony + umbrellas + upwind river + facade glass +
+                        litter + fountain plume + dust); plazaLook(W) = the sky colours used by s01/s02/s09
+  src/groupA_dust.js    createDustA: the kit's dust, plus a ragged edge with tongues, stronger streak holes and a FLOOR mode
+  src/groupA_chips.js   createChipsA: the kit's chips, plus a burst velocity (windows burst OUTWARD) and a catch-the-flow
+                        ramp for things that were attached to the stopped ground (awnings, signs, panes)
+
+s01_plaza (0.0-8.0, e 0 -> 0.583). Best frames: 0.0 (frame 1), 2.0, 4.5.
+  - FRAME1_CAM exactly until 2.0; at 1.0 a 4-frame kick shake (kick dur 0.15, no flash); 2.0 -> 8.0 an eased push-in on
+    the LENS (32 -> 35 mm); 6.6 -> 8.0 an eased pan right to 9°, still moving at the cut (match cut on motion into s02).
+  - Added: 40 café/market umbrellas (low-poly, palette colours) that sit still until 1.0, then tip east and tumble away;
+    the upwind river (3,200 pieces: paper, leaves, shingles, roof panels, signs, glass) that starts just outside frame 1's
+    left edge, so it is hidden before the stop and enters within frames of it; a near ground band (1,100 skidding pieces);
+    glass off the north shopfront row (e 0.008-0.26); 700 litter pieces; a 1,400-droplet white fountain plume going east;
+    dust: a floor sheet over the paving + a 16 m sheet mid-plaza + a 26 m wall against the north facades; gradeDust up to 0.4.
+  - Samples 4 before 0.98, 12 after. Film time is unclamped (t - 4) so frame 0's blur sub-samples match s09's.
+  - Full-size frame: 0.6 s in frames.js, including ~0.2 s PNG encode (the same frame at 1 sample = 0.2-0.3 s), so
+    rendering takes about 0.35-0.4 s.
+
+GATE 0 (my verdict from the frames: PASS; the muted 3 s video check on the PC is still to do)
+  (1) reads "the ground stopped, everything got thrown sideways": YES. Trees stay (stripped to bare wood, leaning east),
+      lamps stay; every loose thing goes right together; no flash, no fireball, no smoke.
+  (2) at 1.0 everything loose starts right in the same frame: YES (1.03: the whole crowd smears right as one sheet).
+  (3) by 2.5 crowd, cars, fountain water streaming right, trees stripped: YES for the crowd, the fountain and the trees.
+      The plaza block has no road, so the cars that show are the street cars behind the tree ring plus the upwind river.
+      By the law (12x slower) the crowd crosses the frame in about 1.5 s, so the plaza is bare by about 3 s. From then on
+      the upwind river keeps the frame busy.
+  (4) <= 0.5 s per full-size frame: about 0.4 s render + 0.2 s PNG encode = 0.6 s as frames.js reports it.
+
+s02_street (8.0-15.0, e 0.583 -> 1.167). Best frames: 0.2, 3.5.
+  - Camera on the plaza-side sidewalk z -50.5, eye 1.9 m, 35 mm, track x -9 -> 3, pitch 1° (the shop row sits above the
+    caption band, the river is under it); 5.0 -> 7.0 an eased tilt up to 48°, still rising at the cut (s03 opens high).
+    A light buffeting shake (0.05°).
+  - Foreground frame: a painted green kerb guard rail 2.6 m ahead (bolted to the ground, so it stays). The lane nearest
+    the lens (z -54.75) is hidden: a car 3 m from the lens was one unreadable smear.
+  - Shopfront row on the north facades: 8 named shops (BAKERY, FLOWERS, BOOKS, CAFÉ, PHARMACY, SHOES, DELI, TOYS) with
+    canvas-text signs, striped awnings and stylised glass. The awnings flap harder and harder, then tear off, peel out
+    over the street and tumble east; the signs shiver, then go; the windows burst OUTWARD (glass + the shop's own goods),
+    then ride the flow east. Release times run left -> right with the track (e 0.61 -> 1.11).
+  - The river: 6,500 pieces at 8-22 m (wrap x ±130), plus 2,200 skidding on the near lanes; the kit's wrapped traffic
+    rolls through. Dust: a thin floor sheet, a low 1.8 m sheet on the near lanes, a 7 m sheet mid-street. gradeDust 0.42.
+  - Cost: hides the kit's crowd, hero and fountain drops (220+ m east, never in view) to skip their per-sub-sample loops.
+    Full-size frame 0.9 s in frames.js (12 samples, busy frame, PNG encode ~0.4 s); 0.5 s on the tilt-up frames.
+
+s09_loop (63.5-65.0). plazaSet + FRAME1_CAM at film tt - 1.5, samples = SAMPLES.s09_loop (4 = s01_pre).
+  - Checked: s09 t 1.50 (= film 0) and s01 t 0.00 are the same image (same crowd poses, birds, fountain, umbrellas).
+
+SOUND (API §22 names only; no hits at the hard cuts; no ticks; nothing bright repeating). WAVs in out/.
+  - s01: the pre-stop bed (crowd murmur, fountain, distant traffic) cut under the score's boom at 1.0; then a low
+    continuous roar (rumble + low-passed brown body + wind), scrapes crossing left -> right, 5 low-passed glass shatters
+    into the reverb, a low whoosh (f1 1500, -18 dB) into the 8.0 soft cut. Peak -6.8 dBFS.
+  - s02: the roar continuing, denser scrapes, 8 window bursts synced to the shop release times (sync constant in the
+    file), a two-tone car alarm low-passed and smeared in the wind, a low whoosh into 15.0. Peak -6.8 dBFS.
+  - s09: the SAME bed blocks, seeds and levels as s01's 0-1.0, so the loop is seamless. Peak -25.8 dBFS.
+
+RULES I BENT (and why)
+  - s01 "slow eased 2 m push north": done as a lens push (32 -> 35 mm). The rail is 1.8 m ahead and sits at the bottom edge;
+    even a 0.3 m dolly drops it out of frame, and 2 m would go through it.
+  - s02 camera at z -50.5 / eye 1.9 (brief: z ≈ -46, eye 1.7-4). From -44 the shops were a strip at the bottom and the
+    facade grid filled the frame.
+  - Sky: plazaLook sets the horizon to 0xc9d6dc (pale blue) instead of the kit's 0xd8dccf (grey-cream), so the sky reads
+    blue as in the references. My first try (warm 0xe8cfa0) went lilac.
+
+REQUESTS TO THE LEAD (phase 3)
+  1. Sky consistency: s03/s04 (group B) share the hero vantage. Either fold plazaLook's two colours into kit SKY
+     (zen 0x2a68c8, hor 0xc9d6dc), or have s03/s04 call plazaLook(W) from groupA_plaza.js. Otherwise the sky changes
+     colour across the 15.0 and 22.0 soft cuts.
+  2. Consider folding createDustA (floor mode, ragged edge) and createChipsA (burst velocity, ramp) into the kit;
+     s04's plaza river would gain from the floor sheet over the bright paving.
+  3. Kit cost: cityWorld.update loops 2,600 fountain drops and every person on each sub-sample even when they are 200+ m
+     out of view. A kit flag to skip them would save every plaza shot after e ≈ 0.3.
+
+KNOWN WEAK SPOTS
+  - Chips 8-12 m from the lens show stepped "comb" blur (12 samples over 0.53 m of film motion per frame). Accepted;
+    more samples cost render time.
+  - The kit's facades are a repetitive glass grid; my shop row only dresses the ground floor of the north block.
+  - s01 after about 3 s: the near half of the paving carries less debris than the far half.
+  - The kit's light is clean but not very golden; the hits are warmer. A kit-wide grade change is the lead's call.
+  - s02 sign text is readable only on the slower frames (PHARMACY, SHOES); the rest blur once they tear off.
+  - Look vs reference sheets: same family (flat-shaded low-poly, colourful props, foreground rail, dust grade). Still
+    short of the hits: there are no distant hills or haze layers behind the skyline, and only the 8 shop signs carry
+    readable text.

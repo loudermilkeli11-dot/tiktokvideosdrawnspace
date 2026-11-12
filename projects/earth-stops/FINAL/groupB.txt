@@ -1,0 +1,91 @@
+earth-stops · Builder group B · s03_towers, s04_river, s07_coast, s08_earth (2026-11-12)
+All 4 shots build (python tools/build_page.py …, +sound) and were checked on the GPU at half size; one full-size frame each
+was timed: s03 0.5 s, s04 0.5 s, s07 0.3 s, s08 0.3 s (all within the 0.5 s budget). Sound pages render to WAV
+(out/s0*_*.wav: peaks -14 / -13.5 / about -11 / -16.6 dBFS).
+
+FILES (all new; no shared or engine file touched)
+  src/s03_towers.js + _sound.js, src/s04_river.js + _sound.js, src/s07_coast.js + _sound.js, src/s08_earth.js + _sound.js
+  src/groupB_towers.js : N3. shearTowers() / plazaShear(): towers lose their top floors (city instance shortened, a floor
+                         at a time); released floors share city.js's facade material and fly east at V with real gravity
+                         and a slow tumble; floors that meet a standing wall downwind are crushed into it (clipped at
+                         the wall, precomputed and deterministic) and burst into chips round its sides; ragged columns
+                         and bent steel on every cut top; glass and cladding stripped off every stub. Also roofTank() and
+                         roofCrane() (built but NOT used; see s03).
+  src/groupB_orbit.js  : N6. createCoastBand(): a shell parented to SP.earth that reads space.js's coast SDF. It draws the
+                         surge only where the land lies EAST of the water, the bared shelf where the land lies WEST of it,
+                         east-west whitecap streaks over every ocean, a tan dust veil over land and cloud occlusion; lakes
+                         and island specks are filtered out. cloudShiftAt(e) drags the clouds east.
+
+PER SHOT (best frame time in brackets)
+- s03_towers [4.5]: the hero balcony at 62→66 mm on the north side of the plaza: the near row (building 52) and the
+  towers behind (59/60/58). Each tower's floors let go from the roof down, 0.42 s apart, and slide off right as a stepped
+  "deck of cards". 61/60 go at 0.3/0.6, the front tower 52 at 0.9, then the row behind up to 4.2, so the frame is never
+  still. Glass and cladding stream off the stubs, an ochre dust band sits at street level, and floors from upwind towers
+  cross the mid-ground. Camera: opens pitched up (handshake with s02's tilt-up), pans right 15→25°, and in the last 1.4 s
+  eases and tilts down for the soft cut to s04. Sound: the roar (rumble + low wind), 9 synthetic steel groans synced to the
+  roof releases, a concrete scrape per floor of tower 52, a glass hiss low-passed at 2.8 kHz, irregular low rattles, and
+  one low whoosh at the cut (f1 1.4 kHz, -18 dB).
+- s04_river [4.4]: FRAME1_CAM.pos with balcony() in frame, 27→25 mm and a calm drift. The same plaza transformed: the
+  same plazaShear (identical stubs to s03), trees stripped and the basin empty (kit), and the "deck" of tower-52/48/50
+  floors crossing behind the plaza. The upwind river is 4,200 chips torn loose upwind (x −560…−120) at a t0 computed so
+  they cross the frame mid-shot, plus 2,200 low chips skidding across the near paving. Colours are building materials
+  (concrete, render, roofing, glass, timber) with about 1 % painted signs. Six whole kit cars tumble across the plaza
+  (carPose hook, law motion, hops ≤ 1.6 m). Dust is in 5 layers from 5 to 58 m, gradeDust 0.55→0.65. Sound: a thicker
+  roar, rattle waves panning left→right, a paper rustle (low-passed), 2 low thuds per car synced to its crossing, and a
+  long scrape for the floors.
+- s07_coast [4.2]: Earth at ~900 km (not 400 km: the 4k Earth map is mush that close), mid-afternoon (subsolar 152°W,
+  14°N), off San Diego looking NNW along the California coast. The Pacific is on the LEFT, the land on the RIGHT and the
+  limb at the top. The surge is a white line the whole length of the coast with white water torn offshore, the sea is
+  streaked east, a faint dust veil lies over the land, and the clouds drag east. Slow drift north, 40→44 mm. Earth's yaw =
+  kit earthYaw (frozen). Sound: no air in orbit, so a deep rumble plus a far low-passed surge roar under riser 2.
+- s08_earth [11.3]: the same Sun and band. A pull-back from Baja (70 mm, 14,000 km) to the whole disc (35 mm, 25,000 km),
+  centred on the eastern Pacific, so the white line runs down the whole west coast of the Americas and the Gulf/Florida
+  shores. The camera stops at shot 8.5; earthYaw turns the planet again from film 61.0. Sound: a 61.8 Hz tone (a fifth
+  over the braaam root) plus an octave, the planet's rumble, and a soft low swell blooming at shot 9.0 (= T_RESTORE).
+  Everything is out by shot 10.8, before the score's true silence (62.85).
+
+PHYSICS / DRAMATIZATION NOTES (say these in FINAL)
+- PHYSICS FIX, PLEASE READ (caption C7 and the brief's "east-facing coast"): the sea keeps moving EAST, so it slams into
+  coasts whose land lies east of the water. Those are the WEST coasts of continents (California, the Americas' Pacific
+  coast, Europe/Africa's Atlantic coast). East coasts are drained instead (the water pulls away). I built it that way,
+  which also keeps east = screen-right in s07 (sea left, surge pushing right into the land). Please change C7
+  "Every east-facing coast | *gets hit.*" to e.g. "Every west coast | *gets hit.*" (it fits the board's c() line length),
+  and the script/PRODUCTION wording "east coast/east-facing" in s07/s08 to match.
+- Surge width: the inland reach is the law's drift(e) (1.35–1.9 km), floored at 2.5 px (s07) / 2.2 px (s08). The
+  offshore white water (8× drift) is illustrative. The cloud drag is ~120 km over 5 s against the real 1.9 km (rate
+  dramatized, so it reads from orbit).
+- s03/s04 tower timing: story.floorRelease puts every roof at e 0.02 and the 10th floor at 0.335 (film 1.2–5.0, inside s01,
+  where no tower is shown failing), so by s03 every top would be 400–600 m gone. groupB_towers.js holds the frames for
+  SHEAR_E0 = 1.18 e (story.js grants an illustrative destruction pattern) and then shears at the law's own 0.035 e spacing.
+  Every building ≥ 36 m loses min(10, floors − 3) floors.
+
+KIT / LAW REQUESTS FOR THE LEAD (phase 3)
+1. story.js: fold the delay in (floorRelease = (k) => 1.18 + 0.02 + 0.035 k) or export SHEAR_E0; groupB_towers already
+   wraps it.
+2. Continuity: e < 1.18 in s01/s02, so no tower fails there (consistent with my shots). Optional: add
+   `plazaShear(S, W, ev('s03_towers', 0))` to s02 so the facades already shed glass from e 0.6 (its strip window). s09 must
+   NOT use it.
+3. kit FILM_SPIN = 0.004 rad/s turns the planet only 0.6° in s08's last 2.5 s, so the restart barely reads. Suggest
+   0.03–0.05 (only s07/s08 use earthYaw; s07 is frozen, so only s08 changes).
+4. C7 caption wording (above).
+
+RULES BENT (and why)
+- s03: the crane and roof tanks were dropped (PRODUCTION's cut order #2). The shearing floors carry the shot, and any
+  crane falling east here lands through a stub. roofCrane()/roofTank() stay in groupB_towers.js if the lead wants them.
+- s07 altitude 900 km instead of 400 km (texture resolution).
+
+WEAK SPOTS (known)
+- s03: the "towers" are city.js mid-rises (40–80 m), not skyscrapers. Some big chips pass near the lens as blurred cards.
+  The undersides of the flying floors read grey-brown.
+- s04: the tumbling cars are motion-blurred dark smears at 31.75 m/s. The lower third (near paving) is the calmest area.
+  The dust layers read as a flat ochre band more than as blowing dust.
+- s07: the coast line is a fairly even white "rope" (noise-modulated). The land texture is soft. One Channel Island
+  blob at the bottom.
+- s08: the bared east-coast shelves are barely visible at disc scale. The restart is hard to see (request 3).
+- Type zones not machine-checked with inTypeZone. By eye: s07/s08 put the counter over dark ocean (good). In s03 the
+  counter (y 370–500) sits over the sliding floors, mid-tone and busy. In s04 the counter sits over debris and sky.
+  Please run check.py --contrast after the overlay.
+- Sound: the groans are synthetic sawtooth glides. Not yet mixed against score.json's risers.
+Contact check vs channel/references/look/sheet_*.jpg: same flat-shaded city kit, golden-amber dust grade rising s03→s04,
+balcony frame in s04, one clear cause→effect per shot, the event filling the frame (floors in s03/s04, the planet in s08).
+The gap I can't close here is readable text props (no signage).

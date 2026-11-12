@@ -1,0 +1,60 @@
+earth-stops · Builder group C · s05_bay, s06_town (2026-11-12)
+
+FILES (all new; no shared or engine file touched)
+- src/groupC_bay.js   the bay set + N4 "sideways sea". bayWorldC(S, o): the kit's bayWorld look (SUN, SKY, HAZE 900/16000, HEMI,
+                      styliseMat) rebuilt locally so I could (a) use a denser ocean grid (rings 360, segs 480), (b) repaint bay.js's
+                      NIGHT town in a stylised daytime palette (pastel walls, terracotta roofs, light rooftop clutter, warm paving,
+                      lawns, olive hills, wet ochre seabed with weed beds), (c) 1,700 houses instead of 900 (density),
+                      (d) cap towers within 700 m of the terrace at 16 m (they walled off the view) and move their roof clutter down,
+                      (e) hide the always-on red aircraft-warning sprites. Plus: 2,600 bare trees (story leafLeft/lean: stripped,
+                      leaning east), 30 boats (16 stranded on the drained floor, heeled over; the rest carried in the heap),
+                      crest spray (createSpray in EVENT time, real g, V-scale velocities, streak = SHUTTER_E), the upwind debris
+                      river over the town (createChips, wrap), roof shingles torn off each waterfront house as the front hits it.
+                      BAYC = the shared terrace (x 140, z 220, groundH + 110 m).
+- src/s05_bay.js, src/s05_bay_sound.js, src/s06_town.js, src/s06_town_sound.js
+
+N4: THE LAW AND THE LIBERTY (seaState(e), seaH() JS == seaB() GLSL, patched into ocean.js's shader at load like tsunami-524's tsukit)
+- Drained edge = the lagoon's west shore carried east by drift(e): x_d = -800 + V·e = 89 m at the cut, 327 m at 36.5, 549 m at 43.5.
+  West of it the water drops under the floor (seabed + puddles + stranded boats). This part is the law.
+- East of it the same water is squeezed toward the east shore as a ramp^1.8 heap, 90 -> 125 m tall in s05 (105 m by the end of
+  s06 as it spreads), front climbing ONLY east-facing shores: s05 from 40 m offshore to the promenade (+34 m), s06 racing inland
+  at 0.8 V. Over land the flood is a sheet sloping down to a white face. DRAMATIZATION (story.js "how far the bay heaps"): heap
+  height and the front's pace in s05 are illustrative. Strictly every parcel moves at V, so the real water would already be ~900 m
+  inland by 29.0 s; the heap/front is slowed so it reads, as the brief asked.
+
+s05_bay (29.0-36.5, e 2.333 -> 2.958): terrace rail across the bottom, 22 mm, pitch ~ -15 deg, slow pan right (look x 250 -> 450)
+  + 1.2 m drift. Drained floor with puddles and stranded boats on the left; a white-topped turquoise wall heaped against the east
+  shore on the right; the dense pastel town in the foreground; debris specks streaming right. Opens with the scene already in
+  motion; ends with the wall's foot at the east promenade (handshake to s06).
+  Frames checked (GPU, half size): 0.2, 3.7, 7.3. BEST FRAME: 3.7. Full-size 3.7 = 0.5 s.
+s06_town (36.5-43.5, e 2.958 -> 3.542): same terrace, 40 -> 44 mm, aimed NORTH-EAST (bearing 32 -> 50 deg, pitch -12 -> -13), slow
+  pan right with the flood: the wall's end face ploughs into the south-east town, houses topple (knocked over, sunk, hidden),
+  terracotta/white roof panels and shingles torn off and streaming right, trees laid flat, white spray streaking off the crest.
+  Ends at the peak (hard cut, HIT 2).
+  Frames checked: 0.2, 3.5, 6.8. BEST FRAME: 3.5. Full-size 3.5 = 0.4 s.
+Sound (both, rendered with tools/audio.js: peaks -5.7 / -5.2 dBFS): no hits at the cuts (score.json has them), no ticks. s05: the
+  air roar, one gull cut off in the first 0.4 s, the bay's low SUCK (brown noise, low-pass sweeping up, panned left -> right),
+  the heap's roar on the right swelling to the end, 7 low hull scrapes on the left. s06: one low whoosh at 0.0 (180 -> 1400 Hz,
+  -18 dB), the wall's roar building to the cut, the suck fading, 11 low timber cracks + body thumps (low-passed <= 1.9 kHz),
+  timed from the front speed (the comment in each file gives the sync constant).
+
+RULES I BENT (and why)
+- s06 looks NORTH-EAST (32-50 deg), not roughly north. From any south terrace a 105-125 m heap hides the east-shore town if you look
+  north; only the south-east town is visible beside the heap. East still reads as screen-right (and away).
+- The lighthouse (245, -1690) is NOT in s06: it sits at bearing ~3 deg, outside a north-east frame. It is in s05 (far, at the mouth).
+- The pier is not carried: it stands over the drained floor at the bottom-left edge (mostly below frame). Stranded boats carry the
+  "it drained" proof instead.
+- The brief named bayWorld(S, { slab: true }); I didn't use slab or kit.bayWorld (see FILES for why; same look values).
+
+KNOWN WEAK SPOTS
+- The sky is pale beige-grey (kit SKY + HAZE, same as the plaza shots). The reference hits have more golden saturation.
+- Puddles are built from ocean vertices, so their edges are blocky up close (they're fine at s05's distance).
+- s06 late: the wall's trailing edge has passed the south-shore houses, so their wreckage lies on dry ground in front of the wall.
+  That is correct for the law (the water moves on), but a viewer could read it as "knocked down by nothing". It's a small part of the frame.
+- Spray streaks in s06 look a little vertical (rain-like) at half size.
+- The heap's over-land face is in the sun's shadow (sun from the west), so the leading face is grey-blue rather than bright white.
+- Type zones: in s05 the counter sits over the drained floor (calm mid-tone) and the caption band over the town edge (moderately
+  busy). In s06 the counter sits over the wall body and the caption over the town. Check contrast with check.py --contrast.
+
+KIT REQUESTS: none required. Optional: if the lead wants s05/s06 on kit.bayWorld, fold in groupC_bay.js's repaint() + denser ocean
+grid; the shots only need bayWorldC.

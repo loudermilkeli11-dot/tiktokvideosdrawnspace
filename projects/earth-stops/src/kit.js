@@ -32,7 +32,7 @@ PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a
 // ONE sun for every ground set: late afternoon, 28° high, from the west-south-west (screen-left, a little behind a north-looking camera)
 export const SUN = new THREE.Vector3(-0.80, 0.47, 0.37).normalize();
 export const SUN_COL = 0xffd29a, SUN_I = 3.5;
-export const SKY = { zen: 0x2a68c8, hor: 0xd8dccf };          // blue overhead, a warm pale horizon (the haze is warmer still)
+export const SKY = { zen: 0x2a68c8, hor: 0xc9d6dc };          // blue overhead, a pale blue horizon (= group A's plazaLook; the haze is warm)
 export const HAZE = { col: 0xe6cfa8, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows
 export const HEMI = { sky: 0x9fbce6, ground: 0x8a7258, i: 0.8 };
 // warm grade (lift/gain) on top of ACES; dust shots push it to amber with gradeDust()
@@ -377,6 +377,7 @@ export function aimFor(pos, sx, sy, mm) {
 }
 // Earth's spin in the orbit shots (rad about +Y): turning at the real sidereal rate × FILM_SPIN (so it reads), frozen while
 // e is inside (0, 5), turning again after T_RESTORE. Pass film time.
-export const FILM_SPIN = 0.004;                              // rad per film second (DRAMATIZATION of speed only: the stop/restart is the point)
-export function earthYaw(film, yaw0 = 0) { const T0 = T_STOP, T1 = T_RESTORE; return yaw0 + FILM_SPIN * (Math.min(film, T0) + Math.max(0, film - T1)); }
+export const FILM_SPIN = 0.004;                              // rad per film second before the stop (only the frozen yaw depends on it)
+export const RESTART_SPIN = 0.04;                            // rad per film second after T_RESTORE: 5.7° over s08's last 2.5 s, so the restart reads (phase 3, group B request 3; DRAMATIZATION of rate)
+export function earthYaw(film, yaw0 = 0) { const T0 = T_STOP, T1 = T_RESTORE; return yaw0 + FILM_SPIN * Math.min(film, T0) + RESTART_SPIN * Math.max(0, film - T1); }
 export { SHUTTER_E };

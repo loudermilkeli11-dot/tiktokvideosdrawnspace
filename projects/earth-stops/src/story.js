@@ -57,7 +57,7 @@ const LIST = [
   ['s04_river', 210],   // 22.0 - 29.0  hero balcony, wide: the plaza swept bare, the upwind debris river
   ['s05_bay', 225],     // 29.0 - 36.5  HIT 1. hillside terrace over the bay: the bay slides east
   ['s06_town', 210],    // 36.5 - 43.5  same terrace, longer lens: the wall climbs over the east town
-  ['s07_coast', 255],   // 43.5 - 52.0  HIT 2. 400 km up: an east-facing coast takes the surge
+  ['s07_coast', 255],   // 43.5 - 52.0  HIT 2. ~900 km up: a west coast (land east of the sea) takes the surge
   ['s08_earth', 345],   // 52.0 - 63.5  HIT 3. the whole planet; 61.0 = 5.000 s, SPIN RESTORED
   ['s09_loop', 45],     // 63.5 - 65.0  HIT 4. the plaza exactly as frame 1
 ];

@@ -27,7 +27,7 @@ export default () => ({
     c(22.4, 28.6, 'Everything upwind | is *still coming.*'),
     c(29.4, 36.1, 'The whole bay | *slides east.*'),
     c(36.9, 43.1, 'It climbs right | *over the town.*'),
-    c(43.9, 51.6, 'Every east-facing coast | *gets hit.*'),
+    c(43.9, 51.6, 'Every west coast | *gets hit.*'),
     c(52.4, 59.6, 'Every ocean | *keeps going too.*'),
     c(60.2, 63.3, 'At 5 seconds, | it *spins again.*'),
   ],

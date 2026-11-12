@@ -12,14 +12,14 @@ import { applyCam, shake } from '@engine/camera.js';
 import { ease, clamp, lerp, rng } from '@engine/util.js';
 import { cityWorld, balcony, createDust, createChips, carQ, rollQ, FRAME1_CAM, POST_DAY, SAMPLES, qn, gradeDust } from './kit.js';
 import { ev, SHOT, V, roll, hop } from './story.js';
-import { plazaShear } from './groupB_towers.js';
+import { breakTowers } from './towersBreak.js';   // v2: no layered floor slabs (Commander 11-12); same breakage as s03
 
 const SHOTN = 's04_river', DUR = SHOT[SHOTN].dur, E0 = ev(SHOTN, 0), E1 = ev(SHOTN, DUR);
 const S = createStudio({ samples: SAMPLES.s04_river, shadows: true, post: POST_DAY });
 const W = cityWorld(S, { leaves: { x: 0, z: 0, r: 60, per: 10 } });
 balcony(S, FRAME1_CAM);
 // the same towers, delays and exclusions as s03 (plazaShear), so the stubs match
-const TW = plazaShear(S, W, ev('s03_towers', 0), { stripN: 160, trailN: 30 });
+const TW = breakTowers(S, W, ev('s03_towers', 0));
 // ---- the upwind river: torn off somewhere upwind at t0, then the law. Building materials first (concrete, render, roofing,
 // glass, timber), only a few painted signs/awnings, so it reads as a wrecked city flowing past, not confetti.
 const R = rng(2404), list = [];

@@ -57,13 +57,12 @@ const LIST = [
   ['s04_river', 210],   // 22.0 - 29.0  hero balcony, wide: the plaza swept bare, the upwind debris river
   ['s05_bay', 225],     // 29.0 - 36.5  HIT 1. hillside terrace over the bay: the bay slides east
   ['s06_town', 210],    // 36.5 - 43.5  same terrace, longer lens: the wall climbs over the east town
-  ['s07_coast', 255],   // 43.5 - 52.0  HIT 2. ~900 km up: a west coast (land east of the sea) takes the surge
-  ['s08_earth', 345],   // 52.0 - 63.5  HIT 3. the whole planet; 61.0 = 5.000 s, SPIN RESTORED
+  ['s08_earth', 600],   // 43.5 - 63.5  HIT 2. the whole planet; 61.0 = 5.000 s, SPIN RESTORED (v2: s07_coast cut, its 255 fr given here)
   ['s09_loop', 45],     // 63.5 - 65.0  HIT 4. the plaza exactly as frame 1
 ];
 export const SHOT = {}; { let f = 0; for (const [n, fr] of LIST) { SHOT[n] = { t0: f / FPS, dur: fr / FPS, frames: fr }; f += fr; } }
 export const FILM_LEN = LIST.reduce((a, [, f]) => a + f, 0) / FPS;    // 65.0 s
-export const HITS = [SHOT.s05_bay.t0, SHOT.s07_coast.t0, SHOT.s08_earth.t0, SHOT.s09_loop.t0];   // 29.0, 43.5, 52.0, 63.5
+export const HITS = [SHOT.s05_bay.t0, SHOT.s08_earth.t0, SHOT.s09_loop.t0];   // 29.0, 43.5, 63.5
 export const filmT = (name, tt) => SHOT[name].t0 + tt;       // shot time -> film time
 export const ev = (name, tt) => evAt(filmT(name, tt));       // shot time -> event time e (what every shot animates by)
 

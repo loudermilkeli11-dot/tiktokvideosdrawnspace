@@ -27,17 +27,17 @@ export default () => ({
     c(22.4, 28.6, 'Everything upwind | is *still coming.*'),
     c(29.4, 36.1, 'The whole bay | *slides east.*'),
     c(36.9, 43.1, 'It climbs right | *over the town.*'),
-    c(43.9, 51.6, 'Every west coast | *gets hit.*'),
-    c(52.4, 59.6, 'Every ocean | *keeps going too.*'),
+    c(44.4, 51.6, 'Every ocean | *keeps going too.*'),
+    c(52.4, 59.6, 'Every west coast | *gets hit.*'),
     c(60.2, 63.3, 'At 5 seconds, | it *spins again.*'),
   ],
   counter: [
     { t0: 0, t1: T_STOP, band: 0, format: (x) => x, label: 'Ground speed', value: () => `${SHOW.v} m/s`, fact: SPEED_FACT, fadeIn: 0 },
     { t0: T_STOP, t1: T_LABEL, band: 0, format: (x) => x, label: 'Ground speed', value: () => '0 m/s', fact: 'THE GROUND JUST STOPPED' },
-    run('s01_plaza', T_LABEL), run('s02_street'), run('s03_towers'), run('s04_river'), run('s05_bay'), run('s06_town'), run('s07_coast'),
+    run('s01_plaza', T_LABEL), run('s02_street'), run('s03_towers'), run('s04_river'), run('s05_bay'), run('s06_town'),
     run('s08_earth', s('s08_earth'), T_RESTORE),
     { t0: T_RESTORE, t1: end('s08_earth'), band: 0, format: (x) => x, label: 'Spin restored', value: () => '5.000 s', fact: `GROUND SPEED BACK TO ${SHOW.v} m/s` },
     { t0: s('s09_loop'), t1: FILM_LEN + 0.01, band: 0, format: (x) => x, label: 'Ground speed', value: () => `${SHOW.v} m/s`, fact: SPEED_FACT, fadeIn: 0 },   // = frame 1
   ],
-  tags: [{ t0: 0, t1: FILM_LEN + 0.01, band: 0, text: `Dramatization · shown ${SHOW.slow}× slower` }],   // ov.html v2Tag ignores band (NEEDS APPROVAL, FINAL)
+  tags: [],   // v2 edit (Commander 11-12): no on-screen DRAMATIZATION tag; the liberty (12× slow motion) goes in the post caption
 });

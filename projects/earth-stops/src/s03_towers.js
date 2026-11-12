@@ -13,14 +13,16 @@ import { applyCam, shake } from '@engine/camera.js';
 import { ease, clamp, lerp } from '@engine/util.js';
 import { cityWorld, createDust, FRAME1_CAM, POST_DAY, SAMPLES, lookDir, qn, gradeDust } from './kit.js';
 import { ev, SHOT } from './story.js';
-import { plazaShear } from './groupB_towers.js';
+import { breakTowers } from './towersBreak.js';
+// v2 edit (Commander 11-12): NO floors sliding off in layers. towersBreak.js: windows shatter, cladding and signs rip off,
+// roof tanks, AC units and a crane tumble away east. The towers themselves stand.
 
 const SHOTN = 's03_towers', DUR = SHOT[SHOTN].dur, E0 = ev(SHOTN, 0);
 const S = createStudio({ samples: SAMPLES.s03_towers, shadows: true, post: POST_DAY });
 const W = cityWorld(S, { leaves: { x: 0, z: -60, r: 200, per: 30 } });
 // per-tower shear delays for the towers in frame (groupB_towers.plazaShear): 61/60 first (right), 52 front at tt 0.9, then the
 // row behind; the blocks whose floors would pass over the lens are left whole
-const TW = plazaShear(S, W, E0, { stripN: 300, trailN: 40, trailSize: (T) => (T.b.z > -70 ? 0.35 : 1) });
+const TW = breakTowers(S, W, E0);
 const dust = createDust(S, [{ x0: -500, x1: 700, z: -62, h: 12, op: 0.6 }, { x0: -600, x1: 800, z: -180, h: 26, op: 0.65 }, { x0: -700, x1: 900, z: -300, h: 45, op: 0.7 }]);
 const P = FRAME1_CAM.pos;
 S.run((t) => {

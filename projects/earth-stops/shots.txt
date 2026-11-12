@@ -6,6 +6,5 @@ s03_towers 210
 s04_river 210
 s05_bay 225
 s06_town 210
-s07_coast 255
-s08_earth 345
+s08_earth 600
 s09_loop 45

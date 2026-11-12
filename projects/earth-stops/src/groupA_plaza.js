@@ -13,6 +13,7 @@ import { THREE } from '@engine/engine.js';
 import { rng } from '@engine/util.js';
 import { cityWorld, balcony, createChips, gradeDust, styliseMat, FRAME1_CAM, D2R, ZERO_M, qn } from './kit.js';
 import { createDustA } from './groupA_dust.js';
+import { plazaLife } from './plazaLife.js';
 import { evAt, drift, hop, roll } from './story.js';
 
 const sst = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
@@ -64,7 +65,7 @@ export function plazaSet(S, o = {}) {
   // is hidden before the stop and enters frame-left within a few frames of it.
   const edgeX = (z) => 6 + 0.33 * Math.max(0, FRAME1_CAM.pos.z - z);
   const up = [];
-  { const R = rng(9100), N = o.upwind ?? 3200;
+  { const R = rng(9100), N = o.upwind ?? 4800;                                       // v2: denser (was 3200)
     const PAPER = [0xf2eee6, 0xe8e0c8, 0xfafafa, 0xd9cfb6], LEAF = [0x5f8a2e, 0x7a9a36, 0x8a6a2a, 0x4e7a2a], SHING = [0xa8492e, 0x8a3a28, 0x6a6a70, 0x4a5a6a, 0xb0a090],
       SIGN = [0xd94a3d, 0xf0b23a, 0x3a78d0, 0x2f9e68, 0xe8d24a, 0xff8a3d, 0xfafafa];
     for (let i = 0; i < N; i++) {
@@ -104,11 +105,14 @@ export function plazaSet(S, o = {}) {
   const dFloor = createDustA(S, [{ x0: -340, x1: 340, op: 0.62, floor: { z0: -72, z1: 58, y: 0.25 } }]);
   const dMid = createDustA(S, [{ x0: -320, x1: 320, z: -30, h: 16, op: 0.55 }]);
   const dFar = createDustA(S, [{ x0: -380, x1: 380, z: -67, h: 26, op: 0.6 }]);
+  // v2 edit (Commander 11-12): the near crowd, laughing/goofing people, the lamp-post clinger, hot-dog cart, dog, flying hats
+  const life = plazaLife(S, W);
 
-  return { W, C, rail, upwind, glass, canM,
+  return { W, C, rail, upwind, glass, canM, life,
     update(film, st = {}) {
       const e = evAt(film);
       W.update(film, { focus: st.focus ?? new THREE.Vector3(0, 0, 10) });
+      life.update(film);
       poseUmbrellas(e);
       upwind.update(e); glass.update(e);
       dFloor.update(e, sst(0.01, 0.42, e));                 // the ground river over the paving (a near vertical sheet read as a step)

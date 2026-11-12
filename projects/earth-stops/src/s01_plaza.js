@@ -24,7 +24,7 @@ export function camAt(tt) {
 
 S.run((t) => {
   const tt = t - 4, film = tt;                                                      // s01 starts at film 0 (no clamp: frame 0's blur sub-samples see film < 0, as s09's do)
-  const k = kick(tt, T_STOP, 0.15);                                                 // 4 frames of jolt, nothing before 1.0
-  applyCam(S.camera, camAt(tt), k > 0 ? shake(t, 0.9 * k, 14, 7) : [0, 0, 0]);
+  const k = kick(tt, T_STOP, 0.3);                                                  // v2: a bigger shove: 9 frames of jolt, nothing before 1.0
+  applyCam(S.camera, camAt(tt), k > 0 ? shake(t, 1.7 * k, 14, 7) : [0, 0, 0]);
   P.update(film);
 });

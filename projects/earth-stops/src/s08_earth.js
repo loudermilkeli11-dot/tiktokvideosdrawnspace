@@ -14,7 +14,9 @@ import { dirLL, earthYaw, POST_ORBIT, SAMPLES, qn, D2R } from './kit.js';
 import { ev, evAt, SHOT, T_RESTORE } from './story.js';
 import { createCoastBand, cloudShiftAt } from './groupB_orbit.js';
 
-const SHOTN = 's08_earth', DUR = SHOT[SHOTN].dur, T0 = SHOT[SHOTN].t0, T_HOLD = 8.5;
+// v2 edit: s07_coast cut, so this shot now runs film 43.5–63.5 (600 fr, e 3.54 -> 5.0); the pull-back still stops 2.5 s
+// before the restore (T_RESTORE - T0 - 2.5 = 15.0), so the restart reads against a still frame.
+const SHOTN = 's08_earth', DUR = SHOT[SHOTN].dur, T0 = SHOT[SHOTN].t0, T_HOLD = T_RESTORE - T0 - 2.5;
 const SUN_ORBIT = dirLL(-152, 14);                                          // = s07 (same moment)
 const S = createStudio({ samples: SAMPLES.s08_earth, near: 50, far: 3e6, post: POST_ORBIT });
 const SEG = [384, 192];
@@ -27,7 +29,8 @@ S.run((t) => {
   const yaw = earthYaw(film); SP.earth.rotation.y = yaw;
   // camera fixed in space (the planet turns under it after the restore); aim at a lat/lon of the frozen planet
   const c = dirLL(qn('clon', lerp(-116, -108, u)), qn('clat', lerp(26, 12, u))).applyAxisAngle(Y, earthYaw(T0));
-  const pos = c.clone().multiplyScalar(qn('d', lerp(14000, 25000, u))), mm = qn('mm', lerp(70, 35, u));
+  // v2: opens wider (19,000 km, 45 mm; v1 70 mm) so the 20 s shot never sits on a close, soft view (Commander 11-12)
+  const pos = c.clone().multiplyScalar(qn('d', lerp(19000, 25000, u))), mm = qn('mm', lerp(45, 35, u));
   applyCam(S.camera, { pos, look: new THREE.Vector3(0, 0, 0), mm, roll: 0 });
   S.camera.up.set(0, 1, 0); S.camera.lookAt(0, 0, 0);
   // compose: Earth's centre a little below frame centre (the type sits on ocean, top-left)

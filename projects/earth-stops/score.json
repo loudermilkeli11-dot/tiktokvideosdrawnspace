@@ -4,18 +4,17 @@
  "reverb": { "decay": 3.0, "send": 0.18, "predelay": 0.02 },
  "risers": [
   { "_cue": "riser 1: the upwind debris river, into the hard cut to the bay", "t0": 22.0, "t1": 28.88, "gain_db": -16, "speed": 0.22, "noise": 0.25 },
-  { "_cue": "riser 2: the coast takes the surge, into the whole-Earth braaam", "t0": 43.5, "t1": 51.88, "gain_db": -15, "speed": 0.15, "noise": 0.2 }
+  { "_cue": "riser 2 (v2): the wall climbs over the town, into the whole-Earth braaam", "t0": 37.5, "t1": 43.38, "gain_db": -16, "speed": 0.18, "noise": 0.2 }
  ],
  "braaams": [
-  { "_cue": "hit 3: the cut to the whole planet (-6 dB per the brief)", "t": 52.0, "gain_db": -6, "decay": 3.6, "root": 41.2 }
+  { "_cue": "hit 2 (v2): the cut to the whole planet (-6 dB per the brief)", "t": 43.5, "gain_db": -6, "decay": 3.6, "root": 41.2 }
  ],
  "impacts": [
   { "_cue": "THE STOP: the ground halts (frame-1 sound hit; the deep boom lives here, the rumble in s01 sound)", "t": 1.0, "gain_db": -3 },
   { "_cue": "debris wall reaches the street (8.0 cut)", "t": 8.0, "gain_db": -10 },
   { "_cue": "tilt up to the towers (15.0 cut)", "t": 15.0, "gain_db": -11 },
   { "_cue": "hit 1: cut to the bay", "t": 29.0, "gain_db": -4 },
-  { "_cue": "hit 2: cut to orbit, the coast", "t": 43.5, "gain_db": -4 },
-  { "_cue": "hit 3: cut to the whole Earth (under the braaam)", "t": 52.0, "gain_db": -5 },
+  { "_cue": "hit 2 (v2): cut to the whole Earth (under the braaam; s07_coast cut)", "t": 43.5, "gain_db": -4 },
   { "_cue": "hit 4: soft loop thud on the cut to the plaza", "t": 63.5, "gain_db": -9 }
  ],
  "cracks": [
@@ -24,9 +23,8 @@
   { "t": 15.0, "gain_db": -12 },
   { "t": 29.0, "gain_db": -9 },
   { "t": 43.5, "gain_db": -9 },
-  { "t": 52.0, "gain_db": -9 },
   { "t": 63.5, "gain_db": -16 }
  ],
- "silent": [[7.89, 7.99], [14.89, 14.99], [28.87, 28.99], [43.37, 43.49], [51.87, 51.99], [62.85, 63.45]],
+ "silent": [[7.89, 7.99], [14.89, 14.99], [28.87, 28.99], [43.37, 43.49], [62.85, 63.45]],
  "loop_silence_frames": 0
 }

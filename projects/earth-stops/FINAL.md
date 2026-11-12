@@ -1,3 +1,22 @@
+# earth-stops v2 edit (Director, 2026-11-12, Commander's critique)
+
+Still 65.0 s / 1,950 frames; law, clock, sideways-only motion, sound plan and loop unchanged. 8 shots now.
+- **Tag removed:** overlay `tags: []`. Put "shown 12× slower; the lamp-post hold is dramatized" in the POST caption.
+- **Plaza (s01 + s09, via groupA_plaza → new `src/plazaLife.js`):** ~110 more full-colour people in the near plaza (chat groups, walkers),
+  10 laughing/goofing people facing the lens (new poses `laugh`, `cheer`, page-local), a golden dog, a hot-dog cart + vendor,
+  ~40 hats that fly off at the stop, a lamp post where a man in a red top clings, body out east like a flag (1.0–4.8 s),
+  then lets go and is swept away (cartoon DRAMATIZATION, no impacts). Shove: jolt 0.15 → 0.3 s, shake 0.9 → 1.7; upwind debris 3200 → 4800.
+  s09 still uses the same set, so its last frame matches s01 frame 0 (checked).
+- **Towers (s03, and s04 for consistency):** no layered floor slabs. New `src/towersBreak.js`: glass bursting off in waves down
+  each facade, cladding panels, ripped signs, roof AC units, tanks and the crane tumbling east. Towers stand.
+- **s07_coast cut** (fuzzy close view); its 255 frames go to s08 (now 600 fr, 43.5–63.5), which opens wider (19,000 km, 45 mm)
+  so it is sharp all the way. Captions re-timed; score: braaam + hit at 43.5, riser 2 now 37.5→43.38, 52.0 cut removed.
+  s08 sound offsets shifted (restore swell at shot 17.5 = film 61.0).
+- story.js LIST/HITS changed, so every page's bytes changed: all shots re-render (identical output for s02/s05/s06; cheap on the GPU).
+- **Weak spots:** the clinger is ~50 design px tall at 24 m; he leaves frame in ~0.4 s after letting go (V = 31.75 m/s film, the law).
+  s03 far shards are scaled up ×2 to read. s07 files stay on disk but are not in shots.txt.
+- **Rule broken (taste "several locations"):** fewer places, per the Commander's note: plaza → bay → orbit → plaza.
+
 # earth-stops: hand-over (phase 3, lead Director, 2026-11-12)
 
 "What if the Earth *stopped spinning* for 5 seconds?": 9 shots, 65.0 s (1,950 frames, 30 fps), render-ready.

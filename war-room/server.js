@@ -620,7 +620,7 @@ async function convene(wr) {
   // 1) officers, in parallel, blind to each other
   await Promise.all(officers.map((s) => {
     const a = byId[s.agent];
-    return seatRun(s, `WAR ROOM. The Commander must make a call.\nDECISION: ${wr.question}\n\nYou sit as ${a.name}. Your lens: ${a.lens}\nSee the decision ONLY through that lens. You cannot see the other officers. You may read files or search to ground your view.\n${ctx}\n\nAnswer in ≤ 180 words:\nPOSITION: one line\nWHY: 2–4 bullets, each citing a file path, a URL, or marked (speculative)\nRISK: the one thing that would make you wrong`,
+    return seatRun(s, `WAR ROOM. The Commander must make a call.\nDECISION: ${wr.question}\n\nYou sit as ${a.name}. Your lens: ${a.lens}\nSee the decision ONLY through that lens. You cannot see the other officers. You may read files or search to ground your view.${a.tools.includes('WebSearch') ? ' You HAVE live web access (WebSearch, WebFetch): if the decision needs current facts or trends, search first and cite the URLs. Never say the team lacks web access.' : ''}\n${ctx}\n\nAnswer in ≤ 180 words:\nPOSITION: one line\nWHY: 2–4 bullets, each citing a file path, a URL, or marked (speculative)\nRISK: the one thing that would make you wrong`,
       a.tools.filter((t) => ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch'].includes(t)), demoSeat(a, 'officer', wr.question));
   }));
   if (wr.abort.signal.aborted) return finishWr(wr, 'stopped');
@@ -802,7 +802,7 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/memory') { store.setPinned(String(b.text || '')); hive({ agent: null, kind: 'memory', text: 'Commander updated pinned memory' }); return json(res, { ok: true }); }
       if (p === '/api/warroom') {
         if (!b.question?.trim()) return json(res, { error: 'empty' }, 400);
-        const officerIds = (b.officers?.length ? b.officers : agents.filter((a) => a.id !== 'producer').map((a) => a.id)).filter((id) => byId[id]);
+        const officerIds = (b.officers?.length ? b.officers : agents.filter((a) => !['producer', 'director', 'builder'].includes(a.id)).map((a) => a.id)).filter((id) => byId[id]);   // build agents don't sit on councils (Studio speaks for the build; saves two Opus seats)
         const wr = { id: uid(), question: b.question.trim(), created: Date.now(), stage: 'convening', cost: 0,
           seats: [...officerIds.map((id) => ({ key: id, agent: id, role: 'officer', status: 'waiting', text: '' })),
             { key: 'marshal', agent: byId.producer ? 'producer' : agents[0].id, role: 'marshal', status: 'waiting', text: '' },

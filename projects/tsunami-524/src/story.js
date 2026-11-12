@@ -31,7 +31,8 @@ export const SHOT = {
   s06_lift: { t0: 16.0, dur: 3.5 },
   s07_peel: { t0: 19.5, dur: 4.5 },
   s08_tail: { t0: 24.0, dur: 3.5 },
-  s09_loop: { t0: 27.5, dur: 3.0 },
+  s09_orbit: { t0: 27.5, dur: 2.0 },          // the board's s09, split in two pages at the hard cut (29.5 s)
+  s09_loop: { t0: 29.5, dur: 1.0 },           // the second BEFORE frame 1: s01's world at film -1.0 .. 0 (calm, then the crack)
 };
 export const FILM_LEN = 30.5;
 // key film times

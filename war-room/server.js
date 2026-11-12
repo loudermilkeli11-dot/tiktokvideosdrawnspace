@@ -502,14 +502,16 @@ function gpuJob(pr, args, onLine) {
   gpuChain = job.catch(() => {}); return job;
 }
 // a Builder group finished: render its shots on the GPU right away, while the others keep building (the final render reuses them)
+// early-render promises live in memory only (a Promise saved into the store comes back as {} after a restart and crashed the build)
+const earlyJobs = new Map();
 function earlyRender(pr, shots) {
   if (pr.quality === 'draft' || !shots.length) return;
   pemit(pr, `Rendering ${shots.join(', ')} early on the GPU while the rest is built…`);
-  pr.early = (pr.early || Promise.resolve()).then(() => gpuJob(pr, ['--quality', pr.quality, '--shots', shots.join(','), '--no-assemble'], (line) => { if (/^(RESULT|reusing)/.test(line) || /error/i.test(line)) pemit(pr, `early render: ${line}`); }));
+  pr.early = true; earlyJobs.set(pr.id, (earlyJobs.get(pr.id) || Promise.resolve()).then(() => gpuJob(pr, ['--quality', pr.quality, '--shots', shots.join(','), '--no-assemble'], (line) => { if (/^(RESULT|reusing)/.test(line) || /error/i.test(line)) pemit(pr, `early render: ${line}`); })));
 }
 async function startRender(pr) {
   pr.stage = 'render'; pr.waiting = gpuBusy && gpuBusy !== pr.id; pr.progress = 0; pemit(pr, pr.waiting ? 'Waiting for the GPU (another render is running)…' : `Rendering at quality ${pr.quality}…`);
-  await (pr.early || Promise.resolve()).catch(() => {});
+  await (earlyJobs.get(pr.id) || Promise.resolve()).catch(() => {});
   let result = '';
   const code = await gpuJob(pr, ['--quality', pr.quality, '--reuse'], (line) => {
     if (!pr.renderStarted || pr.waiting) { pr.renderStarted = Date.now(); pr.waiting = false; }
@@ -524,7 +526,7 @@ async function startRender(pr) {
     pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pr.version = pr.editNote ? (pr.version || 1) + 1 : (pr.version || 1); pr.editNote = null; pemit(pr, `Done: ${final} (version ${pr.version})`);
     hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
   } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < 1) {
-    pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n'); pr.early = null;
+    pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n'); pr.early = null; earlyJobs.delete(pr.id);
     pemit(pr, /captions/i.test(result) ? 'Captions are outside the safe area: back to the Director for a quick fix (no picture was rendered).' : 'QC failed: sending the report back to the Director for one fix round.'); startBuild(pr);
   } else { pr.failedAt = 'render'; pr.stage = 'failed'; pr.error = result || `Render exited with code ${code}`; pemit(pr, pr.error); }
 }

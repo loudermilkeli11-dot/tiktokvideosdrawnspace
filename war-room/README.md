@@ -75,6 +75,8 @@ The **Studio** tab runs the whole production. Nothing gets built without your ap
 
 After step 6: You can **Show in folder** (`projects/<slug>/out/final.mp4`) or **Render again**.
 
+**Parallel build** (8 shots or more): the Director writes the law, the shared kit and a split into 3 groups with the handshake at every cut (`BUILDERS.md`). Then 3 **Builders** build their shots at the same time, on the same model as the Director. Finally the Director integrates them, does a consistency pass across every cut, and writes the captions and score. A QC fix round always runs on the single Director.
+
 Quality: **max** uses 16 anti-aliasing and motion-blur sub-samples per frame and a higher-bitrate final; **standard** uses each shot's own setting; **draft** is a quick half-size look.
 A full build is the expensive step on your plan (the Director on Opus works for a long time). Rendering is free. One render runs at a time.
 
@@ -86,7 +88,7 @@ A full build is the expensive step on your plan (the Director on Opus works for 
   - Orders are routed by keywords for free. Only an unclear order goes to a quick Haiku router.
   - Agents share **6 slots**: Haiku counts 0.5, Sonnet 1 and Opus 2. So five Sonnet agents can work at once, or Opus plus three or four others. Councils run their officers in parallel too.
   - Agents run without MCP servers, and council seats without Claude Code's long coding instructions, so every call stays small.
-- **Usage governor:** the top bar shows the last 5 hours of usage (in API-equivalent dollars) and the slots in use. New work pauses at the soft cap (`WARROOM_WINDOW_USD`, default $25), and running work finishes. If Claude says your plan's limit is reached, the War Room pauses and resumes by itself when the limit resets.
+- **Usage cap: 80% of your plan's 5-hour window.** Claude Code reports your real plan usage on every agent run, and the top bar shows it (with a marker at the cap). At 80%, new work waits, and running agents pause and re-queue (their saved files stay). Everything resumes on its own after the 5-hour window resets. **Resume** overrides it. Change the cap with `WARROOM_PLAN_CAP` in `.env`.
 - **Permissions in PLAN mode:** agents read freely. They write only in their own folders (the Writer and Studio under `projects/`, the Analyst under `channel/`). The Studio runs only the studio's own commands (`node tools/...`, `python tools/...`, the PC render script, `git status/diff/log`). Anything else is refused, and the agent ends with a `NEEDS APPROVAL:` line so you can decide. (Live Allow/Deny pop-ups exist only in API mode.)
 - The server only listens on your own computer (`127.0.0.1`). To reach it from your phone, set `WARROOM_TOKEN` to a long random string, set `WARROOM_HOST=0.0.0.0`, and open `http://<computer-ip>:4747/?token=<token>` once. Only do this on a network you trust, or put it behind a tunnel that requires login.
 - Agents work inside the studio repo (`WARROOM_WORKSPACE`, default `..`). The Writer and Studio may write under `projects/`, and the Analyst under `channel/`, without asking. Everything else that changes something waits for your approval.

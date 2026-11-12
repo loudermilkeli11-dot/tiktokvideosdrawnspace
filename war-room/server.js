@@ -6,7 +6,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawn as spawnProc } from 'node:child_process';
+import { spawn as spawnProc, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -15,7 +15,7 @@ try { for (const l of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n
 
 const { loadAgents, READ_ONLY } = await import('./lib/agents.js');
 const { Store } = await import('./lib/store.js');
-const { runAgent, DEMO, MODE, CLAUDE_BIN } = await import('./lib/runner.js');
+const { runAgent, DEMO, MODE, CLAUDE_BIN, rateBus, probeUsage } = await import('./lib/runner.js');
 
 const PORT = +(process.env.WARROOM_PORT || 4747);
 const HOST = process.env.WARROOM_HOST || '127.0.0.1';
@@ -29,8 +29,16 @@ const WINDOW_MS = 5 * 3600e3, WINDOW_USD = +(process.env.WARROOM_WINDOW_USD || 2
 const DEEP_MODEL = process.env.WARROOM_DEEP_MODEL || 'claude-opus-5-5', ROUTER_MODEL = process.env.WARROOM_ROUTER_MODEL || 'claude-haiku-5-5';
 const weight = (model) => (/opus/.test(model || '') ? 2 : /haiku/.test(model || '') ? 0.5 : 1);
 let limitedUntil = 0;   // set when Claude says the plan's limit is reached
+// The Commander's rule: never go above PLAN_CAP (default 80%) of the plan's current 5-hour window. Real readings come from
+// Claude Code (rate_limit_event). At the cap: new work waits, running agents pause and re-queue (their saved files stay),
+// and everything resumes on its own when the 5-hour window resets.
+const PLAN_CAP = +(process.env.WARROOM_PLAN_CAP || 0.8);
+const plan = { five: null, fiveReset: null, seven: null, t: 0 };
+let capUntil = 0;
 const MAX_DEPTH = 2; // how many delegation hops an agent chain may take on its own
 
+const gitHead = () => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return '?'; } };
+const VERSION = gitHead();   // the code this server is running; if the folder moves ahead (git pull without a restart), the UI says so
 const agents = loadAgents(path.join(ROOT, 'agents'));
 // Playbooks (playbooks/*.md): a short Commander order that matches a playbook's `match` regex runs that playbook's full
 // method on its agent, so "pitch 3 ideas for the next tiktok" is enough. Edit or add a playbook file to change a method.
@@ -57,9 +65,35 @@ const windowSpend = () => spendLog.filter((e) => e.t > Date.now() - WINDOW_MS).r
 function usage() {
   const w = windowSpend(), used = store.tasks.filter((t) => t.status === 'running').reduce((a, t) => a + weight(t.model || byId[t.agent]?.model), 0);
   const oldest = spendLog.find((e) => e.t > Date.now() - WINDOW_MS);
-  const paused = limitedUntil > Date.now() ? 'limit' : w >= WINDOW_USD ? 'cap' : '';
-  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, resumeAt: paused === 'limit' ? limitedUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
+  const paused = limitedUntil > Date.now() ? 'limit' : capUntil > Date.now() ? 'plan' : (MODE !== 'plan' || plan.five == null) && w >= WINDOW_USD ? 'cap' : '';
+  return { mode: MODE, window: +w.toFixed(2), cap: WINDOW_USD, slots: SLOTS, used, paused, plan: { ...plan, cap: PLAN_CAP }, resumeAt: paused === 'limit' ? limitedUntil : paused === 'plan' ? capUntil : paused === 'cap' && oldest ? oldest.t + WINDOW_MS : null };
 }
+function onRate(info) {
+  const f = info.unifiedWindows?.five_hour, sv = info.unifiedWindows?.seven_day;
+  if (f && typeof f.utilization === 'number') { plan.five = f.utilization; plan.fiveReset = f.resetsAt ? f.resetsAt * 1000 : null; }
+  else if (info.rateLimitType === 'five_hour' && typeof info.utilization === 'number') { plan.five = info.utilization; plan.fiveReset = info.resetsAt ? info.resetsAt * 1000 : null; }
+  if (sv && typeof sv.utilization === 'number') plan.seven = sv.utilization;
+  plan.t = Date.now();
+  if (plan.five != null && plan.five >= PLAN_CAP && capUntil <= Date.now()) capHit();
+  else if (plan.five != null && plan.five < PLAN_CAP && capUntil > Date.now() && (!plan.fiveReset || plan.fiveReset < capUntil - 60e3)) capUntil = 0;   // the window already reset
+  emit('usage', usage());
+}
+function capHit() {
+  capUntil = Math.max(Date.now() + 5 * 60e3, (plan.fiveReset || Date.now() + 30 * 60e3) + 60e3);
+  const n = store.tasks.filter((t) => t.status === 'running');
+  for (const t of n) { t.capStop = true; aborts.get(t.id)?.abort(); }
+  const at = new Date(capUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  hive({ agent: null, kind: 'info', text: `Usage reached ${Math.round(plan.five * 100)}% of the 5-hour window (cap ${Math.round(PLAN_CAP * 100)}%): ${n.length} running task(s) paused, everything resumes about ${at}` });
+  emit('login', { title: `⏸ Paused at ${Math.round(PLAN_CAP * 100)}% usage`, text: `Your 5-hour usage is at ${Math.round(plan.five * 100)}%. Work resumes on its own about ${at}.` });
+}
+rateBus.fn = onRate;
+let probing = false;
+async function refreshPlan(force) {   // keep the reading fresh while there is work, so we never start blind
+  if (MODE !== 'plan' || probing) return; const busy = store.tasks.some((t) => ['queued', 'running', 'team'].includes(t.status));
+  if (!force && (!busy || Date.now() - plan.t < 4 * 60e3)) return;
+  probing = true; try { await probeUsage(WORKSPACE); } catch {} probing = false; pump();
+}
+setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) emit('login', { text: r.error });
@@ -170,7 +204,8 @@ function logTo(task, e) { const entry = { t: Date.now(), ...e }; task.log.push(e
 function pump() {
   const u = usage();
   if (u.paused) return;
-  const next = store.tasks.find((t) => t.status === 'queued' && live[t.agent]?.status === 'idle' && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
+  if (MODE === 'plan' && plan.five != null && plan.five >= PLAN_CAP) { capHit(); return; }
+  const next = store.tasks.find((t) => t.status === 'queued' && (byId[t.agent]?.multi || live[t.agent]?.status === 'idle') && u.used + weight(t.model || byId[t.agent].model) <= SLOTS);
   if (next) { runTask(next); pump(); }
 }
 const waiters = new Map();   // taskId -> resolve(task) for team orders
@@ -179,7 +214,8 @@ const waitFor = (t) => (['done', 'failed', 'stopped'].includes(t.status) ? Promi
 async function runTask(task) {
   const agent = byId[task.agent];
   task.status = 'running'; task.started = Date.now(); store.save(); emit('task', publicTask(task));
-  setAgent(agent.id, { status: 'working', taskId: task.id, last: 'Starting…' });
+  live[agent.id].n = (live[agent.id].n || 0) + 1;
+  setAgent(agent.id, { status: 'working', taskId: task.id, last: live[agent.id].n > 1 ? `${live[agent.id].n} tasks at once` : 'Starting…' });
   const abort = new AbortController(); aborts.set(task.id, abort);
   let r;
   try {
@@ -187,6 +223,7 @@ async function runTask(task) {
     r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
+  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(PLAN_CAP * 100)}% of your 5-hour usage; it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
   task.finished = Date.now(); task.result = r.text; task.cost += r.cost; task.turns = r.turns;
   task.status = abort.signal.aborted ? 'stopped' : r.ok ? 'done' : 'failed';
@@ -194,7 +231,8 @@ async function runTask(task) {
   const summary = (r.text.match(/^SUMMARY:\s*(.+)$/m) || [])[1] || r.text.split('\n').find((l) => l.trim())?.slice(0, 200) || r.error || task.status;
   task.summary = summary; store.save(); emit('task', publicTask(task));
   hive({ agent: agent.id, kind: task.status, text: summary });
-  setAgent(agent.id, { status: 'idle', taskId: null, last: summary });
+  live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1);
+  setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: live[agent.id].n ? live[agent.id].taskId : null, last: summary });
   if (task.production) onProductionTask(task, r);
   if (r.ok && !task.production) {
     for (const m of r.text.matchAll(/^REMEMBER:\s*(.+)$/gm)) { store.remember(agent.id, m[1]); hive({ agent: agent.id, kind: 'memory', text: `remembered: ${m[1]}` }); }
@@ -229,11 +267,11 @@ async function teamCall(task, prompt, maxTurns = 12) {
 }
 async function runTeam(task) {
   logTo(task, { kind: 'info', text: 'Producer is planning who does what…' });
-  const roster = agents.filter((a) => a.id !== 'director').map((a) => `@${a.id}: ${a.role}`).join('\n');
+  const roster = agents.filter((a) => !['director', 'builder'].includes(a.id)).map((a) => `@${a.id}: ${a.role}`).join('\n');
   const plan = await teamCall(task, `TEAM PLAN. The Commander gave the whole War Room this order:\n${task.text}\n\nYour team:\n${roster}\n\nPlan the smallest set of tasks (1–5) that fully answers it. Use the Channel brain. Write each task on its own line:\nNOW @<id>: <task>   (these run at the same time)\nTHEN @<id>: <task>  (these run after all NOW tasks, with their results)\nIf the order is a simple question you can answer yourself from the brain and files, skip the plan and answer it directly, starting with ANSWER:.\nNever plan building or rendering a video (the Studio tab does that, after the Commander approves).`, 10);
   if (task.abort.signal.aborted) return endTeam(task, 'stopped', 'Stopped by the Commander.');
   if (!plan.ok) return endTeam(task, 'failed', plan.error || 'The plan failed.');
-  const lines = [...(plan.text || '').matchAll(/^\s*(NOW|THEN)\s+@([a-z]+)\s*:\s*(.+)$/gim)].filter((m) => byId[m[2].toLowerCase()] && m[2].toLowerCase() !== 'director').slice(0, 6);
+  const lines = [...(plan.text || '').matchAll(/^\s*(NOW|THEN)\s+@([a-z]+)\s*:\s*(.+)$/gim)].filter((m) => byId[m[2].toLowerCase()] && !['director', 'builder'].includes(m[2].toLowerCase())).slice(0, 6);
   if (!lines.length) return endTeam(task, 'done', plan.text);
   task.plan = lines.map((m) => `${m[1].toUpperCase()} @${m[2].toLowerCase()}: ${m[3]}`); store.save(); emit('task', publicTask(task));
   logTo(task, { kind: 'info', text: `Plan: ${task.plan.join(' · ')}` });
@@ -266,16 +304,65 @@ async function startBrief(pr) {
     text: `Greenlit by the Commander. Write the production brief.\nSource: ${pr.source}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
   pr.briefTask = t.id; pemit(pr);
 }
+const PARALLEL_MIN_SHOTS = +(process.env.WARROOM_PARALLEL_MIN_SHOTS || 8), BUILDERS_N = +(process.env.WARROOM_BUILDERS || 3);
+const builderModel = (pr) => (pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5');
+async function prodTask(pr, agent, text, demoText) {
+  const t = await createTask({ agent, production: pr.id, model: builderModel(pr), demoText: DEMO ? demoText : null, text: `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
+  (pr.buildTasks ||= []).push(t.id); pemit(pr); return waitFor(t);
+}
 async function startBuild(pr) {
-  pr.stage = 'build'; pr.buildStarted = Date.now(); pemit(pr, `Director is building projects/${pr.slug} (${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'})…`);
-  const t = await createTask({ agent: 'director', production: pr.id, model: pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5',
-    demoText: DEMO ? `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}` : null,
-    text: `Build the approved production: projects/${pr.slug}/PRODUCTION.md (slug: ${pr.slug}).${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
-  pr.buildTask = t.id; pemit(pr);
+  const open = store.tasks.find((t) => t.production === pr.id && ['director', 'builder'].includes(t.agent) && ['routing', 'queued', 'running'].includes(t.status));
+  if (open) return pemit(pr, 'The build is already running.');   // never two builds of one production
+  pr.stage = 'build'; pr.buildStarted = Date.now(); pr.buildTasks = [];
+  const parallel = !pr.fixNote && (pr.stats?.shots || 0) >= PARALLEL_MIN_SHOTS && byId.builder;
+  pr.parallel = !!parallel; const who = pr.builder === 'sonnet' ? 'Sonnet' : 'Opus';
+  const base = `the approved production projects/${pr.slug}/PRODUCTION.md (slug: ${pr.slug})`;
+  try {
+    if (!parallel) {
+      pemit(pr, `Director is building projects/${pr.slug} (${who})…`);
+      const t = await prodTask(pr, 'director', `Build ${base}.${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}`, `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}`);
+      return buildDone(pr, t);
+    }
+    // 1. lead: skeleton + shared kit + the split
+    pr.buildPhase = 'lead'; pemit(pr, `Parallel build (${who}): the Director writes the law, the shared kit and the split…`);
+    const lead = await prodTask(pr, 'director', `PHASE 1 of 3 (lead) of a PARALLEL build of ${base}.
+Do build-order steps 1 (skeleton: script.md, src/story.js, shots.txt) and write the SHARED KIT every shot imports (sets, palette, lighting, camera helpers: src/kit.js), checked on one key frame. Do NOT build the shots yourself.
+Then write projects/${pr.slug}/BUILDERS.md: split the shots into ${BUILDERS_N} groups named A, B, C… of similar difficulty (keep shots that cut into each other in the same group when you can), give each group its shots, the handshake at every cut (what the frame looks like at the cut), the shared rules and the contract (Builders write only their own shot files and new files named after their group, never shared files, never commit).
+Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>, <shot>, …", then "PLAN READY".`, `SUMMARY: (demo) skeleton and kit.\nGROUP A: s01, s02, s03\nGROUP B: s04, s05, s06\nGROUP C: s07, s08\nPLAN READY`);
+    if (lead.status !== 'done') return buildFail(pr, lead);
+    const groups = [...(lead.result || '').matchAll(/^\s*GROUP\s+([A-Z])\s*:\s*(.+)$/gm)].map((m) => ({ g: m[1], shots: m[2].trim() }));
+    if (!groups.length) return buildDone(pr, lead);   // the lead built it all itself
+    // 2. Builders in parallel, one per group
+    pr.buildPhase = 'shots'; pemit(pr, `${groups.length} Builders are building shots in parallel: ${groups.map((x) => `${x.g} (${x.shots})`).join(' · ')}`);
+    const done = await Promise.all(groups.map((x) => prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`)));
+    const bad = done.filter((t) => t.status !== 'done' || !/SHOTS DONE/i.test(t.result || ''));
+    if (bad.length) return buildFail(pr, bad[0], `Builder group(s) ${bad.map((t) => (t.text.match(/group ([A-Z])/) || [])[1]).join(', ')} did not finish`);
+    // 3. lead: integrate, consistency pass, captions, score, commit
+    pr.buildPhase = 'finish'; pemit(pr, 'All shots built. The Director integrates them, does the consistency pass, captions and score…');
+    const fin = await prodTask(pr, 'director', `PHASE 3 of 3 (finish) of the PARALLEL build of ${base}. All Builder groups are done: read projects/${pr.slug}/FINAL/*.txt.
+1. Apply any shared-file changes the Builders asked for.
+2. Consistency pass: check every cut's handshake and the look across all shots (key frames on the GPU), and fix what doesn't match.
+3. Do build-order steps 3–5 (overlay.js, score.json, FINAL.md). Commit everything. End with BUILD COMPLETE as usual.`, `SUMMARY: (demo) integrated.\nBUILD COMPLETE: projects/${pr.slug}`);
+    return buildDone(pr, fin);
+  } catch (e) { pr.failedAt = 'build'; pr.stage = 'failed'; pr.error = String(e?.message || e); pemit(pr, pr.error); }
+}
+function buildFail(pr, t, why) {
+  if (pr.stage === 'cancelled') return;
+  pr.failedAt = 'build'; pr.stage = 'failed';
+  pr.error = (why ? why + ': ' : '') + (((t.result || '').match(/(BUILD|SHOTS) BLOCKED:.*$/m) || [])[0] || `${byId[t.agent]?.name || t.agent} ${t.status}: ${t.summary || ''}`).slice(0, 500);
+  pemit(pr, pr.error);
+}
+function buildDone(pr, t) {
+  if (pr.stage === 'cancelled') return;
+  if (t.status !== 'done' || !/BUILD COMPLETE/i.test(t.result || '')) return buildFail(pr, t);
+  if (!pr.fixes && pr.stats?.shots) { const b = pr.builder === 'sonnet' ? 'sonnet' : 'opus'; const eff = pr.parallel ? pr.stats.shots / BUILDERS_N + 3 : pr.stats.shots;
+    calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / eff); saveCalib(); }
+  pr.buildPhase = null; pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
 }
 function onProductionTask(task, r) {
   const pr = prods.find((x) => x.id === task.production); if (!pr || pr.stage === 'cancelled') return;
   pr.cost = (pr.cost || 0) + (task.cost || 0);
+  if (pr.stage === 'build') return pemit(pr);   // handled by startBuild
   if (task.status !== 'done') { pr.failedAt = pr.stage; pr.stage = 'failed'; pr.error = `${byId[task.agent]?.name || task.agent} ${task.status}: ${r.error || task.summary || ''}`.slice(0, 500); return pemit(pr, pr.error); }
   if (pr.stage === 'brief') {
     const m = (r.text || '').match(/BRIEF READY:\s*(projects\/([a-z0-9-]+))\/PRODUCTION\.md/i);
@@ -284,10 +371,7 @@ function onProductionTask(task, r) {
     pr.stats = briefStats(pr); calib.briefMin = ema(calib.briefMin, (Date.now() - pr.created) / 60e3); saveCalib();
     pr.stage = 'approval'; pemit(pr, `Brief ready: projects/${pr.slug}/PRODUCTION.md. Waiting for your approval.`);
     hive({ agent: 'producer', kind: 'info', text: `Production brief ready for approval: ${pr.title}` }); emit('notify', { title: '🎬 Brief ready for your approval', text: pr.title, production: pr.id });
-  } else if (pr.stage === 'build') {
-    if (!/BUILD COMPLETE/i.test(r.text || '')) { pr.stage = 'failed'; pr.error = ((r.text || '').match(/BUILD BLOCKED:.*$/m) || ['The Director did not report BUILD COMPLETE.'])[0]; return pemit(pr, pr.error); }
-    if (!pr.fixes && pr.stats?.shots) { const b = pr.builder === 'sonnet' ? 'sonnet' : 'opus'; calib.buildMinPerShot[b] = ema(calib.buildMinPerShot[b], (Date.now() - pr.buildStarted) / 60e3 / pr.stats.shots); saveCalib(); }
-    pemit(pr, 'Build complete. Rendering on the GPU…'); startRender(pr);
+
   }
 }
 let rendering = null;
@@ -318,7 +402,7 @@ function startRender(pr) {
 }
 const briefPath = (pr) => path.join(WORKSPACE, 'projects', pr.slug || '_', 'PRODUCTION.md');
 function cancelProduction(pr) {
-  for (const id of [pr.briefTask, pr.buildTask]) { const t = store.tasks.find((x) => x.id === id); if (t && ['queued', 'running', 'routing'].includes(t.status)) { aborts.get(t.id)?.abort(); if (t.status !== 'running') { t.status = 'stopped'; emit('task', publicTask(t)); } } }
+  for (const id of [pr.briefTask, pr.buildTask, ...(pr.buildTasks || [])]) { const t = store.tasks.find((x) => x.id === id); if (t && ['queued', 'running', 'routing'].includes(t.status)) { aborts.get(t.id)?.abort(); if (t.status !== 'running') { t.status = 'stopped'; emit('task', publicTask(t)); } } }
   if (pr.pid) { try { if (process.platform === 'win32') spawnProc('taskkill', ['/pid', String(pr.pid), '/T', '/F']); else process.kill(pr.pid); } catch {} }
   pr.stage = 'cancelled'; pemit(pr, 'Cancelled by the Commander.');
 }
@@ -340,7 +424,7 @@ function briefStats(pr) {   // shots and frames from the board table in PRODUCTI
 }
 function etaOf(pr) {   // minutes left per stage -> finish time
   const now = Date.now(), st = pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
-  const build = st.shots * calib.buildMinPerShot[b], render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1)) / 60 + calib.renderOverheadMin;
+  const par = (st.shots >= PARALLEL_MIN_SHOTS && byId.builder) || pr.parallel, build = (par ? st.shots / BUILDERS_N + 3 : st.shots) * calib.buildMinPerShot[b], render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1)) / 60 + calib.renderOverheadMin;
   let left = 0;
   if (pr.stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;
   else if (pr.stage === 'approval') left = build + render;
@@ -473,7 +557,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, pub(pr));
     }
     if (p === '/api/state') return json(res, {
-      demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE,
+      demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE, version: VERSION, onDisk: gitHead(),
       agents: agents.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji, color: a.color, role: a.role, model: a.model, tools: a.tools, lens: a.lens, ...live[a.id], done: store.tasks.filter((t) => t.agent === a.id && t.status === 'done').length, cost: store.tasks.filter((t) => t.agent === a.id).reduce((s, t) => s + t.cost, 0) })),
       tasks: store.tasks.slice(-200).map(publicTask), hive: store.recentHive(120),
       approvals: [...approvals.values()].map(({ resolve, ...a }) => a),
@@ -486,7 +570,7 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/tasks' && b.team) { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: `👥 ${b.text.slice(0, 200)}` }); const t = startTeam(b.text.trim(), !!b.deep); return json(res, publicTask(t)); }
       if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
-      if (p === '/api/resume') { limitedUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
+      if (p === '/api/resume') { limitedUntil = 0; capUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
       const cancel = (t) => {
         if (!t) return false;
         if (t.status === 'running') { aborts.get(t.id)?.abort(); hive({ agent: null, kind: 'info', text: `stopped @${t.agent}: ${t.title}` }); return true; }
@@ -544,6 +628,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  War Room ready → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${TOKEN ? '/?token=' + TOKEN : ''}`);
   console.log(`  Mode: ${MODE === 'plan' ? `PLAN (Claude Code on this PC, your Claude plan: ${CLAUDE_BIN})` : MODE === 'api' ? 'API (Claude Agent SDK, billed to ANTHROPIC_API_KEY)' : 'DEMO (simulated agents; install Claude Code and sign in for real ones)'}`);
-  console.log(`  Slots: ${SLOTS} (Haiku 0.5, Sonnet 1, Opus 2)   5-hour soft cap: $${WINDOW_USD} API-equivalent`);
+  console.log(`  Slots: ${SLOTS} (Haiku 0.5, Sonnet 1, Opus 2)   usage cap: ${Math.round(PLAN_CAP * 100)}% of the plan's 5-hour window${MODE === 'plan' ? '' : ` ($${WINDOW_USD} API-equivalent)`}`);
   console.log(`  Workspace: ${WORKSPACE}\n  Agents: ${agents.map((a) => a.emoji + ' ' + a.name).join('  ')}\n`);
 });

@@ -44,6 +44,11 @@ Copy its structure exactly. Reuse the engine modules listed in CLAUDE.md before 
 4. **Score:** `score.json`, with a hit on every cut, ticks on the countdown and silence as the last beat.
 5. **Hand-over:** write `projects/<slug>/FINAL.md` with what was built, the known weak spots, and anything that NEEDS APPROVAL.
 
+**Parallel builds.** For a big production you may get PHASE 1 (lead: the skeleton, the shared kit and the split into Builder
+groups) or PHASE 3 (finish: integrate the Builders' shots, do the consistency pass, then captions, score and commit).
+Do exactly that phase. Builders work at the same time as each other, so make BUILDERS.md specific: every shot's set,
+camera and handshake at each cut, so their shots match yours.
+
 **Rules.**
 - Never touch other projects.
 - Keep the physics honest. The one stated liberty is tagged DRAMATIZATION.

@@ -8,7 +8,7 @@ param([Parameter(Mandatory = $true)][string]$Slug, [ValidateSet('draft', 'standa
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent; Set-Location $root
 $env:IJ_GPU = '1'
-if (-not $NoPull) { git pull --ff-only --autostash; if ($LASTEXITCODE) { throw 'git pull failed' } }
+if (-not $NoPull) { git pull --no-edit --autostash; if ($LASTEXITCODE) { throw 'git pull failed' } }
 $args2 = @("tools/render_all.js", "projects/$Slug", '--quality', $Quality)
 if ($Shots) { $args2 += @('--shots', ($Shots -join ',')) }
 node @args2

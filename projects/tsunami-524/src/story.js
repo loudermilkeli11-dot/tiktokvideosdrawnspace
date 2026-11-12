@@ -69,6 +69,14 @@ export function waterSpeed(t) {
 // fraction of the ocean still on Earth (s08): 1 -> 0 over the shot (the shell's peel reads the same function)
 export const oceanLeft = (t) => 1 - ss(SHOT.s08_tail.t0 + 0.2, SHOT.s08_tail.t0 + SHOT.s08_tail.dur - 0.4, t);
 
+// ---- the ocean shell's height above the sea floor (km) in the orbit shots: the distance the water has travelled at
+// waterSpeed, integrated in story time. The orbit shots are a TIME-LAPSE: LAPSE story seconds per film second (stated in
+// script.md; the counter shows the true speed at each moment). Tabulated once (0.01 s film steps).
+export const LAPSE = 60;
+const SH_T0 = SHOT.s07_peel.t0, SH_DT = 0.01, SH_TAB = [0];
+for (let t = SH_T0; t < FILM_LEN + 0.5; t += SH_DT) SH_TAB.push(SH_TAB[SH_TAB.length - 1] + waterSpeed(t + SH_DT / 2) * SH_DT * LAPSE / 1000);
+export function shellKm(t) { if (t <= SH_T0) return 0; const i = (t - SH_T0) / SH_DT, k = Math.min(Math.floor(i), SH_TAB.length - 2), u = i - k; return SH_TAB[k] + (SH_TAB[k + 1] - SH_TAB[k]) * u; }
+
 // ---- names overlay.js reads (same law, film time t)
 export const YEAR = 1958, OCEAN_DEPTH = REF.oceanDepth, V_ESC = REF.escape, OCEAN_KM3 = REF.oceanKm3, ROOF_M = ROOF_H, H = heightK;
 T.speed = [SHOT.s07_peel.t0, T.escape];                                      // 19.5 -> 23.0 speed ramp

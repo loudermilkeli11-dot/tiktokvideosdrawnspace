@@ -402,3 +402,9 @@ main{padding:20px 24px;min-width:0}
 
 @media (max-width:1280px){ .homeGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .homeSide{grid-column:1 / -1} .genBar{grid-template-columns:1fr 1fr} }
 @media (max-width:900px){ .shell{grid-template-columns:1fr} .side-nav{position:static;height:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px} .side-nav button{grid-template-columns:auto auto;white-space:nowrap} .side-nav button kbd{display:none} .homeGrid,.teachGrid{grid-template-columns:1fr} .pitchGrid{grid-template-columns:1fr} main{padding:14px} }
+
+.editBox{margin:12px 0;padding:12px 14px;border:1px solid rgba(255,122,182,.4);border-radius:12px;background:rgba(255,122,182,.05)}
+#editText{width:100%}
+.vers{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.vers .on{border-color:var(--cyan);color:var(--cyan)}
+.importList{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}

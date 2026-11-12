@@ -229,6 +229,9 @@ function renderProds() {
   const etaBox = etaTxt ? `<div class="eta">⏱ ${esc(etaTxt)}${pr.stats ? `<span class="muted small"> · ${pr.stats.shots} shots, ${pr.stats.frames} frames, ${esc(pr.quality)}, ${pr.builder === 'sonnet' ? 'Sonnet' : 'Opus'} builder</span>` : ''}</div>` : '';
   const prog = pr.stage === 'render' ? `<div class="pbar"><i style="width:${Math.round((pr.progress || 0) * 100)}%"></i></div><div class="muted small">${pr.waiting ? 'Waiting for the other render (one GPU)…' : `${Math.round((pr.progress || 0) * 100)}% of frames rendered`}</div>` : '';
   const film = pr.stage === 'done' ? `<video class="film" controls loop playsinline src="/api/productions/${pr.id}/video?v=${pr.finished || 0}"></video>
+      <div class="editBox"><h3>✏️ Edit this video</h3><textarea id="editText" rows="2" placeholder="What should change? e.g. “make the ending at night”, “caption 3 should say …”, “louder thunderclap”, “shot 4 is too dark”"></textarea>
+        <div class="cmdrow"><span class="muted small">Only the changed shots re-render. The current version is kept, so you can go back.</span><button class="primary" data-edit="${pr.id}">Apply edit ⏎</button></div>
+        ${(pr.versions || []).length ? `<div class="vers"><span class="muted small">Versions:</span>${[...(pr.versions || []).map((x) => x.v), pr.version || 1].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map((v) => `<button class="ghost ${v === (pr.version || 1) ? 'on' : ''}" data-ver="${v}" data-id="${pr.id}" title="${esc(((pr.versions || []).find((x) => x.v === v) || {}).note || 'current')}">v${v}${v === (pr.version || 1) ? ' · current' : ''}</button>`).join('')}</div>` : ''}</div>
       <div class="postBox" id="postBox"></div>
       <div class="cmdrow"><button class="ghost" data-pract="phone" data-id="${pr.id}">📱 Send to phone</button><button class="ghost" data-pract="open" data-id="${pr.id}">📂 Show in folder</button><button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button><span class="muted small">projects/${esc(pr.slug)}/out/final.mp4</span></div>` : '';
   const tail = ['failed', 'paused'].includes(pr.stage) ? `<div class="verdict bad"><h3>${pr.stage === 'failed' ? 'Stopped with a problem' : 'Paused'}</h3><p class="small">${esc(pr.error || pr.note || '')}</p><div class="cmdrow"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button>${pr.slug && pr.approved ? `<button class="ghost" data-pract="render" data-id="${pr.id}" title="Skip the build and render what is built (unchanged shots are reused)">↻ Render again</button>` : ''}<button class="no" data-pract="cancel" data-id="${pr.id}">Cancel</button></div></div>` : '';
@@ -457,3 +460,25 @@ setInterval(() => { if (S.tasks.some((t) => t.agent === 'scout' && t.playbook ==
 async function loadTaste() { const d = await api('/api/taste'); const el = $('#tasteMd'); if (el) el.innerHTML = md(d.md.replace(/^# .*\n/, '')); }
 $('#teachSave').addEventListener('click', async () => { const t = $('#teachText').value.trim(); if (!t) return; await api('/api/teach', { text: t }); $('#teachText').value = ''; $('#teachSaved').textContent = 'Learned ✓ (every agent reads it from now on)'; loadTaste(); toast({ c: '#4ade80', title: '🎓 Learned', text: t.slice(0, 120) }); });
 $('#teachText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#teachSave').click(); } });
+
+// ======================= EDIT A FINISHED VIDEO =======================
+document.addEventListener('click', async (e) => {
+  let x;
+  if ((x = e.target.closest?.('[data-edit]'))) {
+    const text = $('#editText').value.trim(); if (!text) return $('#editText').focus();
+    const r = await api(`/api/productions/${x.dataset.edit}/edit`, { text }); if (r.error) return toast({ c: '#ff5d6c', title: 'Edit not started', text: r.error });
+    toast({ c: '#ff7ab6', title: '✏️ Editing', text: 'The Director is making the change; only the changed shots re-render.' });
+  } else if ((x = e.target.closest?.('[data-ver]'))) {
+    const pr = S.productions.find((p) => p.id === x.dataset.id), v = +x.dataset.ver, cur = pr.version || 1;
+    const vid = document.querySelector('video.film'); if (vid) { vid.src = `/api/productions/${pr.id}/video?ver=${v}&t=${Date.now()}`; vid.play().catch(() => {}); }
+    document.querySelectorAll('[data-ver]').forEach((b) => b.classList.toggle('on', b === x));
+    if (v !== cur && confirm(`Make v${v} the current video? (It becomes final.mp4; what gets sent to your phone.)`)) { await api(`/api/productions/${pr.id}/restore`, { v }); toast({ title: `↩ v${v} restored` }); }
+  } else if ((x = e.target.closest?.('[data-import]'))) {
+    const r = await api('/api/productions/import', { slug: x.dataset.import }); if (r.error) return toast({ c: '#ff5d6c', title: 'Import failed', text: r.error });
+    S.prOpen = r.id; if (!S.productions.find((p) => p.id === r.id)) S.productions.push(r); renderProds(); loadImports();
+  }
+});
+$('#editText')?.addEventListener?.('keydown', () => {});
+document.addEventListener('keydown', (e) => { if (e.target.id === 'editText' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.querySelector('[data-edit]')?.click(); } });
+async function loadImports() { const d = await api('/api/projects'); const el = $('#importList'); if (!el) return; el.innerHTML = (d.projects || []).length ? `<span class="muted small">Edit a video made before the Studio:</span>${d.projects.map((p) => `<button class="ghost" data-import="${esc(p)}">＋ ${esc(p)}</button>`).join('')}` : ''; }
+loadImports();

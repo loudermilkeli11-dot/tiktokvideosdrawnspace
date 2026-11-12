@@ -84,6 +84,8 @@ After step 6: You can **Show in folder** (`projects/<slug>/out/final.mp4`) or **
 
 **Parallel build** (8 shots or more): the Director writes the law, the shared kit and a split into 3 groups with the handshake at every cut (`BUILDERS.md`). Then 3 **Builders** build their shots at the same time, on the same model as the Director. Finally the Director integrates them, does a consistency pass across every cut, and writes the captions and score. A QC fix round always runs on the single Director.
 
+**Editing a finished video:** open it in Studio, write the change in **✏️ Edit this video** (for example "make the ending at night" or "caption 3 should say …"), then **Apply edit**. Only the Director works on it, changes only what is needed, and only the changed shots re-render. Every finished render is kept as a version (v1, v2…) that you can play and restore. Videos made before the Studio (gravity-flip, moon-2x) can be added with **＋ project** under Productions. From the phone: `/edit <change>` edits the latest finished video.
+
 Quality: **max** uses 16 anti-aliasing and motion-blur sub-samples per frame and a higher-bitrate final; **standard** uses each shot's own setting; **draft** is a quick half-size look.
 A full build is the expensive step on your plan (the Director on Opus works for a long time). Rendering is free. One render runs at a time.
 

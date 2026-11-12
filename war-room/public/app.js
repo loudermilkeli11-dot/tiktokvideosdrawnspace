@@ -172,7 +172,8 @@ function renderUsage(u) {
   const pct = pl ? Math.min(100, pl.five * 100) : Math.min(100, (u.window / u.cap) * 100);
   $('#usage').innerHTML = u.paused === 'limit' ? `⏸ plan limit · back ${at} <button class="mini" data-resume>Resume</button>`
     : u.paused === 'plan' ? `⏸ ${capPct}% cap · back ${at} <button class="mini" data-resume title="Override: start work anyway">Resume</button>`
-    : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : pl ? `5h plan · ${Math.round(pl.five * 100)}% <span class="dim">/ cap ${capPct}%</span>` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+    : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : pl ? `5h plan · ${Math.round(pl.five * 100)}% <span class="dim">/ ${u.override ? 'override to ' + new Date(u.override).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'cap ' + capPct + '%'}</span>` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+  renderActivity(u);
   $('#usageBox').style.setProperty('--capx', capPct + '%');
   $('#usageBox').title = pl ? `Your Claude plan: ${Math.round(pl.five * 100)}% of the current 5-hour window used${pl.fiveReset ? ' (resets ' + new Date(pl.fiveReset).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ')' : ''}${pl.seven != null ? ', ' + Math.round(pl.seven * 100) + '% of the week' : ''}. New work pauses at ${capPct}% and resumes after the reset. This session: $${u.window.toFixed(2)} API-equivalent.` : 'Usage in the last 5 hours (API-equivalent dollars) and agent slots in use';
   renderBoard();
@@ -482,3 +483,14 @@ $('#editText')?.addEventListener?.('keydown', () => {});
 document.addEventListener('keydown', (e) => { if (e.target.id === 'editText' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.querySelector('[data-edit]')?.click(); } });
 async function loadImports() { const d = await api('/api/projects'); const el = $('#importList'); if (!el) return; el.innerHTML = (d.projects || []).length ? `<span class="muted small">Edit a video made before the Studio:</span>${d.projects.map((p) => `<button class="ghost" data-import="${esc(p)}">＋ ${esc(p)}</button>`).join('')}` : ''; }
 loadImports();
+
+// ======================= ACTIVITY CHIP: is it working right now? =======================
+function renderActivity(u) {
+  const el = $('#activity'); if (!el || !u) return;
+  const working = S.tasks.filter((t) => ['running', 'team'].includes(t.status)), q = S.tasks.filter((t) => t.status === 'queued').length;
+  const rendering = (S.productions || []).some((p) => p.stage === 'render' && !p.waiting);
+  if (u.paused) { el.className = 'activity paused'; el.innerHTML = `<i></i>Paused${q ? ` · ${q} waiting` : ''}`; el.title = 'New work is paused (usage cap or plan limit). Click Resume on the meter to override.'; return; }
+  if (working.length || rendering) { const names = [...new Set(working.map((t) => A(t.agent).name))]; el.className = 'activity on'; el.innerHTML = `<i></i>${rendering ? 'Rendering' + (names.length ? ' + ' : '') : ''}${names.length ? names.slice(0, 3).join(', ') + ' working' : ''}${q ? ` · ${q} queued` : ''}`; el.title = working.map((t) => `${A(t.agent).name}: ${t.title}`).join('\n') || 'GPU render running'; return; }
+  el.className = 'activity'; el.innerHTML = `<i></i>${q ? q + ' queued' : 'Idle'}`; el.title = q ? 'Tasks are waiting for a free slot or agent' : 'Nothing is running';
+}
+setInterval(() => renderActivity(S.usage), 2000);

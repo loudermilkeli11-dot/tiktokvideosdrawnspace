@@ -53,8 +53,18 @@ function taskCard(t) {
   return `<div class="task ${t.status}" style="--c:${a.color}" data-task="${t.id}">
     <div class="t">${a.emoji} ${esc(t.title)}</div>
     ${t.summary ? `<div class="s">${esc(t.summary)}</div>` : t.routeReason ? `<div class="s">→ ${esc(a.name)} · ${esc(t.routeReason)}</div>` : ''}
+    ${t.status === 'queued' ? `<div class="why">⏳ ${esc(waitWhy(t))}</div>` : ''}
     <div class="f"><span class="pill">${t.status}</span>${t.deep ? '<span class="pill deep">deep</span>' : ''}${t.by && t.by !== 'Commander' ? `<span>from ${A(t.by).emoji}</span>` : ''}${t.status === 'running' ? `<span data-start="${t.started}">${fmtDur(dur)}</span>` : dur ? `<span>${fmtDur(dur)}</span>` : ''}${t.cost ? `<span>$${t.cost.toFixed(2)}</span>` : ''}<span>${ago(t.created)} ago</span></div>
   </div>`;
+}
+function waitWhy(t) {
+  const u = S.usage || {}, a = A(t.agent);
+  if (u.paused === 'limit') return 'Paused: Claude reported a usage limit. Click Resume in the top bar to retry now.';
+  if (u.paused === 'cap') return `Paused: the 5-hour soft cap ($${u.cap}) was reached.`;
+  if (a.status && a.status !== 'idle') return `Waiting for ${a.name} to finish its current task (one task per agent).`;
+  const w = /opus/.test(t.model || a.model || '') ? 2 : /haiku/.test(t.model || a.model || '') ? 0.5 : 1;
+  if (u.slots && u.used + w > u.slots) return `Waiting for a free slot (${u.used}/${u.slots} in use).`;
+  return 'Starting…';
 }
 const fmtDur = (d) => (d < 60 ? (d | 0) + 's' : `${(d / 60) | 0}m ${String((d % 60) | 0).padStart(2, '0')}s`);
 function renderBoard() {
@@ -149,7 +159,8 @@ function renderUsage(u) {
   if (!u) return; S.usage = u;
   const at = u.resumeAt ? new Date(u.resumeAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
   const pct = Math.min(100, (u.window / u.cap) * 100);
-  $('#usage').textContent = u.paused === 'limit' ? `⏸ plan limit · back ${at}` : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+  $('#usage').innerHTML = u.paused === 'limit' ? `⏸ plan limit · back ${at} <button class="mini" data-resume>Resume</button>` : u.paused === 'cap' ? `⏸ 5h cap · back ${at}` : `5h · $${u.window.toFixed(2)} / $${u.cap}`;
+  renderBoard();
   $('#usageFill').style.width = pct + '%';
   $('#usageBox').className = 'meter' + (u.paused ? ' paused hot' : pct > 80 ? ' hot' : pct > 50 ? ' mid' : '');
   let dots = ''; for (let i = 0; i < u.slots; i++) dots += `<b class="${u.used >= i + 1 ? 'on' : u.used > i ? 'half' : ''}"></b>`;
@@ -199,6 +210,7 @@ document.addEventListener('click', async (e) => {
   if ((x = el('[data-tab]'))) { document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b === x)); document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === x.dataset.tab)); try { localStorage.setItem('tab', x.dataset.tab); } catch {} }
   else if ((x = el('[data-task]'))) { openTask(x.dataset.task); x.classList.contains('toast') && x.remove(); }
   else if ((x = el('[data-agent]'))) { const sel = $('#cmdAgent'); sel.value = sel.value === x.dataset.agent ? '' : x.dataset.agent; renderRoster(); $('#cmdText').focus(); }
+  else if ((x = el('[data-resume]'))) { await api('/api/resume', {}); }
   else if ((x = el('#dz'))) $('#dropFile').click();
   else if ((x = el('#refreshBrain'))) { await api('/api/tasks', { agent: 'analyst', text: 'Refresh channel/BRAIN.md: re-read channel/results.csv, channel/analytics/, channel/postmortems/, channel/war-room/ (sealed dossiers) and channel/references/. Update Evidence, Lessons and Open questions so they match the data exactly. Keep it under ~1,000 words.' }); toast({ c: '#4fd1ff', title: '↻ Analyst is refreshing the brain' }); }
   else if ((x = el('[data-q]'))) { const t = $('#cmdText'); t.value = x.dataset.q; autosize(); t.focus(); }

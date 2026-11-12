@@ -296,6 +296,7 @@ const server = http.createServer(async (req, res) => {
       const b = await body(req);
       if (p === '/api/tasks') { if (!b.text?.trim()) return json(res, { error: 'empty' }, 400); hive({ agent: null, kind: 'order', text: b.text.slice(0, 200) }); const t = await createTask({ text: b.text.trim(), agent: byId[b.agent] ? b.agent : null, deep: !!b.deep }); return json(res, publicTask(t)); }
       let m;
+      if (p === '/api/resume') { limitedUntil = 0; hive({ agent: null, kind: 'info', text: 'Commander resumed the queue' }); emit('usage', usage()); pump(); return json(res, { ok: true }); }
       if ((m = p.match(/^\/api\/tasks\/(\w+)\/stop$/))) { aborts.get(m[1])?.abort(); const t = store.tasks.find((x) => x.id === m[1]); if (t && t.status === 'queued') { t.status = 'stopped'; emit('task', publicTask(t)); store.save(); } return json(res, { ok: true }); }
       if ((m = p.match(/^\/api\/tasks\/(\w+)\/retry$/))) { const t = store.tasks.find((x) => x.id === m[1]); if (!t) return json(res, { error: 'not found' }, 404); const n = await createTask({ text: t.text, agent: t.agent }); return json(res, publicTask(n)); }
       if ((m = p.match(/^\/api\/approvals\/(\w+)$/))) { const a = approvals.get(m[1]); if (a) a.resolve(!!b.allow); return json(res, { ok: !!a }); }

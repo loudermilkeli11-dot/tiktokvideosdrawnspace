@@ -144,7 +144,9 @@ function planRun(p) {
       for (const d of result?.permission_denials || []) p.onLog({ kind: 'error', text: `refused (not pre-approved): ${toolSummary({ name: d.tool_name, input: d.tool_input })}` });
       const text = result?.result || '';
       const all = `${text}\n${err}`;
-      const limited = /usage limit|rate limit|limit reached|429|overloaded/i.test(all) && !(result && result.subtype === 'success' && !result.is_error);
+      // only Claude's own plan/rate-limit messages pause the queue (never "max turns", which is a normal stop)
+      const limited = !(result && (result.subtype === 'success' && !result.is_error || /max_turns/.test(result.subtype || '')))
+        && /usage limit|rate[ _-]?limit(ed)?\b|\b429\b|overloaded_error|\b(5-hour|weekly|session) limit/i.test(all);
       const ep = all.match(/\|(\d{10})\b/);
       if (!result) return resolve({ ok: false, text: '', cost: 0, turns: 0, limited, resetAt: ep ? +ep[1] * 1000 : null, error: (err.trim().split('\n').slice(-3).join(' ') || 'Claude Code exited without a result').slice(0, 400) });
       const ok = result.subtype === 'success' && !result.is_error;

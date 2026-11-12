@@ -261,3 +261,6 @@ table.res .vbar{display:inline-block;height:5px;border-radius:4px;background:lin
 .md th,.md td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
 .md th{font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 @media (max-width:1180px){ #intel{grid-template-columns:minmax(0,1fr)} .brainP{max-height:none} }
+
+.task .why{font-size:11.5px;color:var(--warn);margin-top:5px}
+button.mini{font:800 10px var(--sans);padding:1px 7px;border-radius:6px;border:1px solid rgba(255,209,102,.5);background:rgba(255,209,102,.12);color:var(--warn);cursor:pointer;margin-left:4px}

@@ -35,6 +35,7 @@ const agents = loadAgents(path.join(ROOT, 'agents'));
 // method on its agent, so "pitch 3 ideas for the next tiktok" is enough. Edit or add a playbook file to change a method.
 const playbooks = loadAgents(path.join(ROOT, 'playbooks')).map((p) => ({ ...p, re: new RegExp(p.match || '^$', 'i'), agentId: p.agent }));
 const findPlaybook = (text, agent) => playbooks.find((p) => p.re.test(text) && (!agent || agent === p.agentId));
+if (!agents.length) { console.error(`No agents loaded from ${path.join(ROOT, 'agents')}: the War Room cannot route orders.`); }
 const byId = Object.fromEntries(agents.map((a) => [a.id, a]));
 const store = new Store(path.join(ROOT, 'data'));
 const live = Object.fromEntries(agents.map((a) => [a.id, { status: 'idle', taskId: null, last: '' }]));
@@ -151,7 +152,9 @@ async function route(text) {
 async function createTask({ text, agent, parent = null, depth = 0, by = 'Commander', deep = false }) {
   const task = { deep: !!deep, id: uid(), title: text.split('\n')[0].slice(0, 90), text, agent: agent || null, status: 'routing', created: Date.now(), started: null, finished: null, result: '', cost: 0, turns: 0, log: [], parent, depth, by, routeReason: '' };
   store.tasks.push(task); store.save(); emit('task', publicTask(task));
-  if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; }
+  try { if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; } }
+  catch (e) { task.status = 'failed'; task.summary = `Could not route this order: ${e?.message || e}`; task.log.push({ t: Date.now(), kind: 'error', text: task.summary }); store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
+  if (!byId[task.agent]) { task.status = 'failed'; task.summary = `No agent "${task.agent}" is loaded (check war-room/agents).`; store.save(); emit('task', publicTask(task)); hive({ agent: null, kind: 'failed', text: task.summary }); return task; }
   else task.routeReason = by === 'Commander' ? 'assigned by the Commander' : `delegated by ${by}`;
   if (by === 'Commander') { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
   task.model = deep ? DEEP_MODEL : byId[task.agent].model;

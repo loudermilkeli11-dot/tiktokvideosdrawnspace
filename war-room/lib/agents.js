@@ -14,7 +14,7 @@ function parseValue(v) {
 export function loadAgents(dir) {
   const agents = [];
   for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort()) {
-    const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+    const raw = fs.readFileSync(path.join(dir, f), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');   // Windows checkouts use CRLF
     const m = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
     if (!m) continue;
     const meta = {};

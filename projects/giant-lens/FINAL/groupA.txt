@@ -1,0 +1,47 @@
+giant-lens - Builder group A hand-over (s01_plaza, s02_street, s09_loop). 2026-11-12. Nothing committed.
+
+FILES (all mine): src/s01_plaza.js + _sound.js, src/s02_street.js + _sound.js, src/s09_loop.js + _sound.js,
+src/groupA_frame1.js (shared frame-1 plaza: buildPlaza, used by s01 AND s09), src/groupA_fx.js (wisps, sunline hits on roofs
+and canopies, beamOnto, burnRuns, fleeCrowd). No engine edits. No edits to the kit, story, overlay or score.
+Pages built in dist/. Sound WAVs render: out/s01_plaza.wav (peak -7.4 dBFS), out/s02_street.wav (-6.4), out/s09_loop.wav (-19.3).
+
+GATE 0 (s01, checked on the GPU, muted, without the overlay; the Director should also do the cold-viewer read with counter + title):
+ 1. Reads as a giant magnifying glass: dark rim, black handle, glass that refracts the sky, its shadow on the paving. PASS (my read).
+ 2. By 1.0 s a white-hot point with a faint cone; the line starts at 0.55 s. PASS (the point is small at 66 m: raised to coreI 1.8, minPx 9).
+ 3. The roof smokes from ~1.95 s (wisps + paint scorch); roof flames 2.5-2.9 s, whole car 2.95-3.4 s. PASS (at 3.0 the roof fire is
+    still a hot white-orange core; it reads clearly as a car on fire from ~3.2 s).
+ 4. Full size, 4 samples, GPU: 0.5 s/frame (out/frames_s01_full). That is exactly at the limit, so it passes, but only just.
+
+s01_plaza (0-4.5). Best frame: 3.7 (out/frames_s01/s01_plaza_t3.70.png: the car fully ablaze, char line, lens overhead, the tree
+  crown catching). Frame 0 = FRAME1_CAM, no shake until 1.5 s; a gentle crane/zoom 28 -> 33 mm from 1.5 s; the right whip
+  4.15-4.5 (130° centred on the cut, 12 samples), so the cut frame is blurred facades, trees and paving (no black, no white).
+  KIT DEVIATION (already in groupA_frame1.js, please copy to the kit if wanted): the car the line burns to is A_CAR (24.7, 0, -8)
+  yaw pi/2, not CAR_F1 (22, 0, 6). With CAR_F1 the spot runs toward the camera, the lens follows it overhead and turns edge-on
+  into a black bar. KEEP_A and TREES_A replace KEEP_F1 and TREES_F1. FRAME1_CAM, SPOT_F1, HERO_POS and the law are unchanged.
+  Pass 2 this run: flames taller with I 5 -> 2.8, so they read orange instead of a white blob.
+s02_street (4.5-9.0). Best frame: 2.6 (out/frames_s02/s02_street_t2.60.png). 35 mm, 6.5 m up behind the hero (west pavement
+  x 52.2, z 20) on the east street x = 60 looking north; slow track. The whip from s01 decelerates onto the street by 0.35.
+  The 20 m lens is huge at the top of frame, then grows to 63 m (0.15-0.95) and rises out of frame. Its big shadow darkens the
+  street, and the faint cone comes in from the top right. The spot crosses the road and runs up a row of 7 parked cars on the
+  east kerb (x 65.25, z 1.5 ... -45.5). The cars ignite in irregular gaps (~0.5-0.6 s), roof first, then the whole car with charred
+  paint. Two street-tree crowns flare, and the asphalt line glows and chars. Everyone on both pavements runs south past the hero.
+  3.9-4.5: tilt up to +35° (inCubic, 12 samples). The cut frame shows the lens underside filling the upper half plus facades and
+  sky, blurred upward.
+s09_loop (37.0-38.0). Best frame: 0.97 = s01 frame 0 minus 1/30 s (out/frames_s09/s09_loop_t0.97.png vs s01_plaza_t0.00.png:
+  they look identical to the eye, wide 375 °C disc). buildPlaza(S) with update(t - 1, 0): the event is frozen at frame 1, and the
+  world runs at page t 3.0 -> 3.967. 8 samples. Sound: plaza room tone, and the hum fades back up to s01's -22/-32 dB by the loop.
+
+SOUND: no ticks, no cut hits (score.json has them), sizzles and crackle low-passed at 4 kHz, no car alarm (the Commander's rule
+  against repetitive tones). The lens-grow swell in s02 is at GROW = 0.15 (story.js). The s02 whumps are timed from the spot path
+  (constants written in the file).
+
+KNOWN WEAK SPOTS
+ - s01: the action is small. The framing is forced by the law: the lens hangs 18 m over a spot 66 m out, so the car is ~80 design
+   px. The crowd scatter is subtle: people slide in their standing poses, and few are within 14 m of the spot.
+ - s01 roof flame at exactly 3.0 still reads mostly white-hot; the car is clearly ablaze from about 3.2.
+ - s02: the lens leaves the frame after the grow (0.9-3.9), so only its shadow and cone show until the tilt-up. With a 63 m lens
+   57 m up, the rim cannot sit at the top of a 35 mm frame unless the spot is ~140 m away. Runners slide (no running pose).
+ - s02 -> s03: s03 starts from the plaza's north edge looking NNW (yaw -23). My tilt ends looking N from the east street, with the
+   lens underside in the upper half (not just the rim entering). Both are blurred upward, with the same sun and the same glass.
+   If the Director wants a closer match, add a yaw toward -20 during my tilt (s02 cam(): the yaw term).
+ - Full-size render time for s01 is 0.5 s/frame at 4 samples. At 8 or 12 samples expect ~1 s.

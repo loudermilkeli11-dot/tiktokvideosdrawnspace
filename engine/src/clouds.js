@@ -9,6 +9,13 @@
 // opts: base / thick (m: cloud base, typical top relief; towers reach ~2x) | cover 0..1 | towers 0..1 | period (m, texture tile, 26 km)
 //   res (texture, 2048) | seed | sunI, sunCol, skyI, skyCol (fill), seaCol (gaps) | hazeCol, hazeL (m, aerial perspective) | regional 0..1
 //   (large-scale thinning that breaks the tiling) | steps (march, 20). Cost: ~3-4 s of a full-size frame at 2 samples when it fills the frame.
+// giant-lens additions (ALL default-off: cut = 0, lsOn = 0, landI = 0 render exactly as before). Set U.* per frame:
+//   N6 cut:  U.cut 0..1, U.cutA / U.cutB (vec2 xz, m: the ground spot path, start -> head), U.cutOff (vec2: the beam axis offset at
+//            deck height, = sun.xz / sun.y * deck mid altitude), U.cutR (slot radius at the deck, m), U.burnW (ground char half-width),
+//            U.burnFade (m along the path behind the head over which the glow cools), U.burnI, U.spotR / U.spotI (white-hot head),
+//            U.wallGlow (orange underglow on the slot walls), U.ctime (s, flicker), U.cutCol (glow colour)
+//   lens shadow: U.lsOn 0..1, U.lsC (lens centre, world), U.lsN (lens axis), U.lsR (radius), U.lsH (handle dir, unit), U.lsDark
+//   land in the gaps: U.landI 0..1, U.landCol, U.coastP (vec2 point on the coast), U.coastN (vec2, toward land), U.coastWob (m)
 import * as THREE from 'three';
 import { NOISE } from './glsl.js';
 export const R_EARTH = 6371e3;
@@ -64,23 +71,57 @@ export function createClouds(S, o = {}) {
     skyCol: { value: new THREE.Color(o.skyCol ?? 0x5d8fe0) }, skyI: { value: o.skyI ?? 0.55 }, hazeCol: { value: new THREE.Color(o.hazeCol ?? 0xc9dcf5) }, hazeL: { value: o.hazeL ?? 170e3 },
     seaCol: { value: new THREE.Color(o.seaCol ?? 0x0a2a4a) }, pxAng: { value: 0.0007 }, texel: { value: P / N }, offset: { value: new THREE.Vector2(o.ox ?? 0, o.oz ?? 0) },
     regional: { value: o.regional ?? 0.35 }, exposure: { value: 1 }, steps: { value: o.steps ?? 20 },
+    // giant-lens (default off)
+    cut: { value: 0 }, cutA: { value: new THREE.Vector2() }, cutB: { value: new THREE.Vector2() }, cutOff: { value: new THREE.Vector2() }, cutR: { value: 500 },
+    burnW: { value: 30 }, burnFade: { value: 3000 }, burnI: { value: 1 }, spotR: { value: 30 }, spotI: { value: 0 }, wallGlow: { value: 0 }, ctime: { value: 0 },
+    cutCol: { value: new THREE.Color(1.0, 0.36, 0.07) },
+    lsOn: { value: 0 }, lsC: { value: new THREE.Vector3() }, lsN: { value: new THREE.Vector3(0, 1, 0) }, lsR: { value: 1000 }, lsH: { value: new THREE.Vector3(1, 0, 0) }, lsDark: { value: 0.4 },
+    landI: { value: 0 }, landCol: { value: new THREE.Color(0x3a4a2a) }, coastP: { value: new THREE.Vector2() }, coastN: { value: new THREE.Vector2(1, 0) }, coastWob: { value: 4000 },
   };
   const mat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false, transparent: false,
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }',
     fragmentShader: `${NOISE}
       uniform sampler2D hTex; uniform float period, base, thick, alt, RE, sunI, skyI, hazeL, pxAng, texel, regional, exposure, steps;
       uniform vec3 sunDir, sunCol, skyCol, hazeCol, seaCol; uniform vec2 offset; varying vec3 vD;
+      uniform float cut, cutR, burnW, burnFade, burnI, spotR, spotI, wallGlow, ctime, lsOn, lsR, lsDark, landI, coastWob;
+      uniform vec2 cutA, cutB, cutOff, coastP, coastN; uniform vec3 cutCol, lsC, lsN, lsH, landCol;
       vec3 C; float lodK; float reg;
+      // giant-lens: distance from p to the path a -> b (x) and the distance back along the path from the head b (y)
+      vec2 segD(vec2 p, vec2 a, vec2 b){ vec2 ab = b - a; float L2 = max(dot(ab, ab), 1e-6); float u = clamp(dot(p - a, ab)/L2, 0., 1.);
+        return vec2(length(p - a - ab*u), (1. - u)*sqrt(L2)); }
+      float cutMask(vec2 xz){ vec2 s = segD(xz - cutOff, cutA, cutB); float dd = s.x + (vn2(xz/(cutR*0.7)) - 0.5)*cutR*0.35;
+        return mix(1., smoothstep(cutR*0.8, cutR*1.15, dd), cut); }
+      float lensSh(vec3 p){ vec3 L = normalize(sunDir); float dn = dot(L, lsN); if (abs(dn) < 1e-3) return 1.;
+        float t = dot(lsC - p, lsN)/dn; if (t < 0.) return 1.; vec3 q = p + L*t - lsC; float r = length(q)/lsR;
+        float sh = 1. - smoothstep(1.0, 1.06, r);
+        vec3 Y2 = cross(lsN, lsH); float x = dot(q, lsH)/lsR, y = dot(q, Y2)/lsR;
+        float hnd = smoothstep(0.98, 1.02, x)*(1. - smoothstep(2.25, 2.33, x))*(1. - smoothstep(0.08, 0.11, abs(y)));
+        return mix(1., lsDark, lsOn*max(sh, hnd)); }
+      float landAt(vec2 xz){ float s = dot(xz - coastP, coastN) + (fbm2(xz/(coastWob*3.)) - 0.5)*coastWob*2.4; return smoothstep(-coastWob*0.06, coastWob*0.06, s); }
       // cloud top altitude (m above sea level) at map position xz; -1 where clear
       vec4 tex(vec2 xz, float lod){ return textureLod(hTex, (xz + offset)/period, lod); }
-      float topAt(vec2 xz, float lod, out vec4 T){ T = tex(xz, lod); float h = max(T.r - reg, 0.)/(1. - reg + 1e-3); return h > 0.002 ? base + h*thick : -1.; }
+      float topAt(vec2 xz, float lod, out vec4 T){ T = tex(xz, lod); float h = max(T.r - reg, 0.)/(1. - reg + 1e-3); if (cut > 0.) h *= cutMask(xz); return h > 0.002 ? base + h*thick : -1.; }
       float altOf(vec3 p){ return length(p - C) - RE; }
       vec3 seaAt(vec3 ro, vec3 d, float tFar, out float dist){
         vec2 sg; { vec3 oc = ro - C; float b = dot(oc, d), c = dot(oc, oc) - RE*RE, h = b*b - c; sg = h < 0. ? vec2(-1.) : vec2(-b - sqrt(h), -b + sqrt(h)); }
         dist = sg.x > 0. ? sg.x : tFar; vec3 p = ro + d*dist; vec3 L = normalize(sunDir);
         vec3 q = p + L*((base + thick*0.45)/max(L.y, 0.2)); vec4 Tq;
         float shd = topAt(q.xz, log2(max(dist*lodK, 1.)), Tq) > 0. ? 0.25 : 1.;
-        return seaCol*(sunI*1.3*max(L.y, 0.)*shd + skyI*0.35) + skyCol*0.03*(0.5 + 0.5*shd); }
+        vec3 gc = seaCol; float land = 0.;
+        if (landI > 0.) { land = landAt(p.xz)*landI; gc = mix(seaCol, landCol*(0.75 + 0.5*fbm2(p.xz/2600.)), land); }
+        if (lsOn > 0.) shd *= lensSh(p);
+        vec3 col = gc*(sunI*1.3*max(L.y, 0.)*shd + skyI*0.35) + skyCol*0.03*(0.5 + 0.5*shd);
+        if (cut > 0.) {                                                            // giant-lens: the burn line on the ground
+          vec2 s = segD(p.xz, cutA, cutB); float dd = s.x, fade = exp(-s.y/burnFade);
+          float n = vn2(p.xz/(burnW*1.5) + vec2(ctime*0.7, 0.));
+          float charM = (1. - smoothstep(burnW*0.7, burnW*(1.3 + 0.5*n), dd))*cut;
+          col = mix(col, mix(vec3(0.8, 0.84, 0.88)*sunI*0.9*max(L.y, 0.), vec3(0.025, 0.02, 0.018), land), charM*mix(0.75, 0.92, land));
+          float core = exp(-dd*dd/(burnW*burnW*0.5));
+          col += cutCol*cut*burnI*fade*(core*(0.6 + 0.8*n)*3. + 0.45*exp(-dd/(burnW*6.))*(0.4 + 0.6*n))*mix(0.35, 1., land);
+          float hd = length(p.xz - cutB);
+          col += cut*spotI*(vec3(1., 0.95, 0.85)*exp(-hd*hd/(spotR*spotR)) + cutCol*0.1*exp(-hd/(spotR*5.)));
+        }
+        return col; }
       vec2 sph(vec3 ro, vec3 rd, float r){ vec3 oc = ro - C; float b = dot(oc, rd), c = dot(oc, oc) - r*r, h = b*b - c; if (h < 0.) return vec2(-1.); h = sqrt(h); return vec2(-b - h, -b + h); }
       void main(){
         vec3 d = normalize(vD);
@@ -112,11 +153,14 @@ export function createClouds(S, o = {}) {
           float sh = 1., ts = 60.;
           for (int k = 0; k < 5; k++){ vec3 q = p + L*ts; vec4 Tq; float tq = topAt(q.xz, lod + 0.5, Tq); if (tq > 0.) sh = min(sh, clamp(1. - (tq - altOf(q))/220., 0., 1.)); ts *= 2.2; }
           float occ = clamp(0.55 + (T.r - T.a)*2.2, 0., 1.) * (0.7 + 0.3*clamp(h01, 0., 1.));     // crevices darker, high tops open
-          vec3 sunL = sunCol*sunI*wrap*sh;
+          float lsh = lsOn > 0. ? lensSh(p) : 1.;                                   // giant-lens: the lens's shadow on the deck
+          vec3 sunL = sunCol*sunI*wrap*sh*lsh;
           vec3 fill = skyCol*skyI*(0.45 + 0.55*occ) + vec3(0.9, 0.93, 1.0)*0.12*occ;              // blue sky fill + bounce
           col = (sunL + fill)*(0.92 + 0.08*vn3(p*0.004));
           // sunward edges glow when the light comes through (silver lining)
-          col += sunCol*sunI*0.18*pow(max(dot(d, L), 0.), 6.)*(1. - wrap);
+          col += sunCol*sunI*0.18*pow(max(dot(d, L), 0.), 6.)*(1. - wrap)*lsh;
+          if (cut > 0.) { vec2 s = segD(p.xz - cutOff, cutA, cutB); float ex = max(s.x - cutR*0.8, 0.);   // giant-lens: fire light on the slot walls
+            col += cutCol*wallGlow*cut*exp(-ex/(cutR*0.45))*exp(-s.y/burnFade)*(1. - 0.75*clamp(h01, 0., 1.)); }
           // thin cloud at the edges lets the sea through: soft, slightly grey-blue rims instead of cut-outs
           float edgeA = smoothstep(0.0, 0.1, h01);
           if (edgeA < 0.999) { float ds; vec3 sea = seaAt(ro, d, t1, ds); col = mix(sea, col*mix(0.8, 1., edgeA), edgeA); }

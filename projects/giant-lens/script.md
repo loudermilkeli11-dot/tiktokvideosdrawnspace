@@ -71,3 +71,9 @@ build found a reason (see **Deviations** at the bottom). Format: Studio v2, 9 sh
 5. **Lens shadow is analytic** (`createLensShadow`): shadow maps don't show on our renders (also true in friction-vanishes).
 6. **s09 samples = 8** (s01's), so the loop frames match.
 7. **Title band:** default (not the stronger band), so the lens under the title's lower edge stays readable.
+8. **s04/s05 look UP-SUN (+Z), not from the beach/hillside (Builders, phase 2).** The lens hangs 0.91·D up and 0.41·D
+   sunward of its spot, so no −Z camera holds the lens and its spot together. s04: from the water off the pier end, 12 m up,
+   20 mm, the pier as the leading line. s05: a drone 70 m over the lagoon, 28 mm, across the bay at the town; no hero.
+9. **s01's car** is `A_CAR` (24.7, 0, −8), yaw π/2 (groupA_frame1.js), so the lens never turns edge-on over the camera.
+10. **Visual widths DRAMATIZED** so they read at distance: the s07 cloud slot/char and the s08 char swath (7 km) and cloud
+    slot (40 km) are wider than the true spot. Every number on screen is still the law's.

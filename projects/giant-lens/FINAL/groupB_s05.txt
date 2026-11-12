@@ -1,0 +1,39 @@
+giant-lens, Builder group B, s05_town hand-over (this session). s03_tower and s04_bay were built by the other group-B
+session (claudestudio-3c), which writes FINAL/groupB_s03.txt plus its s04 notes. The Phase 2 order went out twice, so two
+group-B sessions ran. We split the shots: theirs are s03 + s04 (+ groupB_tower.js, groupB_s04fx.js); mine are s05 + groupB_bay.js.
+Collision note: at ~13:43 I overwrote their s04_bay.js once by mistake. They say they restored their version; Director, please
+confirm s04_bay.js is theirs.
+
+FILES
+- src/s05_town.js, src/s05_town_sound.js (out/s05_town.wav, 5.1 s, peak -8.3 dBFS)
+- src/groupB_bay.js: pathFn (piecewise spot path), boilParts (N5 boil jet = createSpray kinds 0/1, white droplet jets + clumps
+  + low ring), createFoam (white wake ribbon), createSeaShadow (lens shadow on the sea plane, depth test off),
+  hideFromMirror, passTime, handleDirOf.
+- No engine edits (splash.js untouched: default spray is already white).
+
+s05_town (18.0-22.5, 632 m -> 2 km at 0.0-0.8, spot 19 m)
+- DEVIATION: the camera looks UP-SUN (+Z). It is a drone 70 m over the lagoon at (-200, 70, -680), 28 mm, yaw 170 deg, pitch 2.5 deg,
+  looking across the bay at the south-shore town. Why: the lens hangs 0.91·D up and 0.41·D toward +Z from its spot, so a −Z
+  hillside camera can never hold the 2 km lens and its spot in one frame. From +Z the lens's lower rim plus the handle
+  (ha −1.45, hanging down into the sky) fill the top third: it reads instantly as a magnifying glass. s04 (other session)
+  also looks +Z, so the crane matches: s04 ends rising ~9.6 m/s, backing −Z 4.5 m/s and tilting down 6 deg/s; s05's first 0.6 s
+  continues the same motion, decelerating (up 2.9 m, back 1.35 m, pitch −1.8 deg).
+- Action: the lens grows over the bay (0.2 = mid-grow). The spot sweeps the town east -> west (0.5-2.6): every roof it crosses
+  catches at its passage time (flames from the real bay.buildings instances), with a continuous ground fire line between them.
+  The pier still burns from s04. From 2.6 the spot turns onto the bay and runs toward camera in a boiling white jet. The kit
+  core/halo billboards are resized to the spot (w·0.75 / w·1.7, with a px floor), lifted, and drawn with depth test off (they
+  clipped into a hard white box at 1 km).
+- Best frames: out/frames_s05/s05_town_t1.50.png (lens + handle + burning town + pier) and t4.30 (burning swath + boil jet).
+  Full size: out/frames_s05_full/s05_town_t2.20.png, 0.5 s/frame at 8 samples on the GPU.
+- Weak spots:
+  1. NO HERO. The drone view has no ground near the lens; makeHero is built but hidden (?hero=1 shows it at the old
+     headland spot). To restore it, a headland camera puts the town at 1.5 km, where the fires are dots (tried at pass 1).
+  2. The town is a mid-distance strip at y ≈ 490-600: the shoreline and the spot's last second (y ≈ 600-640) sit in the
+     caption band (560-640). C5 needs `band`. The counter block (x 50-290, y 370-500) is over calm sky.
+  3. The white foam wake ribbon barely shows; the boil reads mainly from the jets and the glow. The 2 km lens shadow on the
+     water is subtle (dark water in the foreground); a mirror reflection of the handle shows in the bay (fine, physical).
+  4. The cone is a wide faint wedge from the spot to the top edge, as the kit draws it.
+
+KIT/LAW NEEDS (Director)
+- Consider building the core/halo resize into lensRig: at D ≥ 600 m and distances > 500 m, the default halo
+  (glowR·1.6 or minPx·6) gets clipped by the surface into a square.

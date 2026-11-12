@@ -1,0 +1,15 @@
+giant-lens, Builder group B (s03_tower, s04_bay, s05_town): index hand-over, 2026-11-12 evening re-run.
+
+The Phase 2 order for group B went out more than once. All three shots were built and checked earlier today by two group-B sessions.
+Full notes:
+  - FINAL/groupB_s03_s04.txt: s03_tower + s04_bay (files groupB_tower.js, groupB_s04fx.js)
+  - FINAL/groupB_s05.txt: s05_town (file groupB_bay.js)
+
+This run (no source changes): rebuilt all three pages against the current kit/engine and re-rendered each best frame on the GPU (0.1 to 0.2 s/frame):
+  - s03_tower best t4.30: out/frames_s03_recheck/s03_tower_t4.30.png. Lens + handle, beam, molten gash with shards down the glass tower. OK.
+  - s04_bay best t3.40: out/frames_s04_recheck/s04_bay_t3.40.png. Lens rim + handle top, whole pier ablaze, spot at the pier end, boats. OK.
+  - s05_town best t1.50: out/frames_s05_recheck/s05_town_t1.50.png. Lens + handle, beam cone, town roofs burning, pier fire. OK.
+Collision check: s04_bay.js imports groupB_s04fx.js (the s03/s04 session's version), so the s05 session's accidental overwrite was restored.
+
+Weak spots (details in the two notes): s04's cut opens small and far, and the foreground boat is blocky. s05 has no hero, and its town strip and spot sit in the
+caption band (y 490 to 640), so C5 needs `band`. The kit core/halo and the lens-shadow decal needed per-shot fixes. A kit option for them would help.

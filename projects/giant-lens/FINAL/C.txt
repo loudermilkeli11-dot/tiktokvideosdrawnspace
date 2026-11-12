@@ -1,0 +1,46 @@
+giant-lens: Builder group C hand-over (s06_clouds, s07_strato, s08_orbit), 2026-11-12
+All three pages build (python tools/build_page.py ...) with sound; key frames checked on the GPU; WAVs render (peaks -6 to -8 dBFS).
+Full-size GPU timing: s06 0.3 s/frame (8 samples), s07 0.2 s (8), s08 0.6 s (4).
+
+ENGINE (default-off extensions, as BUILDERS.md allows for group C; other projects render as before)
+- engine/src/clouds.js: N6. U.cut (slot along a ground path, cutA -> cutB, offset sunward by cutOff, radius cutR), ground burn
+  line (burnW, burnFade, burnI, white-hot head spotR/spotI), orange slot-wall glow (wallGlow), analytic lens shadow on the deck and
+  ground (lsOn, lsC, lsN, lsR, lsH = handle, lsDark), land in the gaps (landI, landCol, coastP/coastN/coastWob). Documented in the header.
+- engine/src/space.js: N7. EU.lnOn (a great-circle scorched line lnA -> lnB with a cloud slot lnCloud, char lnW, glow lnI/lnFade,
+  white-hot head spI/spR) and EU.lsOn (the lens shadow, glass + handle, on clouds and land). I added these next to `scar`, not inside
+  it, so gravity-flip's scar look is unchanged. Documented in the header.
+
+s06_clouds (22.5-27.0): best frame t = 1.5 (out/frames_s06/s06_clouds_t1.50.png; full size out/frames_s06_full/)
+- Hard cut to 8 km above a low deck. The lens grows to 6.3 km (0.0-0.8) and hangs BELOW us, so we see its top face with the handle
+  up-left. A clean slot runs from the bottom of the frame up to the spot, the ground glowing orange in it. The lens's round shadow sits
+  on the deck at the head. The airliner (upper left) banks hard away and leaves the frame by about 2.5 s. 3.9-4.5: the climb into s07.
+- Weak spots: the lens shadow on the deck reads as a soft blue-grey disc, not a crisp dark one. The glass looks pale grey.
+  The climb only reaches about +1 km by t 4.3 (ease-in; about 16 km/s at the cut).
+
+s07_strato (27.0-31.5): best frame t = 4.3 (out/frames_s07/s07_strato_t4.30.png; full size out/frames_s07_full/)
+- Climb 30 -> 70 km with a pull-back (camera +50 km), 24 mm, the same deck and SKY_HIGH. Grows at 0.0 (20 km) and 2.2 (63 km).
+  The lens rises toward us with its handle up-left. Its shadow is a 63 km dark disc on the deck around the white-hot head. The scar
+  (slot + burning line) runs from the sea near us, across the coast (z -6 km) and far inland.
+- DRAMATIZED (flag for the Director): the honest slot is the cone's width at the deck (about 0.5 km at any lens size). I widened it by
+  2 km + 4·w (the burning ground keeps the deck open) and drew the char at max(1.5·w, 1.1 km) so it reads from 100+ km.
+- Weak spots: the scar reads as a pale orange glowing band, not black char with embers (the glow halo dominates at this distance). The
+  horizon curve is subtle at 24 mm. Cloud tiling is not visible (period 61 km, regional 0.5).
+- The last frame is bright (mostly white deck), so s08's first frame is darker: no upward luma jump at 31.5.
+
+s08_orbit (31.5-37.0): best frame t = 2.5 (out/frames_s08_full/s08_orbit_t2.50.png); also t 0.2 / 5.3 in out/frames_s08/
+- Day-side Earth from about 1,900 -> 3,800 km (pull-back), 50 -> 70 mm. The spot is inland on a continent's green savanna (lon 21, lat 6),
+  with the film's 65° sun. The 200 km lens (grows 0.0-0.8) hangs above the dot, handle up-right; it is the kit's glass tinted pale blue
+  (space mode draws it black). Its shadow (glass + handle) is a dark disc around ONE blinding dot. A dark scorched line runs in from
+  the WSW ocean, a cloud slot tracing it, with the glow cooling behind the head. Curved limb + stars at the top.
+- 36.5-37.0: nothing changes in the picture (the dot burns on, the drift continues); the sound is out by shot time 5.05 (true silence).
+- DRAMATIZED widths: char swath 7 km and cloud slot 40 km (the spot is 1.9 km), so they read at about 1 km/px.
+- Weak spots: the 4096 Earth textures are soft in the lower foreground. The lens is small (about 100 design px), and "pull-back past
+  the rim" reads as a slow pull-back with the whole lens in frame. The dot and line sit at y ≈ 515, just under the counter block (x 50-290,
+  y 370-500), and the line crosses the left edge there. Check them against the real overlay.
+
+Notes for the Director
+- No kit, law or shared-file changes needed. SUN: s06/s07 use kit SUN; s08 builds its own 65°-elevation sun at the spot (SP.sunDir
+  is in Earth coordinates). Every lens size comes from lensD(); the lens centre is spot + sun·D in all three.
+- Sound: no cut hits, no ticks. There are lens-grow swells at every grow (s06 0.0; s07 0.0 and 2.2; s08 0.0), and the hum drops at each
+  s07 grow. Each transition gets a low whoosh: s06's climb, plus s07's carried tail.
+- I couldn't run `sed`/inline node in the shell here; all edits are in the files.

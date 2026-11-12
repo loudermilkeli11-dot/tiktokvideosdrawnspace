@@ -6,6 +6,10 @@
 //   EU.scar 0..1     the aftermath: scorched land, churned grey sea, embers on the night side, most lights out
 //   EU.glowI + glowCol   orange light over the night side (a meteor storm)                 EU.atmI  air rim + halo (1)
 //   EU.detail 0..1   procedural fine detail for close views (from low orbit)               o.seg = [w, h] sphere segments
+// giant-lens additions (the scar's burning-line variant; ALL OFF by default: lnOn = 0, lsOn = 0 render exactly as before):
+//   EU.lnOn 0..1 a scorched great-circle line lnA -> lnB (unit dirs, head = lnB): lnW (km, char half-width), lnCloud (km, cloud slot
+//     half-width), lnFade (km behind the head over which the glow cools), lnI + lnCol (orange glow), spI / spR (km: white-hot head)
+//   EU.lsOn 0..1 the lens shadow: lsC (lens centre, km), lsN (axis), lsR (radius, km), lsH (handle dir, unit), lsDark
 import * as THREE from 'three';
 import { NOISE } from './glsl.js';
 import { texURL } from './engine.js';
@@ -32,17 +36,34 @@ export function createSpace(S, o = {}) {
   const EU = { day: { value: day }, night: { value: night }, brc: { value: brc }, sunDir: { value: sunDir }, time: { value: 0 }, cityI: { value: o.cityI ?? 1.6 }, sunI: { value: o.sunI ?? 2.6 }, cloudShift: { value: 0 },
     ringShadowI: { value: o.ring ? 0.35 : 0 }, ringN: { value: new THREE.Vector3(0, 1, 0) }, ringR: { value: new THREE.Vector2(1.15 * RE, 2.6 * RE) },
     coast: { value: null }, cloudsI: { value: 1 }, seabed: { value: 0 }, surf: { value: 0 }, surfT: { value: 0 }, scar: { value: 0 },
-    glowI: { value: 0 }, glowCol: { value: new THREE.Color(1.0, 0.42, 0.12) }, atmI: { value: 1 }, detail: { value: 0 } };
+    glowI: { value: 0 }, glowCol: { value: new THREE.Color(1.0, 0.42, 0.12) }, atmI: { value: 1 }, detail: { value: 0 },
+    lnOn: { value: 0 }, lnA: { value: new THREE.Vector3(1, 0, 0) }, lnB: { value: new THREE.Vector3(0, 0, 1) }, lnW: { value: 3 }, lnCloud: { value: 12 }, lnFade: { value: 1500 },
+    lnI: { value: 1 }, lnCol: { value: new THREE.Color(1.0, 0.36, 0.07) }, spI: { value: 0 }, spR: { value: 5 },
+    lsOn: { value: 0 }, lsC: { value: new THREE.Vector3() }, lsN: { value: new THREE.Vector3(0, 1, 0) }, lsR: { value: 100 }, lsH: { value: new THREE.Vector3(1, 0, 0) }, lsDark: { value: 0.35 } };
   const seg = o.seg || [192, 96];
   const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, seg[0], seg[1]), new THREE.ShaderMaterial({ uniforms: EU,
     vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying vec3 vO; void main(){ vUv = uv; vO = position; vN = normalize(mat3(modelMatrix)*normal); vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
     fragmentShader: `${NOISE} uniform sampler2D day, night, brc, coast; uniform vec3 sunDir, ringN, glowCol; uniform vec2 ringR; uniform float cityI, sunI, cloudShift, ringShadowI, cloudsI, seabed, surf, surfT, scar, glowI, atmI, detail;
       varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying vec3 vO;
+      uniform float lnOn, lnW, lnCloud, lnFade, lnI, spI, spR, lsOn, lsR, lsDark; uniform vec3 lnA, lnB, lnCol, lsC, lsN, lsH;
+      // giant-lens: distance (km) from unit dir np to the great-circle arc lnA -> lnB (x), and the arc length back from the head (y)
+      vec2 arcD(vec3 np){ vec3 m = normalize(cross(lnA, lnB)); float tot = acos(clamp(dot(lnA, lnB), -1., 1.));
+        vec3 q = np - m*dot(np, m); float ql = length(q); if (ql < 1e-6) return vec2(1e9, 0.); q /= ql;
+        float a = clamp(atan(dot(cross(lnA, q), m), dot(lnA, q)), 0., tot); vec3 c = lnA*cos(a) + cross(m, lnA)*sin(a);
+        return vec2(acos(clamp(dot(np, c), -1., 1.))*${RE}., (tot - a)*${RE}.); }
+      float lensSh(vec3 p, vec3 L){ float dn = dot(L, lsN); if (abs(dn) < 1e-3) return 1.; float t = dot(lsC - p, lsN)/dn; if (t < 0.) return 1.;
+        vec3 q = p + L*t - lsC; float sh = 1. - smoothstep(1.0, 1.05, length(q)/lsR);
+        vec3 Y2 = cross(lsN, lsH); float x = dot(q, lsH)/lsR, y = dot(q, Y2)/lsR;
+        float hnd = smoothstep(0.98, 1.02, x)*(1. - smoothstep(2.25, 2.33, x))*(1. - smoothstep(0.08, 0.11, abs(y)));
+        return mix(1., lsDark, lsOn*max(sh, hnd)); }
       // fbm whose fine octaves fade out below the pixel footprint (fp, km per pixel): no shimmer from far, detail from near
       float dfbm(vec3 p, float lam, float fp){ float s = 0., a = 0.5, w = 0.; for (int i = 0; i < 7; i++){ float k = smoothstep(1.5*fp, 4.*fp, lam); s += a*k*(vn3(p/lam) - 0.5); w += a; p += vec3(7.1, 3.3, 5.9)*lam; lam *= 0.5; a *= 0.55; } return s/w*2.; }
       void main(){
         vec3 n = normalize(vN), L = normalize(sunDir), V = normalize(cameraPosition - vW);
         vec3 b = texture2D(brc, vUv).rgb; float clouds = texture2D(brc, vUv + vec2(cloudShift, 0.)).b * cloudsI;
+        vec2 lnAD = vec2(1e9, 0.);
+        if (lnOn > 0.) { lnAD = arcD(normalize(vW)); float wob = (vn3(vW*0.02) - 0.5)*lnCloud*0.5;      // giant-lens: the cloud slot
+          clouds *= mix(1., smoothstep(lnCloud*0.75, lnCloud*1.2, lnAD.x + wob), lnOn); }
         float mu = dot(n, L); float dayF = smoothstep(-0.12, 0.18, mu);
         vec3 dc = texture2D(day, vUv).rgb;
         float ocean = 1. - smoothstep(0.15, 0.5, b.g);
@@ -59,6 +80,9 @@ export function createSpace(S, o = {}) {
           vec3 churn = mix(vec3(0.06, 0.07, 0.075), vec3(0.24, 0.25, 0.24), smoothstep(0.45, 0.8, fbm3(vO*0.004 + 9.))) * (0.8 + 0.4*fbm3(vO*0.02 + 3.));
           dc = mix(dc, mix(mix(dc, burnt, 0.75), churn, ocean), scar); }
         vec3 col = dc * max(mu, 0.) * sunI;
+        if (lnOn > 0.) { float n2 = vn3(vW*0.05);                                                          // giant-lens: the char line
+          float charM = (1. - smoothstep(lnW*0.6, lnW*(1.3 + 0.5*n2), lnAD.x))*lnOn;
+          col = mix(col, mix(vec3(0.02, 0.015, 0.012), vec3(0.72, 0.74, 0.77)*max(mu, 0.)*sunI, ocean), charM*mix(0.95, 0.6, ocean)); }
         // ocean glint
         vec3 H = normalize(L + V); col += vec3(1.0,0.9,0.75) * pow(max(dot(n, H), 0.), 900.) * ocean * sunI * 0.5 * step(0., mu) * (1. - clouds) * (1. - seabed) * (1. - scar);
         // white surf on every coast at once (signed distance to the coast, km: > 0 on land)
@@ -75,6 +99,11 @@ export function createSpace(S, o = {}) {
         // clouds over everything
         vec3 cl = vec3(1.) * max(mu*0.9+0.1, 0.) * sunI * 1.05;
         col = mix(col, cl, clouds * 0.9 * smoothstep(-0.2, 0.05, mu));
+        if (lnOn > 0.) { float fade = exp(-lnAD.y/lnFade), n3 = vn3(vW*0.08);                             // giant-lens: glow, head
+          col += lnCol*lnI*lnOn*fade*(exp(-lnAD.x*lnAD.x/(lnW*lnW*0.4))*(0.6 + 0.8*n3)*2. + 0.35*exp(-lnAD.x/(lnW*4.))*(0.4 + 0.6*n3))*mix(1., 0.45, ocean); }
+        if (lsOn > 0.) col *= lensSh(vW, L);
+        if (lnOn > 0. && spI > 0.) { float hd = length(vW - lnB*${RE}.);
+          col += lnOn*spI*(vec3(1., 0.96, 0.88)*exp(-hd*hd/(spR*spR)) + lnCol*0.15*exp(-hd/(spR*6.))); }
         // night lights (dimmed under clouds), only on the night side
         vec3 nl = texture2D(night, vUv).rgb; col += nl * nl * vec3(1.0,0.75,0.45) * cityI * (1. - dayF) * (1. - clouds*0.7) * (1. - 0.85*scar);
         if (scar > 0.) { float em = smoothstep(0.62, 0.8, fbm3(vO*0.0035 + 2.)) * fbm3(vO*0.03); col += vec3(1.0, 0.32, 0.06) * em * scar * 0.5 * (1. - ocean) * (1. - dayF*0.85); }

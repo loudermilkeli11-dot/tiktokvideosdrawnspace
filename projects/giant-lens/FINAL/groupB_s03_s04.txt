@@ -1,0 +1,62 @@
+giant-lens: Builder group B, session claudestudio-3c. Shots: s03_tower, s04_bay. (s05_town is built by the second group-B session,
+claudestudio-ff, which got the same order. We split the group by message: it owns s05_town + src/groupB_bay.js; its hand-over is FINAL/groupB_s05.txt.
+s05 opens by continuing this s04 crane: it rises 2.9 m from about 9.7 m/s, moves back 1.35 m toward −Z and tilts down 1.8° over 0.6 s,
+decelerating; the pier fire shows in both shots.)
+
+FILES (mine)
+  src/s03_tower.js, src/s03_tower_sound.js, src/groupB_tower.js         (N4 facade FX)
+  src/s04_bay.js, src/s04_bay_sound.js, src/groupB_s04fx.js            (N5 boil jet, passTimes, hideFromMirror)
+  engine/src/gl_groupB_probe.mjs   dev-only probe that lists city.js buildings (not imported). Fixed: city.js draws an extra
+                                   `hue: R()` per building, so the probe's old index was wrong.
+  No shared or engine file edited. No splash.js change was needed.
+
+s03_tower (film 9.0–13.5): BUILT, checked on the GPU. Full size 0.3 s/frame (8 samples; 12 in the first 0.55 s of the tilt).
+  - Tower = city.js building #52 (glass, x 1.5–46.5, 72.6 m tall). We see its south face (z −74.1), the sunlit one: SUN.x < 0,
+    so the beam can't reach the east-street face. The camera sits on the plaza's north edge (45.2, 1.7, −46), 24 → 30 mm, yaw −30.
+    The tilt continues from +35° pitch, settles near 44°, then follows the climb to about 57°.
+  - Spot (spotOf(D): 0.6 → 1.9 m as the lens grows 63 → 200 m over 0.2–1.0 s) comes up the facade and dwells on one pane
+    (floor 8, x 32.8). That pane reaches flow at 1.88 s (GLASS_MELT_S after arrival). It glows, sags into an orange molten tongue
+    and drips. The spot then climbs to 59 m with a slight S. Panes it only crosses crack from thermal shock and burst out as shards.
+    Behind it stays a black, ember-edged gash of holes plus a createBurn char line. The heat is a per-pane simulation, precomputed
+    at load from the law's flux with radiative cooling.
+  - Lens: 200 m, handle at upper left (ha 2.2), cone into the spot. Its shadow on the facade is drawn only on the tower face
+    (an own decal; the kit decal is an unbounded plane).
+  - Type zones: the spot stays at x ≈ 300–350 and y ≈ 330–520, clear of the counter column and the caption band.
+  - Key frames: out/frames_s03/s03_tower_t1.50.png (dwell), t3.00 (molten tongue + shards), t4.30 (BEST: gash + tongue,
+    the handshake into hit 1), full/s03_tower_t4.30.png.
+  - Weak spots: the falling drips are small (2–4 px at half size; they streak once motion blur is on). The molten tongue is a
+    single pane, so the "pour" is modest. Some shards read as flat teal triangles up close.
+
+s04_bay (film 13.5–18.0): BUILT, checked on the GPU. Full size 0.4 s/frame (12 samples).
+  - CAMERA DEVIATION from the brief ("50 mm from the beach"): the 632 m lens hangs 573 m up and 256 m toward +Z, so no −Z beach
+    camera can show the lens and its spot together. We look UP-SUN (+Z) instead, from the water off the pier end: pier-local
+    (lx 75, d 215), 12 m up, 20 mm, aimed at the pier's middle. The pier is the leading line, the town is behind it, and the lens's
+    lower rim plus its handle (ha −1.45, hanging down) fill the top of the frame. Agreed with the s05 builder, whose s05 also looks
+    +Z from the north headland.
+  - Spot: at the cut it is already on the deck at the shore end, mid-grow (1.9 → 5.9 m). It races out along the deck TOWARD us,
+    and planks ignite where it passes (flames t0 = the spot's passage time, plus a char line). It swings over two moored boats
+    (B at 1.17 s, A at 2.25 s) and each catches fire. At 3.2 s it leaves the pier end onto the water: the N5 boil jet (white
+    droplets, a thin vertical jet, small clumps; no veil).
+  - End (3.9–4.5): crane up (≈ 9.6 m/s at the cut) and back toward −Z, tilting down onto the burning pier. Handshake: the pier
+    fire is visible across the whole crane.
+  - Fixes local to this shot (kit untouched):
+    (a) The rig's core/halo billboards are oversized for a 5.9 m spot, and the water/deck clipped them into a hard white box.
+        After rig.set I resize core = 0.75 w and halo = 1.7 w, lift them, and set depthTest = false.
+    (b) The kit lens-shadow decal (depth-tested on the plane through the spot) left pale holes on the water. I hide it and draw
+        createLensShadow on a fixed plane at y = 0.3 with no depth test (renderOrder 17).
+    (c) The lens, cone, spray, flames and shadow are hidden from the ocean mirror.
+  - Key frames: out/frames_s04/s04_bay_t0.20.png (cut: lens mid-grow, fire starting at the shore end), t2.60 (racing line + boat),
+    t3.40 (BEST: whole pier ablaze, spot at the end), t4.30 (boil jet + crane), full/s04_bay_t3.40.png.
+  - Weak spots: at the cut the action is small and far (the growing lens carries the first second). splash.createBoats hulls look
+    blocky up close (the foreground boat). The boil jet reads as droplets more than one solid jet. The spot sits near the caption
+    band's top edge (y ≈ 520–580) late in the shot, after the caption ends at tt 3.9.
+
+SOUND (both): option names as in API §22, no cut hits (they live in score.json), and nothing repeating above ~3 kHz. Sizzles, hisses
+  and crackle are low-passed at 4 kHz, and cracks fall at irregular times. Every grow gets the low 0.8 s swell (constants documented
+  in each file). WAVs: out/s03_tower.wav (peak −10.0 dBFS), out/s04_bay.wav (peak −8.1 dBFS).
+
+FOR THE DIRECTOR
+  - The kit beam core/halo are too big for spots over ~3 m (fix (a) above). A kit option such as `coreScale` would help s05 and
+    later shots.
+  - The kit lens-shadow decal fails over waves (fix (b)). A `depthTest: false` / fixed-plane option in lensRig would help.
+  - The script's s04 camera line ("50 mm from the beach") should become "up-sun from the water, 20 mm".

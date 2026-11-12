@@ -20,7 +20,7 @@ Step 'The studio (a browser window may ask you to sign in to GitHub once)'
 # the studio folder: IJ_DIR if set; else the repo this script sits in (cloned already); else %USERPROFILE%\InvisibleJourneys
 $here = Split-Path $PSScriptRoot -Parent
 if ($env:IJ_DIR) { $dir = $env:IJ_DIR } elseif (Test-Path (Join-Path $here '.git')) { $dir = $here } else { $dir = Join-Path $env:USERPROFILE 'InvisibleJourneys' }
-if (Test-Path (Join-Path $dir '.git')) { Run { git -C $dir pull --ff-only } 'git pull' }
+if (Test-Path (Join-Path $dir '.git')) { Run { git -C $dir pull --no-edit --autostash } 'git pull' }
 else { Run { git clone --single-branch --branch main https://github.com/loudermilkeli11-dot/tiktokvideosdrawnspace $dir } 'git clone' }
 
 Step 'Engine packages'

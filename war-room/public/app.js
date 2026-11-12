@@ -201,7 +201,7 @@ async function uploadShots(files) {
 }
 // ---------------- studio: productions ----------------
 const PST = [['brief', 'Brief'], ['approval', 'Your approval'], ['build', 'Build'], ['render', 'GPU render'], ['done', 'Film']];
-const prStage = (pr) => (pr.stage === 'failed' || pr.stage === 'paused' || pr.stage === 'cancelled' ? pr.stage : (PST.find((x) => x[0] === pr.stage) || [pr.stage, pr.stage])[1]);
+const prStage = (pr) => (pr.stage === 'failed' || pr.stage === 'paused' || pr.stage === 'cancelled' ? pr.stage : pr.stage === 'build' && pr.buildPhase ? { lead: 'Build · lead', shots: 'Build · parallel shots', finish: 'Build · finishing' }[pr.buildPhase] : (PST.find((x) => x[0] === pr.stage) || [pr.stage, pr.stage])[1]);
 function renderProds() {
   const L = [...S.productions].reverse();
   $('#prodList').innerHTML = L.map((pr) => `<div class="wrItem ${pr.id === S.prOpen ? 'on' : ''}" data-pr="${pr.id}"><b class="st-${pr.stage}">${esc(prStage(pr))}</b> · ${esc(pr.title)}<div class="muted small">${pr.eta && !pr.eta.waitingOnYou ? '⏱ ' + new Date(pr.eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' : ''}${ago(pr.created)} ago · ${esc(pr.quality)}${pr.slug ? ' · ' + esc(pr.slug) : ''}${pr.cost ? ' · $' + pr.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">No productions yet. Greenlight an idea above, or use 🎬 on a pitch.</p>';
@@ -235,6 +235,8 @@ async function load() {
   const M = { plan: ['PLAN', 'live', 'Real agents through Claude Code on this PC, on your Claude plan'], api: ['API', 'live', 'Real agents billed to the API key in war-room/.env'], demo: ['DEMO', 'demo', 'Simulated agents. Install Claude Code and sign in, then restart, for real ones.'] }[st.mode || (st.demo ? 'demo' : 'api')];
   $('#mode').textContent = M[0]; $('#mode').className = 'badge ' + M[1]; $('#mode').title = M[2];
   renderUsage(st.usage);
+  $('#clock').title = `War Room version ${st.version}`;
+  if (st.version !== '?' && st.onDisk !== '?' && st.version !== st.onDisk && !S.staleWarned) { S.staleWarned = 1; toast({ c: '#ffd166', title: '⬆️ Update downloaded, not running yet', text: 'Double-click war-room\\Restart War Room.cmd (or run windows\\restart.ps1), then press Ctrl+Shift+R.' }); }
   if (document.activeElement !== $('#pinned')) $('#pinned').value = st.pinned || '';
   if (!S.wrOpen && S.warrooms.length) S.wrOpen = S.warrooms[S.warrooms.length - 1].id;
   renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); renderProds(); loadIntel();

@@ -40,6 +40,7 @@ export function loadAgents(dir) {
       prompt: m[2].trim(),
       order: meta.order ?? 99,
       agent: meta.agent, match: meta.match,
+      multi: !!meta.multi,
     });
   }
   return agents.sort((a, b) => a.order - b.order);

@@ -50,7 +50,8 @@ function renderRoster() {
 function taskCard(t) {
   const a = A(t.agent);
   const dur = t.started ? ((t.finished || Date.now()) - t.started) / 1000 : 0;
-  return `<div class="task ${t.status}" style="--c:${a.color}" data-task="${t.id}">
+  const live = ['queued', 'routing', 'running'].includes(t.status);
+  return `<div class="task ${t.status}" style="--c:${a.color}" data-task="${t.id}">${live ? `<button class="cx" data-stop="${t.id}" data-running="${t.status === 'running' ? 1 : ''}" title="${t.status === 'running' ? 'Stop this task' : 'Cancel this task'}">✕</button>` : ''}
     <div class="t">${a.emoji} ${esc(t.title)}</div>
     ${t.summary ? `<div class="s">${esc(t.summary)}</div>` : t.routeReason ? `<div class="s">→ ${esc(a.name)} · ${esc(t.routeReason)}</div>` : ''}
     ${t.status === 'queued' ? `<div class="why">⏳ ${esc(waitWhy(t))}</div>` : ''}
@@ -208,6 +209,8 @@ document.addEventListener('click', async (e) => {
   const el = (s) => e.target.closest(s);
   let x;
   if ((x = el('[data-tab]'))) { document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b === x)); document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === x.dataset.tab)); try { localStorage.setItem('tab', x.dataset.tab); } catch {} }
+  else if ((x = el('[data-stop]'))) { const t = S.tasks.find((y) => y.id === x.dataset.stop); if (x.dataset.running && !confirm(`Stop ${A(t?.agent).name}'s running task?\n\n${t?.title || ''}`)) return; x.disabled = true; await api(`/api/tasks/${x.dataset.stop}/stop`, {}); }
+  else if ((x = el('[data-cancel]'))) { const sc = x.dataset.cancel, n = S.tasks.filter((t) => (sc === 'running' ? ['running'] : ['queued', 'routing']).includes(t.status)).length; if (!n) return; if (!confirm(sc === 'running' ? `Stop all ${n} running task(s)?` : `Cancel all ${n} queued task(s)?`)) return; const r = await api('/api/tasks/cancel', { scope: sc }); toast({ c: '#ff5d6c', title: sc === 'running' ? `Stopped ${r.n} task(s)` : `Cancelled ${r.n} task(s)` }); }
   else if ((x = el('[data-task]'))) { openTask(x.dataset.task); x.classList.contains('toast') && x.remove(); }
   else if ((x = el('[data-agent]'))) { const sel = $('#cmdAgent'); sel.value = sel.value === x.dataset.agent ? '' : x.dataset.agent; renderRoster(); $('#cmdText').focus(); }
   else if ((x = el('[data-resume]'))) { await api('/api/resume', {}); }
@@ -216,7 +219,6 @@ document.addEventListener('click', async (e) => {
   else if ((x = el('[data-q]'))) { const t = $('#cmdText'); t.value = x.dataset.q; autosize(); t.focus(); }
   else if ((x = el('[data-goto]'))) { document.querySelector(`[data-tab="${x.dataset.goto}"]`)?.click(); setTimeout(() => $('#wrQ').focus(), 50); }
   else if ((x = el('[data-ap]'))) { x.parentElement.querySelectorAll('button').forEach((b) => (b.disabled = true)); await api('/api/approvals/' + x.dataset.ap, { allow: x.dataset.allow === '1' }); }
-  else if ((x = el('[data-stop]'))) await api(`/api/tasks/${x.dataset.stop}/stop`, {});
   else if ((x = el('[data-retry]'))) { const t = await api(`/api/tasks/${x.dataset.retry}/retry`, {}); openTask(t.id); }
   else if ((x = el('#drawerX')) || e.target.id === 'drawer') { $('#drawer').classList.remove('on'); S.open = null; }
   else if ((x = el('[data-off]'))) x.classList.toggle('on');

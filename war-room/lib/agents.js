@@ -39,6 +39,7 @@ export function loadAgents(dir) {
       keywords: meta.keywords || [],
       prompt: m[2].trim(),
       order: meta.order ?? 99,
+      agent: meta.agent, match: meta.match,
     });
   }
   return agents.sort((a, b) => a.order - b.order);

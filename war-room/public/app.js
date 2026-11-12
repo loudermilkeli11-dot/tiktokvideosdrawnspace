@@ -55,7 +55,7 @@ function taskCard(t) {
     <div class="t">${a.emoji} ${esc(t.title)}</div>
     ${t.summary ? `<div class="s">${esc(t.summary)}</div>` : t.routeReason ? `<div class="s">→ ${esc(a.name)} · ${esc(t.routeReason)}</div>` : ''}
     ${t.status === 'queued' ? `<div class="why">⏳ ${esc(waitWhy(t))}</div>` : ''}
-    <div class="f"><span class="pill">${t.status}</span>${t.deep ? '<span class="pill deep">deep</span>' : ''}${t.by && t.by !== 'Commander' ? `<span>from ${A(t.by).emoji}</span>` : ''}${t.status === 'running' ? `<span data-start="${t.started}">${fmtDur(dur)}</span>` : dur ? `<span>${fmtDur(dur)}</span>` : ''}${t.cost ? `<span>$${t.cost.toFixed(2)}</span>` : ''}<span>${ago(t.created)} ago</span></div>
+    <div class="f"><span class="pill">${t.status}</span>${t.deep ? '<span class="pill deep">deep</span>' : ''}${t.playbook ? `<span class="pill pb" title="Runs the ${esc(t.playbook)} playbook (war-room/playbooks/${esc(t.playbook)}.md)">📋 ${esc(t.playbook)}</span>` : ''}${t.by && t.by !== 'Commander' ? `<span>from ${A(t.by).emoji}</span>` : ''}${t.status === 'running' ? `<span data-start="${t.started}">${fmtDur(dur)}</span>` : dur ? `<span>${fmtDur(dur)}</span>` : ''}${t.cost ? `<span>$${t.cost.toFixed(2)}</span>` : ''}<span>${ago(t.created)} ago</span></div>
   </div>`;
 }
 function waitWhy(t) {

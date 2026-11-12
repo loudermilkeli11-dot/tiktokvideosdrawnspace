@@ -270,3 +270,5 @@ button.mini{font:800 10px var(--sans);padding:1px 7px;border-radius:6px;border:1
 .task .t{padding-right:22px}
 .hbtn{margin-left:auto;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:7px;border:1px solid var(--line2);background:none;color:var(--muted);cursor:pointer}
 .hbtn:hover{border-color:rgba(255,93,108,.5);color:var(--bad)}
+
+.pill.pb{color:var(--amber);border-color:rgba(255,179,71,.45)}

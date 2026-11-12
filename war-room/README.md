@@ -48,6 +48,15 @@ npm install && npm run demo
 ```
 Open http://localhost:4747. For real agents, copy `.env.example` to `.env`, add your key, and run `npm start`.
 
+## Short orders and playbooks
+
+You don't need to write exact instructions. "pitch 3 ideas for the next tiktok" or "review the latest stats" is enough:
+- **Playbooks** (`playbooks/*.md`) hold the full method for common jobs.
+  - **Pitch** (Scout): reads the data, researches what is working right now, writes 10–12 premises, filters them against the Never list and the lane, and scores them on a data-weighted rubric. It saves the top pitches to `pitches/`, then hands them to the Analyst for a cold-scroller review.
+  - **Stats** (Analyst): compares like with like, finds the ONE bottleneck, and updates the brain.
+- Your own words in the order (a topic, a constraint, a taste) override the defaults.
+- Edit a playbook file to change a method, or add a file for a new one.
+
 ## Usage and safety
 
 - **PLAN mode (default):** the agents run through Claude Code on this PC, signed in with your Claude account, so their work counts against your Claude plan's usage limits. There is no separate bill. (API mode is still there: put a key in `.env` and agents bill that key instead.)

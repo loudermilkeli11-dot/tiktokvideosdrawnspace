@@ -31,6 +31,10 @@ let limitedUntil = 0;   // set when Claude says the plan's limit is reached
 const MAX_DEPTH = 2; // how many delegation hops an agent chain may take on its own
 
 const agents = loadAgents(path.join(ROOT, 'agents'));
+// Playbooks (playbooks/*.md): a short Commander order that matches a playbook's `match` regex runs that playbook's full
+// method on its agent, so "pitch 3 ideas for the next tiktok" is enough. Edit or add a playbook file to change a method.
+const playbooks = loadAgents(path.join(ROOT, 'playbooks')).map((p) => ({ ...p, re: new RegExp(p.match || '^$', 'i'), agentId: p.agent }));
+const findPlaybook = (text, agent) => playbooks.find((p) => p.re.test(text) && (!agent || agent === p.agentId));
 const byId = Object.fromEntries(agents.map((a) => [a.id, a]));
 const store = new Store(path.join(ROOT, 'data'));
 const live = Object.fromEntries(agents.map((a) => [a.id, { status: 'idle', taskId: null, last: '' }]));
@@ -85,6 +89,8 @@ ${mine}
 - Start your final answer with one line: "SUMMARY: <what you did / found, one sentence>".
 - To hand work to a teammate, put on its own line: "DELEGATE @<agent-id>: <task>" (at most 2 per answer, only when needed).
 - To keep a durable lesson for future tasks: "REMEMBER: <fact>" on its own line.
+- Orders are often short ("pitch 3 ideas"). Don't ask for clarification: use the Channel brain and sensible defaults, state any assumption in one line, and deliver the full job.
+- Decide by what the DATA shows works (cite it), with the Commander's stated taste and instructions as inputs. Where they conflict, follow the instruction and flag the data.
 - The Commander makes final calls. Never claim results you did not verify.`;
 }
 
@@ -124,6 +130,7 @@ function keywordRoute(text) {
 async function route(text) {
   const at = text.match(/@([a-z]+)/i);
   if (at && byId[at[1].toLowerCase()]) return { agent: at[1].toLowerCase(), reason: 'named by the Commander' };
+  const pb = findPlaybook(text); if (pb && byId[pb.agentId]) return { agent: pb.agentId, reason: `${pb.name}` };
   const kw = keywordRoute(text);
   if (DEMO || kw.reason === 'matched keywords') return kw;   // free: only unclear orders go to the (cheap) router model
   try {
@@ -145,6 +152,7 @@ async function createTask({ text, agent, parent = null, depth = 0, by = 'Command
   store.tasks.push(task); store.save(); emit('task', publicTask(task));
   if (!task.agent) { const r = await route(text); task.agent = r.agent; task.routeReason = r.reason; task.cost += r.cost || 0; }
   else task.routeReason = by === 'Commander' ? 'assigned by the Commander' : `delegated by ${by}`;
+  if (by === 'Commander') { const pb = findPlaybook(text, task.agent); if (pb) task.playbook = pb.id; }
   task.model = deep ? DEEP_MODEL : byId[task.agent].model;
   task.status = 'queued'; store.save(); emit('task', publicTask(task));
   hive({ agent: by === 'Commander' ? null : by, kind: 'task', text: `→ @${task.agent}: ${task.title}` });
@@ -165,7 +173,8 @@ async function runTask(task) {
   const abort = new AbortController(); aborts.set(task.id, abort);
   let r;
   try {
-    r = await runAgent({ agent: { ...agent, model: task.model || agent.model }, prompt: `${teamContext(agent.id)}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
+    const pb = task.playbook && playbooks.find((x) => x.id === task.playbook);
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }

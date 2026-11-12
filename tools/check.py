@@ -2,6 +2,7 @@
 """check.py — QC for a finished film.
 
 usage: python3 tools/check.py projects/<slug>/out/final.mp4 [--score projects/<slug>/score.json] [--frames N] [--overlay ov.mov]
+       python3 tools/check.py --safe OVERLAY.mov     (captions inside the TikTok safe area; exit 1 if not)
        python3 tools/check.py --contrast OVERLAY --bg BACKGROUND [--every 0.5]     (text contrast only, before assembly)
          OVERLAY = an overlay.mov or a dir of render_ov.js PNGs (ov_NNNNN.png); BACKGROUND = a video (frame-matched) or a still.
          The overlay is composited over the background and sent through a yuv420p round-trip first.
@@ -313,6 +314,12 @@ def main():
         print(__doc__); sys.exit(2)
     if '--contrast' in args:
         return contrast_only(args)
+    if '--safe' in args:   # captions only, before any picture is rendered: python3 tools/check.py --safe out/overlay.mov
+        ovp = args[args.index('--safe') + 1]; step = round(0.5 * FPS)
+        bad = [(k * step, v) for k, o in enumerate(read_frames(ovp, step, 'rgba', 4)) for v in [safe_frame(o)] if v]
+        for f, v in bad[:20]: print(f"  f{f} {tc(f)}  " + "; ".join(v))
+        print(f"safe area (TikTok crop + UI): {len(bad)} sampled frames with text outside" + (" — OK" if not bad else ""))
+        sys.exit(1 if bad else 0)
     t_start = time.time()
     video = os.path.abspath(args[0])
     opt = lambda k: args[args.index(k) + 1] if k in args else None

@@ -327,6 +327,7 @@ async function startBuild(pr) {
     pr.buildPhase = 'lead'; pemit(pr, `Parallel build (${who}): the Director writes the law, the shared kit and the split…`);
     const lead = await prodTask(pr, 'director', `PHASE 1 of 3 (lead) of a PARALLEL build of ${base}.
 Do build-order steps 1 (skeleton: script.md, src/story.js, shots.txt) and write the SHARED KIT every shot imports (sets, palette, lighting, camera helpers: src/kit.js), checked on one key frame. Do NOT build the shots yourself.
+Also write overlay.js (captions + counter, every number from story.js, inside the safe area) and score.json now: they depend only on the law and the board, so the shots can be rendered the moment they are built.
 Then write projects/${pr.slug}/BUILDERS.md: split the shots into ${BUILDERS_N} groups named A, B, C… of similar difficulty (keep shots that cut into each other in the same group when you can), give each group its shots, the handshake at every cut (what the frame looks like at the cut), the shared rules and the contract (Builders write only their own shot files and new files named after their group, never shared files, never commit).
 Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>, <shot>, …", then "PLAN READY".`, `SUMMARY: (demo) skeleton and kit.\nGROUP A: s01, s02, s03\nGROUP B: s04, s05, s06\nGROUP C: s07, s08\nPLAN READY`);
     if (lead.status !== 'done') return buildFail(pr, lead);
@@ -334,7 +335,7 @@ Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>
     if (!groups.length) return buildDone(pr, lead);   // the lead built it all itself
     // 2. Builders in parallel, one per group
     pr.buildPhase = 'shots'; pemit(pr, `${groups.length} Builders are building shots in parallel: ${groups.map((x) => `${x.g} (${x.shots})`).join(' · ')}`);
-    const done = await Promise.all(groups.map((x) => prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`)));
+    const done = await Promise.all(groups.map((x) => prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`).then((t) => { if (t.status === 'done' && /SHOTS DONE/i.test(t.result || '')) earlyRender(pr, x.shots.split(/[,\s]+/).filter(Boolean)); return t; })));
     const bad = done.filter((t) => t.status !== 'done' || !/SHOTS DONE/i.test(t.result || ''));
     if (bad.length) return buildFail(pr, bad[0], `Builder group(s) ${bad.map((t) => (t.text.match(/group ([A-Z])/) || [])[1]).join(', ')} did not finish`);
     // 3. lead: integrate, consistency pass, captions, score, commit
@@ -342,7 +343,8 @@ Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>
     const fin = await prodTask(pr, 'director', `PHASE 3 of 3 (finish) of the PARALLEL build of ${base}. All Builder groups are done: read projects/${pr.slug}/FINAL/*.txt.
 1. Apply any shared-file changes the Builders asked for.
 2. Consistency pass: check every cut's handshake and the look across all shots (key frames on the GPU), and fix what doesn't match.
-3. Do build-order steps 3–5 (overlay.js, score.json, FINAL.md). Commit everything. End with BUILD COMPLETE as usual.`, `SUMMARY: (demo) integrated.\nBUILD COMPLETE: projects/${pr.slug}`);
+3. Check overlay.js and score.json still fit the finished shots (adjust only if needed), write FINAL.md, commit everything. End with BUILD COMPLETE as usual.
+Shots you don't change keep their early GPU renders, so touch shared files (story.js, the kit) only when it is really needed.`, `SUMMARY: (demo) integrated.\nBUILD COMPLETE: projects/${pr.slug}`);
     return buildDone(pr, fin);
   } catch (e) { pr.failedAt = 'build'; pr.stage = 'failed'; pr.error = String(e?.message || e); pemit(pr, pr.error); }
 }
@@ -374,31 +376,46 @@ function onProductionTask(task, r) {
 
   }
 }
-let rendering = null;
-function startRender(pr) {
-  if (rendering && rendering !== pr.id) { pr.stage = 'render'; pr.waiting = true; return pemit(pr, 'Waiting for the other render to finish (one GPU).'); }
-  rendering = pr.id; pr.stage = 'render'; pr.waiting = false; pr.progress = 0; pr.renderStarted = Date.now(); pemit(pr, `Rendering at quality ${pr.quality}…`);
-  const ch = spawnProc(process.execPath, [path.join(WORKSPACE, 'tools', 'render_all.js'), `projects/${pr.slug}`, '--quality', pr.quality], { cwd: WORKSPACE, env: { ...process.env, IJ_GPU: process.env.IJ_GPU ?? (process.platform === 'win32' ? '1' : '0') }, windowsHide: true });
-  pr.pid = ch.pid; let buf = '', result = '';
-  const onData = (d) => { buf += d; let i; while ((i = buf.search(/\r?\n/)) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1).replace(/^\n/, ''); if (!line) continue;
+// One GPU: every render job (early shot renders and final renders) runs through this queue, one at a time.
+let gpuChain = Promise.resolve(), gpuBusy = null;
+function gpuJob(pr, args, onLine) {
+  const job = gpuChain.then(() => new Promise((ok) => {
+    if (pr.stage === 'cancelled') return ok(-1);
+    gpuBusy = pr.id;
+    const ch = spawnProc(process.execPath, [path.join(WORKSPACE, 'tools', 'render_all.js'), `projects/${pr.slug}`, ...args], { cwd: WORKSPACE, env: { ...process.env, IJ_GPU: process.env.IJ_GPU ?? (process.platform === 'win32' ? '1' : '0') }, windowsHide: true });
+    pr.pid = ch.pid; let buf = '';
+    const onData = (d) => { buf += d; let i; while ((i = buf.search(/\r?\n/)) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1).replace(/^\n/, ''); if (line) onLine(line); } };
+    ch.stdout.on('data', onData); ch.stderr.on('data', onData);
+    ch.on('close', (code) => { gpuBusy = null; pr.pid = null; ok(code); }); ch.on('error', () => { gpuBusy = null; ok(-1); });
+  }));
+  gpuChain = job.catch(() => {}); return job;
+}
+// a Builder group finished: render its shots on the GPU right away, while the others keep building (the final render reuses them)
+function earlyRender(pr, shots) {
+  if (pr.quality === 'draft' || !shots.length) return;
+  pemit(pr, `Rendering ${shots.join(', ')} early on the GPU while the rest is built…`);
+  pr.early = (pr.early || Promise.resolve()).then(() => gpuJob(pr, ['--quality', pr.quality, '--shots', shots.join(','), '--no-assemble'], (line) => { if (/^(RESULT|reusing)/.test(line) || /error/i.test(line)) pemit(pr, `early render: ${line}`); }));
+}
+async function startRender(pr) {
+  pr.stage = 'render'; pr.waiting = gpuBusy && gpuBusy !== pr.id; pr.progress = 0; pemit(pr, pr.waiting ? 'Waiting for the GPU (another render is running)…' : `Rendering at quality ${pr.quality}…`);
+  await (pr.early || Promise.resolve()).catch(() => {});
+  let result = '';
+  const code = await gpuJob(pr, ['--quality', pr.quality, '--reuse'], (line) => {
+    if (!pr.renderStarted || pr.waiting) { pr.renderStarted = Date.now(); pr.waiting = false; }
     const pg = line.match(/^PROGRESS (\d+)\/(\d+)/); if (pg) pr.progress = +pg[1] / +pg[2];
     if (/^RESULT /.test(line)) result = line;
-    if (/^(STEP|PROGRESS|RESULT|render_all|WARN|FAIL|  frames|  loudness|text contrast|safe area|white-flash)/.test(line) || /error/i.test(line)) pemit(pr, line); } };
-  ch.stdout.on('data', onData); ch.stderr.on('data', onData);
-  ch.on('close', (code) => {
-    rendering = null; pr.pid = null;
-    if (pr.stage === 'cancelled') return pemit(pr, 'Render cancelled.');
-    const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
-    if (code === 0 && fs.existsSync(final)) {
-      if (pr.stats?.frames && pr.quality !== 'draft') { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); saveCalib(); }
-      pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
-      hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
-    } else if (fs.existsSync(final) && (pr.fixes || 0) < 1) {
-      pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n');
-      pemit(pr, 'QC failed: sending the report back to the Director for one fix round.'); startBuild(pr);
-    } else { pr.failedAt = 'render'; pr.stage = 'failed'; pr.error = result || `Render exited with code ${code}`; pemit(pr, pr.error); }
-    const next = prods.find((x) => x.stage === 'render' && x.waiting); if (next) startRender(next);
+    if (/^(STEP|PROGRESS|RESULT|render_all|reusing|WARN|FAIL|  frames|  loudness|text contrast|safe area|white-flash|  f\d+ )/.test(line) || /error/i.test(line)) pemit(pr, line);
   });
+  if (pr.stage === 'cancelled') return pemit(pr, 'Render cancelled.');
+  const final = path.join(WORKSPACE, 'projects', pr.slug, 'out', 'final.mp4');
+  if (code === 0 && fs.existsSync(final)) {
+    if (pr.stats?.frames && pr.quality !== 'draft' && !pr.early) { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); saveCalib(); }
+    pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pemit(pr, `Done: ${final}`);
+    hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
+  } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < 1) {
+    pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n'); pr.early = null;
+    pemit(pr, /captions/i.test(result) ? 'Captions are outside the safe area: back to the Director for a quick fix (no picture was rendered).' : 'QC failed: sending the report back to the Director for one fix round.'); startBuild(pr);
+  } else { pr.failedAt = 'render'; pr.stage = 'failed'; pr.error = result || `Render exited with code ${code}`; pemit(pr, pr.error); }
 }
 const briefPath = (pr) => path.join(WORKSPACE, 'projects', pr.slug || '_', 'PRODUCTION.md');
 function cancelProduction(pr) {

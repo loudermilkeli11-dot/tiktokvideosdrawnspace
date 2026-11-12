@@ -8,7 +8,7 @@ role: Finds trends and ideas, and verifies the one real fact behind each pitch w
 model: claude-sonnet-5-5
 effort: medium
 tools: [WebSearch, WebFetch, Read, Glob, Grep, Write, Edit]
-writes: [pitches/]
+writes: [pitches/, channel/research/]
 maxTurns: 25
 lens: "Do we KNOW this works on TikTok right now, or are we assuming it?"
 keywords: [idea, pitch, trend, research, topic, competitor, viral, find, search, fact, verify, source, true, science]

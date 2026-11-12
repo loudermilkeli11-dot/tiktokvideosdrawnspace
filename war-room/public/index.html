@@ -17,13 +17,7 @@
     <svg class="radar" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17"/><circle cx="20" cy="20" r="10"/><circle cx="20" cy="20" r="2.5" class="c"/><path class="sweep" d="M20 20 L20 3 A17 17 0 0 1 34.7 11.5 Z"/></svg>
     <div><b>WAR ROOM</b><small>Invisible Journeys</small></div>
   </div>
-  <nav class="tabs" id="tabs">
-    <button data-tab="mission" class="on"><span>Mission Control</span><kbd>1</kbd></button>
-    <button data-tab="war"><span>War Room</span><kbd>2</kbd></button>
-    <button data-tab="studio"><span>Studio</span><kbd>3</kbd></button>
-    <button data-tab="intel"><span>Intel</span><kbd>4</kbd></button>
-    <button data-tab="memory"><span>Memory</span><kbd>5</kbd></button>
-  </nav>
+  <div class="needs" id="needsChip" data-goto="home" title="Things waiting for you"></div>
   <div class="meta">
     <span id="mode" class="badge">…</span>
     <div class="meter" id="usageBox" title="Usage in the last 5 hours (API-equivalent dollars) and agent slots in use">
@@ -36,14 +30,21 @@
   </div>
 </header>
 
+<div class="shell">
+<nav class="tabs side-nav" id="tabs">
+  <button data-tab="home" class="on"><i>🏠</i><span>Home</span><kbd>1</kbd></button>
+  <button data-tab="pitches"><i>💡</i><span>Pitches</span><b class="nb" id="nbPitches"></b><kbd>2</kbd></button>
+  <button data-tab="studio"><i>🎬</i><span>Studio</span><b class="nb" id="nbStudio"></b><kbd>3</kbd></button>
+  <button data-tab="war"><i>⚔️</i><span>Council</span><kbd>4</kbd></button>
+  <button data-tab="team"><i>🛰</i><span>Team</span><kbd>5</kbd></button>
+  <button data-tab="intel"><i>📊</i><span>Intel</span><kbd>6</kbd></button>
+  <button data-tab="memory"><i>🧠</i><span>Teach &amp; settings</span><kbd>7</kbd></button>
+</nav>
 <main>
-  <!-- MISSION CONTROL -->
-  <section id="mission" class="view on">
-    <aside class="roster">
-      <h3>Squad <i id="nWorking"></i></h3>
-      <div id="roster"></div>
-    </aside>
-    <div class="center">
+  <!-- HOME: what needs you, what is in production, one command bar -->
+  <section id="home" class="view on">
+    <div class="homeHero">
+      <h1 id="greet">Command center</h1>
       <form class="command hud" id="cmd">
         <div class="prompt"><span class="caret">›</span>
           <textarea id="cmdText" rows="1" placeholder="Give an order…  short is fine: “pitch 3 ideas for the next tiktok”"></textarea>
@@ -64,34 +65,26 @@
           </div>
         </div>
       </form>
-      <div class="board">
-        <div class="col q"><h3><span class="led"></span>Queued <i id="nQ"></i><button class="hbtn" data-cancel="queued" title="Cancel everything that is waiting">Clear</button></h3><div id="colQ" class="list"></div></div>
-        <div class="col r"><h3><span class="led"></span>Running <i id="nR"></i><button class="hbtn" data-cancel="running" title="Stop every agent that is working">Stop all</button></h3><div id="colR" class="list"></div></div>
-        <div class="col d"><h3><span class="led"></span>Done <i id="nD"></i></h3><div id="colD" class="list"></div></div>
-      </div>
     </div>
-    <aside class="side">
-      <div class="panel hud" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"></div></div>
-      <div class="panel hud grow"><h3>Live feed <button class="hbtn" data-goto="hive" title="Open the full Hive Mind">All</button></h3><div id="hiveMini" class="feed"></div></div>
-    </aside>
+    <div class="homeGrid">
+      <div class="panel hud"><h3>Needs you <i id="nNeeds"></i></h3><div id="needsList"></div></div>
+      <div class="panel hud"><h3>In production <i id="nActive"></i></h3><div id="activeList"></div></div>
+      <div class="panel hud homeSide"><h3>Team <i id="nWorking"></i></h3><div id="miniRoster" class="miniRoster"></div><h3 style="margin-top:14px">Live feed <button class="hbtn" data-goto="hive" title="Open the full Hive Mind">All</button></h3><div id="hiveMini" class="feed"></div></div>
+    </div>
   </section>
 
-  <!-- WAR ROOM -->
-  <section id="war" class="view">
-    <div class="warTop">
-      <form id="wrForm" class="wrForm hud">
-        <h3>Put a hard call to the council</h3>
-        <textarea id="wrQ" rows="2" placeholder="e.g. “Which of the 3 pitches do we make next, and what is its frame 1?”"></textarea>
-        <div class="cmdrow"><div id="wrOfficers" class="chips"></div><button class="primary" type="submit">Convene ⚔</button></div>
-        <p class="muted small">Officers answer blind to each other, each through their own lens. The Marshal turns their reads into a plan. The Tenth Man attacks it last. You make the call.</p>
-      </form>
-      <div class="wrHistory hud"><h3>Past councils</h3><div id="wrList"></div></div>
-    </div>
-    <div id="wrStage" class="wrStage empty"></div>
+  <!-- PITCHES: readable pitch cards with greenlight and thumbs (the War Room learns from your votes) -->
+  <section id="pitches" class="view">
+    <form class="panel hud genBar" id="genForm">
+      <div><h3>New pitches</h3><p class="muted small">The Scout researches what works right now, follows your taste profile, and scores every idea against the channel's data. Your 👍 / 👎 teach it.</p></div>
+      <input id="genTheme" placeholder="Optional theme or constraint, e.g. “oceans”, “something with planes”">
+      <label class="sel">How many <select id="genN"><option>3</option><option>5</option></select></label>
+      <label class="toggle" title="Opus: deeper ideas, about 2× the usage"><input type="checkbox" id="genDeep"><span></span>Deep</label>
+      <button class="primary" type="submit">💡 Pitch ⏎</button>
+    </form>
+    <div class="pfilter" id="pFilter"><button data-pf="new" class="on">New</button><button data-pf="liked">👍 Liked</button><button data-pf="greenlit">🎬 Greenlit</button><button data-pf="passed">👎 Passed</button><button data-pf="all">All</button></div>
+    <div id="pitchGrid" class="pitchGrid"></div>
   </section>
-
-  <!-- HIVE -->
-  <section id="hive" class="view"><div class="panel hud full"><h3>Hive mind · everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
 
   <!-- STUDIO: greenlight -> brief -> your approval -> Director builds -> GPU render -> QC -> the film -->
   <section id="studio" class="view">
@@ -112,6 +105,39 @@
     <div class="panel hud prodP" id="prodStage"></div>
   </section>
 
+  <!-- WAR ROOM -->
+  <section id="war" class="view">
+    <div class="warTop">
+      <form id="wrForm" class="wrForm hud">
+        <h3>Put a hard call to the council</h3>
+        <textarea id="wrQ" rows="2" placeholder="e.g. “Which of the 3 pitches do we make next, and what is its frame 1?”"></textarea>
+        <div class="cmdrow"><div id="wrOfficers" class="chips"></div><button class="primary" type="submit">Convene ⚔</button></div>
+        <p class="muted small">Officers answer blind to each other, each through their own lens. The Marshal turns their reads into a plan. The Tenth Man attacks it last. You make the call.</p>
+      </form>
+      <div class="wrHistory hud"><h3>Past councils</h3><div id="wrList"></div></div>
+    </div>
+    <div id="wrStage" class="wrStage empty"></div>
+  </section>
+
+  <!-- TEAM: agents, the task board, approvals -->
+  <section id="team" class="view">
+    <aside class="roster"><h3>Squad</h3><div id="roster"></div></aside>
+    <div class="center">
+      <div class="board">
+        <div class="col q"><h3><span class="led"></span>Queued <i id="nQ"></i><button class="hbtn" data-cancel="queued" title="Cancel everything that is waiting">Clear</button></h3><div id="colQ" class="list"></div></div>
+        <div class="col r"><h3><span class="led"></span>Running <i id="nR"></i><button class="hbtn" data-cancel="running" title="Stop every agent that is working">Stop all</button></h3><div id="colR" class="list"></div></div>
+        <div class="col d"><h3><span class="led"></span>Done <i id="nD"></i></h3><div id="colD" class="list"></div></div>
+      </div>
+
+    </div>
+    <aside class="side">
+      <div class="panel hud" id="apPanel"><h3>Approvals <i id="nA"></i></h3><div id="approvals"></div></div>
+    </aside>
+  </section>
+
+  <!-- HIVE -->
+  <section id="hive" class="view"><div class="panel hud full"><h3>Hive mind · everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
+
   <!-- INTEL: the channel brain every agent reads, the numbers, and a drop zone for analytics screenshots -->
   <section id="intel" class="view">
     <div class="intelL">
@@ -125,12 +151,22 @@
     <div class="panel hud brainP"><h3>Channel brain · every agent reads this before every task <span class="muted small" style="margin-left:auto;letter-spacing:0;text-transform:none">channel/BRAIN.md</span></h3><div class="md" id="brainMd"></div></div>
   </section>
 
-  <!-- MEMORY -->
+  <!-- TEACH & SETTINGS -->
   <section id="memory" class="view">
+    <div class="teachGrid">
+      <div class="panel hud">
+        <h3>🎓 Teach the War Room</h3>
+        <p class="muted small">Tell it what you want more or less of, in plain words. Every agent reads your rules before every task. They also learn from your 👍 / 👎 on pitches and videos.</p>
+        <textarea id="teachText" rows="3" placeholder="e.g. “More ideas with planes and cities, fewer ocean ideas.” or “Never pitch anything about volcanoes.”"></textarea>
+        <div class="cmdrow"><span class="muted small" id="teachSaved"></span><button class="primary" id="teachSave">Teach ⏎</button></div>
+      </div>
+      <div class="panel hud tasteP"><h3>Taste profile <span class="muted small" style="margin-left:auto;letter-spacing:0;text-transform:none">channel/TASTE.md</span></h3><div class="md" id="tasteMd"></div></div>
+    </div>
     <div class="panel hud full" id="phonePanel">
       <h3>📱 Phone alerts · Telegram</h3>
       <div id="phoneBody"><p class="muted small">Loading…</p></div>
     </div>
+
     <div class="panel hud full">
       <h3>Pinned memory</h3>
       <p class="muted small">Every agent reads this before every task. Put the channel's standing orders here: goals, taste, what worked, what never to do again.</p>
@@ -138,8 +174,10 @@
       <div class="cmdrow"><span class="muted small" id="pinnedSaved"></span><button class="primary" id="savePinned">Save</button></div>
       <p class="muted small">Agents also keep their own notes: any line they write as <code>REMEMBER: …</code> is saved to <code>war-room/data/memory/&lt;agent&gt;.md</code>.</p>
     </div>
+
   </section>
 </main>
+</div>
 
 <div id="drawer" class="drawer"><div class="drawerIn"><button class="x" id="drawerX" title="Close (Esc)">✕</button><div id="drawerBody"></div></div></div>
 <div id="toasts" class="toasts" aria-live="polite"></div>

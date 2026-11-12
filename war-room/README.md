@@ -48,6 +48,13 @@ npm install && npm run demo
 ```
 Open http://localhost:4747. For real agents, copy `.env.example` to `.env`, add your key, and run `npm start`.
 
+## Teaching it (it gets better without code changes)
+
+- **Vote on pitches:** 👍 / 👎 with a short reason. Every 5 votes, the Analyst turns them into rules in `channel/TASTE.md`.
+- **Teach & settings → 🎓 Teach the War Room:** write a rule in plain words ("more planes, fewer oceans"). It applies to every agent immediately.
+- **Results:** drop analytics screenshots in Intel. The Analyst updates the channel brain's lessons.
+- **Every agent reads** the brain and the taste profile before every task, so the next pitches follow your votes and the numbers. You only need Claude Code (in the cloud) for new capabilities: new effects, new tabs, fixes.
+
 ## Short orders and playbooks
 
 You don't need to write exact instructions. "pitch 3 ideas for the next tiktok" or "review the latest stats" is enough:

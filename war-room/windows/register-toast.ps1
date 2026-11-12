@@ -23,6 +23,13 @@ public static class AumidWR {
 }
 "@
 try {
+  $k = "HKCU:\Software\Classes\AppUserModelId\$id"
+  New-Item -Path $k -Force | Out-Null
+  New-ItemProperty -Path $k -Name DisplayName -Value 'War Room' -PropertyType String -Force | Out-Null
+  New-ItemProperty -Path $k -Name IconUri -Value (Join-Path $Root 'public\icon-192.png') -PropertyType ExpandString -Force | Out-Null
+  New-ItemProperty -Path $k -Name IconBackgroundColor -Value 'FF05070B' -PropertyType String -Force | Out-Null
+} catch { }
+try {
   if (-not ('AumidWR' -as [type])) { Add-Type -TypeDefinition $src -Language CSharp }
   [AumidWR]::Set($lnk, $id)
   Write-Output $id

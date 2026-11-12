@@ -70,6 +70,7 @@ function waitWhy(t) {
 }
 const fmtDur = (d) => (d < 60 ? (d | 0) + 's' : `${(d / 60) | 0}m ${String((d % 60) | 0).padStart(2, '0')}s`);
 function renderBoard() {
+  setTimeout(renderHome, 0);
   const T = [...S.tasks].reverse();
   const q = T.filter((t) => t.status === 'queued' || t.status === 'routing'), r = T.filter((t) => t.status === 'running' || t.status === 'team'), d = T.filter((t) => ['done', 'failed', 'stopped'].includes(t.status)).slice(0, 40);
   $('#colQ').innerHTML = q.map(taskCard).join('') || '<div class="empty">Nothing queued.<br>Type an order above, or tap a quick order.</div>';
@@ -143,7 +144,9 @@ function renderWr() {
 
 // ---------------- events ----------------
 function connect() {
-  const es = new EventSource('/api/events');
+  const es = new EventSource('/api/events' + (window.Notification && Notification.permission === 'granted' ? '?n=granted' : ''));
+  es.addEventListener('alert', (e) => showNote(JSON.parse(e.data)));
+  es.addEventListener('taste', () => loadTaste());
   es.onopen = () => { $('#conn').classList.add('on'); load(); };
   es.onerror = () => $('#conn').classList.remove('on');
   es.addEventListener('agent', (e) => { const d = JSON.parse(e.data); Object.assign(A(d.id), d); renderRoster(); });
@@ -209,6 +212,7 @@ async function uploadShots(files) {
 const PST = [['brief', 'Brief'], ['approval', 'Your approval'], ['build', 'Build'], ['render', 'GPU render'], ['done', 'Film']];
 const prStage = (pr) => (pr.stage === 'failed' || pr.stage === 'paused' || pr.stage === 'cancelled' ? pr.stage : pr.stage === 'build' && pr.buildPhase ? { lead: 'Build · lead', shots: 'Build · parallel shots', finish: 'Build · finishing' }[pr.buildPhase] : (PST.find((x) => x[0] === pr.stage) || [pr.stage, pr.stage])[1]);
 function renderProds() {
+  setTimeout(renderHome, 0);
   const L = [...S.productions].reverse();
   $('#prodList').innerHTML = L.map((pr) => `<div class="wrItem ${pr.id === S.prOpen ? 'on' : ''}" data-pr="${pr.id}"><b class="st-${pr.stage}">${esc(prStage(pr))}</b> · ${esc(pr.title)}<div class="muted small">${pr.eta && !pr.eta.waitingOnYou ? '⏱ ' + new Date(pr.eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' : ''}${ago(pr.created)} ago · ${esc(pr.quality)}${pr.slug ? ' · ' + esc(pr.slug) : ''}${pr.cost ? ' · $' + pr.cost.toFixed(2) : ''}</div></div>`).join('') || '<p class="muted small">No productions yet. Greenlight an idea above, or use 🎬 on a pitch.</p>';
   const pr = S.productions.find((x) => x.id === S.prOpen) || L[0]; const st = $('#prodStage');
@@ -248,7 +252,7 @@ async function load() {
   if (st.version !== '?' && st.onDisk !== '?' && st.version !== st.onDisk && !S.staleWarned) { S.staleWarned = 1; toast({ c: '#ffd166', title: '⬆️ Update downloaded, not running yet', text: 'Double-click war-room\\Restart War Room.cmd (or run windows\\restart.ps1), then press Ctrl+Shift+R.' }); }
   if (document.activeElement !== $('#pinned')) $('#pinned').value = st.pinned || '';
   if (!S.wrOpen && S.warrooms.length) S.wrOpen = S.warrooms[S.warrooms.length - 1].id;
-  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); renderProds(); loadIntel();
+  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); renderProds(); loadIntel(); loadPitches(); loadTaste(); renderHome();
 }
 
 // ---------------- interactions ----------------
@@ -287,8 +291,8 @@ $('#cmdAgent').addEventListener('change', renderRoster);
 // keyboard: Ctrl+K or / = new order, Alt+1..4 = tabs, Esc = close
 document.addEventListener('keydown', (e) => {
   const typing = /TEXTAREA|INPUT|SELECT/.test(document.activeElement?.tagName);
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' || (!typing && e.key === '/')) { e.preventDefault(); document.querySelector('[data-tab="mission"]').click(); $('#cmdText').focus(); }
-  else if ((e.altKey || !typing) && /^[1-5]$/.test(e.key) && !e.ctrlKey && !e.metaKey) { const b = document.querySelectorAll('[data-tab]')[+e.key - 1]; if (b && (e.altKey || !typing)) { e.preventDefault(); b.click(); } }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' || (!typing && e.key === '/')) { e.preventDefault(); document.querySelector('[data-tab="home"]').click(); $('#cmdText').focus(); }
+  else if ((e.altKey || !typing) && /^[1-7]$/.test(e.key) && !e.ctrlKey && !e.metaKey) { const b = document.querySelectorAll('.tabs [data-tab]')[+e.key - 1]; if (b && (e.altKey || !typing)) { e.preventDefault(); b.click(); } }
   else if (e.key === 'Escape') { $('#drawer').classList.remove('on'); S.open = null; }
 });
 setInterval(() => { for (const el of document.querySelectorAll('[data-start]')) el.textContent = fmtDur((Date.now() - +el.dataset.start) / 1000); }, 1000);
@@ -319,7 +323,9 @@ async function renderPhone(v) {
   const pd = $('#phoneDot'); if (pd) { pd.className = 'phoneDot' + (v.tg.linked ? ' on' : ''); pd.title = v.tg.linked ? `Phone alerts on (@${v.tg.bot})` : 'Phone alerts are OFF: click to set up Telegram'; }
   const ev = Object.entries(v.labels).map(([k, l]) => `<label class="evt"><input type="checkbox" data-evt="${k}" ${v.events[k] ? 'checked' : ''}> ${esc(l)}</label>`).join('');
   const link = v.tg.bot ? `https://t.me/${v.tg.bot}?start=${v.tg.link}` : '';
-  el.innerHTML = !v.tg.set ? `
+  const perm = window.Notification ? Notification.permission : 'unsupported';
+  const pcBox = `<div class="pcNote"><b>🖥 Pop-ups on this PC:</b> ${perm === 'granted' ? '<span class="okc">on</span> (this window shows them with sound, even minimized)' : perm === 'denied' ? '<span class="badc">blocked</span>: allow notifications for this site in the window settings' : '<button class="primary" id="noteOn">Turn on pop-ups</button>'} <button class="ghost" id="noteTestWin" title="Ask Windows directly, without this window">Test Windows notification</button></div>`;
+  el.innerHTML = pcBox + (!v.tg.set ? `
     <ol class="steps">
       <li>On your phone, install <b>Telegram</b> and open a chat with <b>@BotFather</b> (the official bot maker, blue tick).</li>
       <li>Send <code>/newbot</code>, pick any name (e.g. "IJ War Room") and a username ending in <code>bot</code>. BotFather replies with a <b>token</b> like <code>123456:ABC…</code>.</li>
@@ -331,7 +337,7 @@ async function renderPhone(v) {
     <div class="tgLink"><div id="tgQr"></div><div><a href="${link}" target="_blank" rel="noopener">${link}</a><p class="muted small">Or in Telegram, open @${esc(v.tg.bot)} and send: <code>/start ${esc(v.tg.link)}</code></p><button class="ghost" id="tgRefresh">I tapped Start ↻</button> <button class="no" id="tgUnlink">Start over</button></div></div>`
     : `<p>✅ Linked to <b>@${esc(v.tg.bot)}</b>. Alerts arrive on your phone, with <b>Approve / Reject / Resume</b> buttons. You can also send <code>/status</code> any time.</p>
     <div class="evts">${ev}<label class="evt"><input type="checkbox" id="desk" ${v.desktop ? 'checked' : ''}> 🖥 Also show Windows notifications on this PC</label></div>
-    <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`;
+    <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`);
   if (link && !v.tg.linked && window.QRCode && $('#tgQr')) new QRCode($('#tgQr'), { text: link, width: 140, height: 140, colorDark: '#05070b', colorLight: '#ffffff' });
 }
 document.addEventListener('click', async (e) => {
@@ -347,3 +353,107 @@ renderPhone();
 document.addEventListener('click', async (e) => { const c = e.target.closest?.('[data-copy]'); if (!c) return; try { await navigator.clipboard.writeText(c.dataset.copy); toast({ title: '📋 Copied' }); } catch {} });
 
 try { const h = location.hash.slice(1); if (h) document.querySelector(`[data-tab="${h}"]`)?.click(); } catch {}
+
+// ---------------- desktop notifications from this window (real Windows pop-ups with sound) ----------------
+function showNote(a) {
+  try {
+    const n = new Notification(a.title, { body: a.text, icon: '/icon-192.png', image: `/alerts/${a.kind}.png`, badge: '/icon-192.png', tag: `${a.kind}-${a.title}`, renotify: true, requireInteraction: a.kind === 'approval', silent: false });
+    n.onclick = () => { window.focus(); if (a.tab) document.querySelector(`.tabs [data-tab="${a.tab}"]`)?.click(); n.close(); };
+  } catch {}
+  toast({ c: { approval: '#ffb347', done: '#4ade80', failed: '#ff5d6c', usage: '#ffd166', setup: '#4fd1ff' }[a.kind] || '#4fd1ff', title: a.title, text: a.text });
+}
+async function enableNotes() {
+  if (!window.Notification) return toast({ c: '#ff5d6c', title: 'This window cannot show notifications' });
+  const p = await Notification.requestPermission();
+  if (p === 'granted') { showNote({ kind: 'done', title: '🛰 War Room notifications are on', text: 'Pop-ups with sound will appear here, even when this window is minimized.' }); setTimeout(() => location.reload(), 1500); }
+  else toast({ c: '#ff5d6c', title: 'Notifications blocked', text: 'Allow them for this site: click the lock/site icon left of the address, or Settings → Site permissions → Notifications.' });
+  renderPhone();
+}
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'noteOn') enableNotes();
+  else if (e.target.id === 'noteTestWin') { const r = await api('/api/notify/test-desktop', {}); toast({ c: r.ok ? '#4ade80' : '#ff5d6c', title: r.ok ? 'Sent a Windows notification' : 'Windows refused the notification', text: r.ok ? `If nothing popped up, check Windows Settings → System → Notifications (and Do not disturb / Focus). App: ${r.aumid}` : r.error }); }
+});
+
+// ======================= HOME =======================
+const accent = (t) => esc(String(t || '')).replace(/\*([^*]+)\*/g, '<em>$1</em>');
+function renderHome() {
+  const el = $('#needsList'); if (!el) return;
+  const h = new Date().getHours(); $('#greet').textContent = h < 12 ? 'Good morning, Commander' : h < 18 ? 'Good afternoon, Commander' : 'Good evening, Commander';
+  const needs = [];
+  for (const pr of S.productions || []) {
+    if (pr.stage === 'approval') needs.push(`<div class="need amber"><b>🎬 Approve “${esc(pr.title)}”?</b><span>The production brief is ready${pr.eta ? ` · ready about ${new Date(pr.eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} if approved now` : ''}.</span><div class="row"><button class="primary" data-pract="approve" data-id="${pr.id}">Approve &amp; build</button><button class="ghost" data-pr-open="${pr.id}">Read the brief</button><button class="no" data-pract="cancel" data-id="${pr.id}">Reject</button></div></div>`);
+    if (['failed', 'paused'].includes(pr.stage)) needs.push(`<div class="need red"><b>⚠️ ${esc(pr.title)} ${pr.stage === 'failed' ? 'stopped' : 'is paused'}</b><span>${esc((pr.error || pr.note || '').slice(0, 200))}</span><div class="row"><button class="primary" data-pract="resume" data-id="${pr.id}">Resume</button>${pr.slug && pr.approved ? `<button class="ghost" data-pract="render" data-id="${pr.id}">↻ Render again</button>` : ''}<button class="ghost" data-pr-open="${pr.id}">Details</button></div></div>`);
+  }
+  const fresh = (S.pitchList || []).filter((x) => !x.vote && !x.greenlit);
+  if (fresh.length) needs.push(`<div class="need violet"><b>💡 ${fresh.length} new pitch${fresh.length > 1 ? 'es' : ''} to review</b><span>${fresh.slice(0, 3).map((x) => accent(x.title)).join(' · ')}</span><div class="row"><button class="primary" data-goto="pitches">Review pitches</button></div></div>`);
+  for (const w of S.warrooms || []) if (w.stage === 'awaiting') needs.push(`<div class="need amber"><b>⚔️ The council has a verdict</b><span>${esc(w.question.slice(0, 160))}</span><div class="row"><button class="primary" data-wr="${w.id}" data-goto="war">Make the call</button></div></div>`);
+  for (const ap of S.approvals || []) needs.push(`<div class="need amber"><b>${A(ap.agent).emoji} ${esc(A(ap.agent).name)} wants to use ${esc(ap.tool)}</b><span>${esc(ap.summary.slice(0, 160))}</span><div class="row"><button class="ok" data-ap="${ap.id}" data-allow="1">Allow</button><button class="no" data-ap="${ap.id}" data-allow="0">Deny</button></div></div>`);
+  el.innerHTML = needs.join('') || '<div class="empty">✨ Nothing needs you right now.<br>Pitch some ideas, or check on the team.</div>';
+  $('#nNeeds').textContent = needs.length || ''; const nc = $('#needsChip'); if (nc) { nc.textContent = needs.length ? `●\u00a0${needs.length}\u00a0${needs.length > 1 ? 'things need' : 'thing needs'} you` : ''; nc.className = 'needs' + (needs.length ? ' on' : ''); }
+  // in production
+  const act = (S.productions || []).filter((x) => ['brief', 'build', 'render'].includes(x.stage));
+  const run = S.tasks.filter((t) => ['running', 'team'].includes(t.status) && !t.production);
+  const stIx = { brief: 0, approval: 1, build: 2, render: 3, done: 4 };
+  $('#activeList').innerHTML = act.map((pr) => { const k = stIx[pr.stage] ?? 0, pct = pr.stage === 'render' ? 60 + 40 * (pr.progress || 0) : [10, 20, 35][k] + (pr.stage === 'build' ? ({ lead: 5, shots: 15, finish: 22 }[pr.buildPhase] || 0) : 0);
+    return `<div class="act" data-pr-open="${pr.id}"><div class="actTop"><b>${esc(pr.title)}</b><span>${esc(prStage(pr))}</span></div><div class="pbar"><i style="width:${Math.round(pct)}%"></i></div><div class="muted small">${pr.eta ? `Ready about ${new Date(pr.eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ${pr.eta.minutes < 60 ? pr.eta.minutes + ' min' : (pr.eta.minutes / 60).toFixed(1) + ' h'} left` : ''}</div></div>`; }).join('')
+    + run.map((t) => { const a = A(t.agent); return `<div class="act task-mini" data-task="${t.id}" style="--c:${a.color}"><div class="actTop"><b>${a.emoji} ${esc(t.title)}</b><span data-start="${t.started}">${t.started ? fmtDur((Date.now() - t.started) / 1000) : ''}</span></div><div class="muted small">${esc(a.last || '')}</div></div>`; }).join('')
+    || '<div class="empty">No video in production. Greenlight a pitch to start one.</div>';
+  $('#nActive').textContent = (act.length + run.length) || '';
+  $('#miniRoster').innerHTML = S.agents.map((a) => `<div class="mini ${a.status}" style="--c:${a.color}" title="${esc(a.name)}: ${esc(a.status)}${a.last ? ' · ' + esc(a.last) : ''}" data-agent="${a.id}"><div class="orb">${a.emoji}</div><span>${esc(a.name)}</span></div>`).join('');
+  $('#nbStudio').textContent = (S.productions || []).filter((x) => ['approval', 'failed'].includes(x.stage)).length || '';
+}
+document.addEventListener('click', (e) => { const x = e.target.closest?.('[data-pr-open]'); if (!x) return; S.prOpen = x.dataset.prOpen; document.querySelector('.tabs [data-tab="studio"]').click(); renderProds(); });
+
+// ======================= PITCHES =======================
+S.pf = 'new';
+async function loadPitches() { const d = await api('/api/pitches'); S.pitchList = d.pitches || []; S.legacy = d.legacy || []; renderPitches(); renderHome(); }
+function pitchCard(x) {
+  const sc = x.scores || {}, beats = (x.beats || []).slice(0, 7);
+  const state = x.greenlit ? '<span class="pstate g">🎬 greenlit</span>' : x.vote > 0 ? '<span class="pstate l">👍 liked</span>' : x.vote < 0 ? '<span class="pstate p">👎 passed</span>' : '<span class="pstate n">new</span>';
+  const bars = ['demand', 'hook', 'chaos', 'novelty', 'physics', 'cost', 'loop', 'taste'].filter((k) => sc[k] != null).map((k) => `<div class="sbar" title="${k}: ${sc[k]}/5"><span>${k}</span><i style="width:${(sc[k] / 5) * 100}%"></i></div>`).join('');
+  return `<article class="pcard ${x.vote < 0 ? 'dim' : ''}" data-key="${esc(x.key)}">
+    <header><div class="ring" style="--p:${Math.min(100, (x.score || 0) / 80 * 100)}"><b>${x.score ?? '–'}</b><small>/80</small></div><div class="ph"><h2>${accent(x.title)}</h2>${x.cover ? `<div class="cover">${esc(x.cover)}</div>` : ''}</div>${state}</header>
+    ${x.frame1 ? `<p class="f1"><b>Frame 1</b> ${esc(x.frame1)}</p>` : ''}
+    ${beats.length ? `<ol class="beats">${beats.map((b) => `<li><span class="bt">${esc(b.t || '')}</span><span class="bw">${esc(b.where || '')}</span><span class="bx">${esc(b.what || '')}</span>${b.counter ? `<span class="bc">${esc(b.counter)}</span>` : ''}</li>`).join('')}</ol>` : ''}
+    <div class="pmeta">${x.law ? `<div><b>The law</b> ${esc(x.law)}${x.source ? ` <a href="${esc(x.source)}" target="_blank" rel="noopener">source ↗</a>` : ''}</div>` : ''}${x.risk ? `<div><b>Risk</b> ${esc(x.risk)}</div>` : ''}${x.build ? `<div><b>Build</b> <span class="chip">${esc(x.build.size || '?')}</span> reuses ${esc((x.build.reuse || []).join(', ') || '—')}${(x.build.new || []).length ? ` · new: ${esc(x.build.new.join(', '))}` : ''}</div>` : ''}</div>
+    ${(x.why || []).length ? `<details><summary>Why the data says it works</summary><ul>${x.why.map((w) => `<li>${md(w).replace(/^<p>|<\/p>$/g, '')}</li>`).join('')}</ul>${bars ? `<div class="sbars">${bars}</div>` : ''}</details>` : ''}
+    <footer><button class="primary" data-gl-pitch="${esc(x.key)}">🎬 Greenlight</button><button class="vote up ${x.vote > 0 ? 'on' : ''}" data-vote="1" data-k="${esc(x.key)}" title="More like this">👍</button><button class="vote down ${x.vote < 0 ? 'on' : ''}" data-vote="-1" data-k="${esc(x.key)}" title="Not this (tell it why)">👎</button>${x.reason ? `<span class="why muted small">“${esc(x.reason)}”</span>` : ''}<span class="pdate">${esc(String(x.created).slice(0, 10))}${x.theme ? ' · ' + esc(x.theme) : ''}</span></footer>
+  </article>`;
+}
+function renderPitches() {
+  const g = $('#pitchGrid'); if (!g) return;
+  const L = (S.pitchList || []).filter((x) => S.pf === 'all' || (S.pf === 'new' && !x.vote && !x.greenlit) || (S.pf === 'liked' && x.vote > 0) || (S.pf === 'passed' && x.vote < 0) || (S.pf === 'greenlit' && x.greenlit));
+  const busy = S.tasks.filter((t) => t.agent === 'scout' && t.playbook === 'pitch' && ['queued', 'running'].includes(t.status));
+  g.innerHTML = (busy.length ? `<div class="pcard ghostCard"><div class="scan2"></div><b>🔭 The Scout is researching and pitching…</b><span class="muted small">${esc(busy[0].title)} · ${busy[0].started ? fmtDur((Date.now() - busy[0].started) / 1000) : 'queued'}</span></div>` : '')
+    + (L.map(pitchCard).join('') || `<div class="empty">${S.pf === 'new' ? 'No new pitches. Use 💡 Pitch above.' : 'Nothing here yet.'}</div>`)
+    + (S.pf === 'all' && S.legacy?.length ? `<p class="muted small">Older pitch files (before cards): ${S.legacy.map(esc).join(', ')}</p>` : '');
+  const n = (S.pitchList || []).filter((x) => !x.vote && !x.greenlit).length; $('#nbPitches').textContent = n || '';
+  document.querySelectorAll('[data-pf]').forEach((b) => b.classList.toggle('on', b.dataset.pf === S.pf));
+}
+document.addEventListener('click', async (e) => {
+  let x;
+  if ((x = e.target.closest?.('[data-pf]'))) { S.pf = x.dataset.pf; renderPitches(); }
+  else if ((x = e.target.closest?.('[data-vote]'))) {
+    const pt = S.pitchList.find((p) => p.key === x.dataset.k); if (!pt) return; const vote = +x.dataset.vote;
+    let reason = ''; if (vote < 0) { reason = prompt('What is wrong with it? (one line, it teaches the War Room)', '') ?? null; if (reason === null) return; }
+    else reason = prompt('What do you like about it? (optional, it teaches the War Room)', '') || '';
+    await api('/api/pitches/vote', { key: pt.key, title: pt.title, vote, reason }); pt.vote = vote; pt.reason = reason; renderPitches(); renderHome();
+    toast({ c: vote > 0 ? '#4ade80' : '#ff5d6c', title: vote > 0 ? '👍 Noted: more like this' : '👎 Noted: less like this', text: 'The War Room learns from every vote.' });
+  }
+  else if ((x = e.target.closest?.('[data-gl-pitch]'))) {
+    const pt = S.pitchList.find((p) => p.key === x.dataset.glPitch); if (!pt) return;
+    if (!confirm(`Greenlight “${String(pt.title).replace(/\*/g, '')}”?\n\nThe Producer writes the production brief; nothing is built until you approve it.`)) return;
+    const pr = await api('/api/pitches/greenlight', { pitch: pt, quality: 'max', builder: 'opus' }); pt.greenlit = true; renderPitches();
+    S.prOpen = pr.id; if (!S.productions.find((y) => y.id === pr.id)) S.productions.push(pr); document.querySelector('.tabs [data-tab="studio"]').click(); renderProds();
+    toast({ c: '#ff7ab6', title: '🎬 Greenlit', text: 'The Producer is writing the brief. You will be asked to approve it.' });
+  }
+});
+$('#genForm').addEventListener('submit', async (e) => { e.preventDefault(); await api('/api/pitches/generate', { n: $('#genN').value, theme: $('#genTheme').value, deep: $('#genDeep').checked }); $('#genTheme').value = ''; toast({ c: '#4fd1ff', title: '🔭 The Scout is on it', text: 'New pitch cards appear here when it finishes (a few minutes).' }); setTimeout(renderPitches, 500); });
+// refresh pitch cards when a pitch task finishes
+const _origTaskHandler = true;
+setInterval(() => { if (S.tasks.some((t) => t.agent === 'scout' && t.playbook === 'pitch' && t.status === 'done' && t.finished > (S.pitchSeen || 0))) { S.pitchSeen = Date.now(); loadPitches(); } else if (document.querySelector('#pitches.on')) renderPitches(); }, 3000);
+
+// ======================= TEACH & TASTE =======================
+async function loadTaste() { const d = await api('/api/taste'); const el = $('#tasteMd'); if (el) el.innerHTML = md(d.md.replace(/^# .*\n/, '')); }
+$('#teachSave').addEventListener('click', async () => { const t = $('#teachText').value.trim(); if (!t) return; await api('/api/teach', { text: t }); $('#teachText').value = ''; $('#teachSaved').textContent = 'Learned ✓ (every agent reads it from now on)'; loadTaste(); toast({ c: '#4ade80', title: '🎓 Learned', text: t.slice(0, 120) }); });
+$('#teachText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#teachSave').click(); } });

@@ -1,6 +1,6 @@
 # Invisible Journeys: render-PC setup for Windows. Safe to run again: it updates and repairs.
 # Installs Git, Node.js, ffmpeg and Python (winget), clones the studio to %USERPROFILE%\InvisibleJourneys,
-# installs the engine and the renderer, then checks that renders run on the graphics card.
+# (or uses the clone this script sits in), installs the engine and the renderer, then checks that renders run on the graphics card.
 $ErrorActionPreference = 'Stop'
 function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
 function Have($c) { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
@@ -17,7 +17,9 @@ foreach ($p in @(@('git', 'Git.Git'), @('node', 'OpenJS.NodeJS.LTS'), @('ffmpeg'
 RefreshPath
 
 Step 'The studio (a browser window may ask you to sign in to GitHub once)'
-$dir = Join-Path $env:USERPROFILE 'InvisibleJourneys'
+# the studio folder: IJ_DIR if set; else the repo this script sits in (cloned already); else %USERPROFILE%\InvisibleJourneys
+$here = Split-Path $PSScriptRoot -Parent
+if ($env:IJ_DIR) { $dir = $env:IJ_DIR } elseif (Test-Path (Join-Path $here '.git')) { $dir = $here } else { $dir = Join-Path $env:USERPROFILE 'InvisibleJourneys' }
 if (Test-Path (Join-Path $dir '.git')) { Run { git -C $dir pull --ff-only } 'git pull' }
 else { Run { git clone --single-branch --branch main https://github.com/loudermilkeli11-dot/tiktokvideosdrawnspace $dir } 'git clone' }
 

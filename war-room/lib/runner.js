@@ -98,7 +98,8 @@ function planArgs(a, p, tools) {
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--model', p.model || a.model, '--max-turns', String(p.maxTurns ?? a.maxTurns), '--setting-sources', 'project', '--strict-mcp-config'];   // no MCP servers: agents don't need them, and their tool lists cost tokens on every call
   const allow = tools.filter((t) => READ_TOOLS.includes(t));
   if (tools.some((t) => ['Write', 'Edit', 'MultiEdit'].includes(t))) for (const w of a.writes || []) allow.push(`Edit(${w.replace(/\/$/, '')}/**)`);
-  if (tools.includes('Bash')) for (const b of a.bash || []) allow.push(`Bash(${b}:*)`);
+  // command prefixes as glob rules ("Bash(node tools/*)"); the older "prefix:*" form is refused by current Claude Code
+  if (tools.includes('Bash')) for (const b of a.bash || []) allow.push(`Bash(${b.trim()}${/\s$|\/$/.test(b) ? '' : ' '}*)`, `Bash(${b.trim()})`);
   const deny = ALL_TOOLS.filter((t) => !tools.includes(t));
   // seats without tools (council officers, the router) don't need Claude Code's long coding system prompt: replace it
   if (!tools.length) args.push('--system-prompt', 'You are one member of an AI team that runs a TikTok studio. Answer in plain text, following the instructions in the message.');
@@ -122,10 +123,11 @@ function planRun1(p) {
   const a = p.agent, tools = p.tools ?? a.tools;
   const role = [a.prompt, p.system].filter(Boolean).join('\n\n');
   const rules = tools.length
-    ? `\n\n# Permissions\nYou may read anything${(a.writes || []).length ? `, and write only under: ${a.writes.join(', ')}` : ''}${(a.bash || []).length ? `. Commands you may run start with: ${a.bash.join(' | ')}` : ''}. Anything else is refused automatically: do not retry it; finish with a line "NEEDS APPROVAL: <exact action and why>" so the Commander can decide.`
+    ? `\n\n# Permissions\nYou may read anything${(a.writes || []).length ? `, and write only under: ${a.writes.join(', ')}` : ''}${(a.bash || []).length ? `. Commands you may run start with: ${a.bash.join(' | ')}. Run each command on its own from the repo root, with forward slashes, no "cd … &&", no env-var prefixes (IJ_GPU is already set)` : ''}. Anything else is refused automatically: do not retry it; finish with a line "NEEDS APPROVAL: <exact action and why>" so the Commander can decide.`
     : '\n\nAnswer directly in text. You have no tools in this seat.';
   const prompt = `# Your role\n${role}${rules}\n\n${p.prompt}`;
-  const env = { ...process.env }; delete env.ANTHROPIC_API_KEY;   // use the Claude login on this PC, never an API key
+  const env = { ...process.env }; delete env.ANTHROPIC_API_KEY;
+  if (process.platform === 'win32' && env.IJ_GPU === undefined) env.IJ_GPU = '1';   // agents' renders and frame checks use the graphics card   // use the Claude login on this PC, never an API key
   const isCmd = /\.(cmd|bat)$/i.test(CLAUDE);
   const args = planArgs(a, p, tools);
   return new Promise((resolve) => {

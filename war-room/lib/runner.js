@@ -106,7 +106,19 @@ function planArgs(a, p, tools) {
   if (deny.length) args.push('--disallowedTools', ...deny);
   return args;
 }
-function planRun(p) {
+const OLD_CLI = /does(n't| not) support (the |this )?model|newer version of Claude Code|or newer is (needed|required)|run `?claude update/i;
+const aliasOf = (m) => (/opus/.test(m) ? 'opus' : /haiku/.test(m) ? 'haiku' : /sonnet/.test(m) ? 'sonnet' : m);
+async function planRun(p) {
+  const r = await planRun1(p);
+  const model = p.model || p.agent.model;
+  if (!r.ok && OLD_CLI.test(`${r.error || ''} ${r.text || ''}`)) {
+    const alias = aliasOf(model);
+    const r2 = alias !== model ? await planRun1({ ...p, model: alias }) : r;
+    return { ...r2, needsUpdate: true, updateNote: `Claude Code on this PC is too old for ${model}; ran on "${alias}" instead. Update it: open PowerShell and run  claude update` };
+  }
+  return r;
+}
+function planRun1(p) {
   const a = p.agent, tools = p.tools ?? a.tools;
   const role = [a.prompt, p.system].filter(Boolean).join('\n\n');
   const rules = tools.length

@@ -62,6 +62,7 @@ function usage() {
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) emit('login', { text: r.error });
+  if (r.needsUpdate && !globalThis.__updWarned) { globalThis.__updWarned = 1; emit('login', { title: '⬆️ Update Claude Code', text: r.updateNote }); hive({ agent: null, kind: 'info', text: r.updateNote }); }
   if (r.limited) { limitedUntil = Math.max(limitedUntil, r.resetAt && r.resetAt > Date.now() ? r.resetAt : Date.now() + 30 * 60e3); hive({ agent: null, kind: 'info', text: `Claude usage limit reached: new work waits until ${new Date(limitedUntil).toLocaleTimeString()}` }); }
   emit('usage', usage());
 }
@@ -234,13 +235,16 @@ async function convene(wr) {
       a.tools.filter((t) => ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch'].includes(t)), demoSeat(a, 'officer', wr.question));
   }));
   if (wr.abort.signal.aborted) return finishWr(wr, 'stopped');
+  const okOfficers = officers.filter((s) => s.status === 'done');
+  if (!okOfficers.length) { wr.error = `No officer could answer: ${(officers[0]?.text || '').slice(0, 300)}`; hive({ agent: null, kind: 'failed', text: wr.error }); return finishWr(wr, 'failed'); }
   // 2) the Marshal synthesizes from the officers' reads
   wr.stage = 'synthesis'; emit('warroom', wr);
   const marshal = wr.seats.find((s) => s.role === 'marshal');
-  const reads = officers.map((s) => `## ${byId[s.agent].name}\n${s.text}`).join('\n\n');
+  const reads = okOfficers.map((s) => `## ${byId[s.agent].name}\n${s.text}`).join('\n\n') + (okOfficers.length < officers.length ? `\n\n(${officers.length - okOfficers.length} officer(s) failed to answer and are left out.)` : '');
   await seatRun(marshal, `WAR ROOM. DECISION: ${wr.question}\n\nThe officers' independent reads:\n\n${reads}\n\nAs the Marshal, name the winning course of action from THEIR reads (not your own preference). Format:\nSTRATEGY: one paragraph\nBATTLE PLAN: 3–6 numbered lines, each exactly "N. @<agent-id>: <task>" using these ids: ${agents.map((a) => a.id).join(', ')}\nCONSENSUS: one line naming the emerging majority and who dissented`, [], demoSeat(byId[marshal.agent], 'marshal', wr.question));
   wr.strategy = marshal.text;
   if (wr.abort.signal.aborted) return finishWr(wr, 'stopped');
+  if (marshal.status !== 'done') { wr.error = `The Marshal could not answer: ${(marshal.text || '').slice(0, 300)}`; hive({ agent: null, kind: 'failed', text: wr.error }); return finishWr(wr, 'failed'); }
   // 3) the Tenth Man attacks the consensus last (sees only the consensus, not the officers' reasoning)
   wr.stage = 'dissent'; emit('warroom', wr);
   const tenth = wr.seats.find((s) => s.role === 'tenth');

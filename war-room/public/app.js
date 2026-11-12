@@ -131,6 +131,7 @@ function renderWr() {
       <input id="verdictTxt" data-wrdraft="${w.id}" value="${esc((S.drafts || {})[w.id] || '')}" placeholder="Your decision (e.g. “Go with the Marshal's plan, and fix the Tenth Man's failure mode first”)">
       <div class="cmdrow"><button class="ghost" data-wrplan="${w.id}" ${w.planSent ? 'disabled' : ''}>${w.planSent ? 'Battle plan sent ✓' : 'Send battle plan to Mission Control'}</button><button class="primary" data-wrseal="${w.id}">Seal dossier</button></div></div>`
     : w.stage === 'sealed' ? `<div class="verdict"><h3>Sealed</h3><p>${esc(w.verdict)}</p><p class="muted small">Dossier saved to <code>${esc(w.dossier || '')}</code></p>${w.planSent ? '' : `<button class="ghost" data-wrplan="${w.id}">Send battle plan to Mission Control</button>`}</div>`
+    : w.stage === 'failed' ? `<div class="verdict" style="border-color:rgba(255,93,108,.6)"><h3>Council failed</h3><p>${esc(w.error || 'An officer could not answer.')}</p></div>`
     : ['convening', 'synthesis', 'dissent'].includes(w.stage) ? `<div class="cmdrow"><button class="no" data-wrstop="${w.id}">Stop council</button></div>` : '';
   const order = ['convening', 'synthesis', 'dissent', 'awaiting', 'sealed'], k = order.indexOf(w.stage);
   const steps = ['Officers deliberate', 'Marshal plans', 'Tenth Man attacks', 'Your call'].map((l, i) => `<div class="${k > i || w.stage === 'sealed' ? 'done' : k === i ? 'now' : ''}">${i + 1} · ${l}</div>`).join('');
@@ -150,7 +151,7 @@ function connect() {
     if (was && was !== t.status && ['done', 'failed'].includes(t.status)) { const a = A(t.agent); toast({ c: t.status === 'done' ? a.color : '#ff5d6c', title: `${a.emoji} ${a.name} ${t.status === 'done' ? 'finished' : 'failed'}`, text: t.summary || t.title, task: t.id }); } if (i >= 0) S.tasks[i] = t; else S.tasks.push(t); renderBoard(); renderRoster(); if (S.open === t.id && ['done', 'failed', 'stopped'].includes(t.status)) openTask(t.id); else if (S.open === t.id) $('#dStatus').textContent = t.status; });
   es.addEventListener('log', (e) => { const d = JSON.parse(e.data); if (S.open === d.taskId) { const L = $('#dLog'); if (L) { const stick = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.insertAdjacentHTML('beforeend', logRow(d.entry)); if (stick) L.scrollTop = L.scrollHeight; } } });
   es.addEventListener('usage', (e) => renderUsage(JSON.parse(e.data)));
-  es.addEventListener('login', (e) => toast({ c: '#ff5d6c', title: '🔑 Claude Code needs signing in', text: JSON.parse(e.data).text }));
+  es.addEventListener('login', (e) => { const d = JSON.parse(e.data); toast({ c: '#ff5d6c', title: d.title || '🔑 Claude Code needs signing in', text: d.text }); });
   es.addEventListener('hive', (e) => { S.hive.unshift(JSON.parse(e.data)); renderHive(); });
   es.addEventListener('approval', (e) => { const ap = JSON.parse(e.data); S.approvals.push(ap); renderApprovals(); toast({ c: '#ffd166', title: `${A(ap.agent).emoji} ${A(ap.agent).name} needs approval`, text: `${ap.tool}: ${ap.summary.slice(0, 90)}` }); try { navigator.vibrate?.(80); } catch {} });
   es.addEventListener('approval-done', (e) => { const d = JSON.parse(e.data); S.approvals = S.approvals.filter((a) => a.id !== d.id); renderApprovals(); });

@@ -108,12 +108,37 @@ setInterval(() => { emit('usage', usage()); pump(); for (const pr of store.produ
 // ---------------- context every agent gets ----------------
 const BRAIN_F = () => path.join(WORKSPACE, 'channel', 'BRAIN.md');
 function brain() { try { return fs.readFileSync(BRAIN_F(), 'utf8').slice(0, 12000); } catch { return '(channel/BRAIN.md is missing)'; } }
+// ---------------- taste: the Commander's rules + votes, distilled; every agent reads it ----------------
+const TASTE_F = () => path.join(WORKSPACE, 'channel', 'TASTE.md'), FEED_F = () => path.join(WORKSPACE, 'channel', 'feedback.jsonl');
+const TASTE_HEAD = '# Taste profile: what the Commander likes (every agent reads this before every task)\n\nFollow it. Rules are the Commander\'s own words. "Learned from votes" is distilled from their 👍 / 👎 by the Analyst.\n';
+function tasteRead() { try { return fs.readFileSync(TASTE_F(), 'utf8'); } catch { return `${TASTE_HEAD}\n## Commander's rules\n\n## Learned from votes\n- (no votes yet)\n\n## Recent votes\n`; } }
+function tasteSection(md, name) { const m = md.match(new RegExp(`## ${name}\\n([\\s\\S]*?)(?=\\n## |$)`)); return m ? m[1].trim() : ''; }
+function tasteWrite({ rules, learned, recent }) {
+  const md = tasteRead();
+  const out = `${TASTE_HEAD}\n## Commander's rules\n${rules ?? tasteSection(md, "Commander's rules")}\n\n## Learned from votes\n${learned ?? (tasteSection(md, 'Learned from votes') || '- (no votes yet)')}\n\n## Recent votes\n${recent ?? tasteSection(md, 'Recent votes')}\n`;
+  fs.mkdirSync(path.dirname(TASTE_F()), { recursive: true }); fs.writeFileSync(TASTE_F(), out);
+}
+function feedback() { try { return fs.readFileSync(FEED_F(), 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean); } catch { return []; } }
+function addFeedback(e) {
+  fs.mkdirSync(path.dirname(FEED_F()), { recursive: true }); fs.appendFileSync(FEED_F(), JSON.stringify({ t: Date.now(), ...e }) + '\n');
+  const all = feedback(), votes = all.filter((x) => x.type === 'vote');
+  // newest vote per item wins
+  const latest = new Map(); for (const v of votes) latest.set(v.key, v);
+  const recent = [...latest.values()].slice(-20).reverse().map((v) => `- ${v.vote > 0 ? '👍' : '👎'} "${v.title}"${v.reason ? `: ${v.reason}` : ''}`).join('\n');
+  const rules = all.filter((x) => x.type === 'rule').reverse().map((r) => `- ${new Date(r.t).toISOString().slice(0, 10)}: ${r.text}`).join('\n');
+  tasteWrite({ rules, recent });
+  emit('taste', { md: tasteRead() });
+  // every 5 new votes, the Analyst (cheap) re-distills the patterns
+  const sinceDistill = votes.filter((v) => v.t > (calib.tasteAt || 0)).length;
+  if (e.type === 'vote' && sinceDistill >= 5 && byId.analyst) { calib.tasteAt = Date.now(); saveCalib(); createTask({ agent: 'analyst', playbook: 'taste', by: 'producer', text: 'Update the taste profile from the Commander\'s latest votes.' }); }
+}
 function teamContext(agentId) {
   const roster = agents.map((a) => `- @${a.id} (${a.name}): ${a.role}`).join('\n');
   const h = store.recentHive(15).map((e) => `- ${new Date(e.t).toISOString().slice(5, 16).replace('T', ' ')} ${e.agent ? byId[e.agent]?.name || e.agent : 'Commander'}: ${e.text}`).join('\n') || '- (nothing yet)';
   const pinned = store.pinned().trim() || '(none)';
   const mine = store.agentMemory(agentId).trim() || '(none)';
-  return `# Your team
+  const taste = tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 5000);
+  return `# Channel brain (what we know works)\n${brain()}\n\n# Taste profile (what the Commander likes: follow it)\n${taste}\n\n# Your team
 ${roster}
 
 # Hive mind: what the team did recently (newest first)
@@ -535,7 +560,7 @@ const DEMO_OFFICER = {
 
 async function convene(wr) {
   const officers = wr.seats.filter((s) => s.role === 'officer');
-  const ctx = `# Channel brain (what we know works)\n${brain()}\n\n# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
+  const ctx = `# Channel brain (what we know works)\n${brain()}\n\n# Taste profile (what the Commander likes)\n${tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 4000)}\n\n# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
   const seatRun = async (seat, prompt, tools, demoText) => {
     seat.status = 'speaking'; emit('warroom', wr);
     const a = byId[seat.agent];
@@ -659,6 +684,32 @@ const server = http.createServer(async (req, res) => {
       else if (pm[2] === 'phone' && pr.stage === 'done') await sendToPhone(pr);
       else if (pm[2] === 'open' && pr.final) { if (process.platform === 'win32') spawnProc('explorer.exe', [`/select,${pr.final}`], { detached: true }); }
       return json(res, pub(pr));
+    }
+    if (p === '/api/pitches' && req.method === 'GET') {
+      const dir = path.join(WORKSPACE, 'pitches'); let files = []; try { files = fs.readdirSync(dir).filter((f) => /\.json$/.test(f)).sort().reverse().slice(0, 40); } catch {}
+      const fb = new Map(); for (const v of feedback().filter((x) => x.type === 'vote' || x.type === 'greenlit')) { const o = fb.get(v.key) || {}; if (v.type === 'vote') { o.vote = v.vote; o.reason = v.reason; } else o.greenlit = true; fb.set(v.key, o); }
+      const out = [];
+      for (const f of files) { try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); for (const pt of j.pitches || []) { const key = `${f}#${pt.id}`; out.push({ ...pt, key, file: f, created: j.created || f.slice(0, 10), order: j.order || '', theme: j.theme || '', ...(fb.get(key) || {}) }); } } catch {} }
+      const md = (() => { try { return fs.readdirSync(dir).filter((f) => /\.md$/.test(f) && !fs.existsSync(path.join(dir, f.replace(/\.md$/, '.json')))).sort().reverse().slice(0, 6); } catch { return []; } })();
+      return json(res, { pitches: out, legacy: md });
+    }
+    if (p === '/api/taste' && req.method === 'GET') return json(res, { md: tasteRead() });
+    if (req.method === 'POST' && ['/api/pitches/vote', '/api/teach', '/api/pitches/generate', '/api/pitches/greenlight'].includes(p)) {
+      const b = await body(req);
+      if (p === '/api/teach') { const text = String(b.text || '').trim(); if (!text) return json(res, { error: 'empty' }, 400); addFeedback({ type: 'rule', text }); hive({ agent: null, kind: 'memory', text: `🎓 taught: ${text.slice(0, 160)}` }); return json(res, { ok: true }); }
+      if (p === '/api/pitches/vote') { addFeedback({ type: 'vote', key: b.key, title: String(b.title || '').replace(/\*/g, ''), vote: b.vote > 0 ? 1 : -1, reason: String(b.reason || '').slice(0, 300) }); return json(res, { ok: true }); }
+      if (p === '/api/pitches/generate') {
+        const n = [3, 5].includes(+b.n) ? +b.n : 3, theme = String(b.theme || '').trim();
+        hive({ agent: null, kind: 'order', text: `💡 pitch ${n}${theme ? ': ' + theme : ''}` });
+        const t = await createTask({ agent: 'scout', playbook: 'pitch', deep: !!b.deep, text: `Pitch ${n} ideas for the next TikTok.${theme ? ` Theme or constraint from the Commander: ${theme}` : ''}` });
+        return json(res, publicTask(t));
+      }
+      if (p === '/api/pitches/greenlight') {
+        const pt = b.pitch || {}; addFeedback({ type: 'greenlit', key: pt.key, title: String(pt.title || '').replace(/\*/g, '') });
+        const source = `Pitch "${String(pt.title || '').replace(/\*/g, '')}" (${pt.key}). Full pitch:\n${JSON.stringify({ title: pt.title, cover: pt.cover, frame1: pt.frame1, beats: pt.beats, law: pt.law, source: pt.source, dramatization: pt.dramatization, risk: pt.risk, build: pt.build }, null, 1)}`;
+        const pr = { id: uid(), title: String(pt.title || 'New production').replace(/\*/g, '').slice(0, 90), source, notes: String(b.notes || '').trim(), quality: ['draft', 'standard', 'max'].includes(b.quality) ? b.quality : 'max', builder: b.builder === 'sonnet' ? 'sonnet' : 'opus', created: Date.now(), stage: 'brief', log: [], cost: 0 };
+        prods.push(pr); hive({ agent: null, kind: 'order', text: `🎬 greenlit: ${pr.title}` }); startBrief(pr); return json(res, pub(pr));
+      }
     }
     if (p === '/api/state') return json(res, {
       demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE, version: VERSION, onDisk: gitHead(),

@@ -33,7 +33,10 @@ Run { npx playwright install chromium } 'chromium download'
 Pop-Location
 
 Step 'Python packages for the quality checks'
-Run { py -m pip install --upgrade --quiet numpy pillow } 'pip'
+RefreshPath
+$py = if (Have 'py') { 'py' } elseif (Have 'python') { 'python' } else { $null }
+if (-not $py) { winget install --id Python.Python.3.12 -e --silent --accept-source-agreements --accept-package-agreements; RefreshPath; $py = if (Have 'py') { 'py' } else { 'python' } }
+Run { & $py -m pip install --upgrade --quiet numpy pillow } 'pip'
 
 Step 'GPU check'
 Push-Location $dir; $env:IJ_GPU = '1'; node tools/gpu_check.js; Remove-Item Env:IJ_GPU; Pop-Location

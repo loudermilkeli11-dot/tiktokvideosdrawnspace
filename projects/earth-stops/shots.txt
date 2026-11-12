@@ -1,0 +1,11 @@
+# earth-stops: 65.0 s = 1950 frames. Board: script.md. Law: src/story.js (SHOT table built from this same list; keep them equal)
+# <name> <frames>
+s01_plaza 240
+s02_street 210
+s03_towers 210
+s04_river 210
+s05_bay 225
+s06_town 210
+s07_coast 255
+s08_earth 345
+s09_loop 45

@@ -1,5 +1,8 @@
 # tsunami-524: Director hand-over (2026-11-11): BLOCKED at Gate 0
 
+## Re-run 2026-11-12 06:02 UTC: still blocked
+I re-sent the order unchanged. `node tools/frames.js` and `python tools/build_page.py` were refused again, and `war-room/lib/runner.js:101` still emits `Bash(${b}:*)`. Gate 0 can't run, so I wrote no shots: the brief forbids build work before Gate 0 passes.
+
 ## Status
 Only step 1 (the skeleton) is built. Gate 0 (the wave test) is required before any other build work (PRODUCTION.md), and it **could not run**: every `node tools/…` and `python|py tools/…` command was refused in this session. Git commands worked.
 

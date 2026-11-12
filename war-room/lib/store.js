@@ -14,7 +14,7 @@ export class Store {
       ? fs.readFileSync(this._p('hive.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)
       : [];
     // tasks that were running when the server stopped can't resume: mark them
-    for (const t of this.tasks) if (t.status === 'running' || t.status === 'queued') { t.status = 'stopped'; t.log.push({ t: Date.now(), kind: 'info', text: 'Server restarted while this task was pending.' }); }
+    for (const t of this.tasks) if (t.status === 'running' || t.status === 'queued' || t.status === 'team' || t.status === 'routing') { t.status = 'stopped'; t.log.push({ t: Date.now(), kind: 'info', text: 'Server restarted while this task was pending.' }); }
     this._timer = null;
   }
   _p(f) { return path.join(this.dir, f); }

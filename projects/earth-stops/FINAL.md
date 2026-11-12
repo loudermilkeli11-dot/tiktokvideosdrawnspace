@@ -44,6 +44,22 @@ s02 is at street level on the plaza's north edge: the same block, not a new plac
 - Look vs `sheet_sun_exploded_lunar.jpg`: same family (flat low-poly, rail foreground, warm grade that thickens with the story,
   the event filling the frame in s03/s04/s06/s08).
 
+## QC fix round (2026-11-12, after render_all FAIL)
+- **White flash at 63.5 (FAIL → fixed):** s08 ends in black space (luma 0.23), s09 cut straight to the plaza (0.66).
+  s09 now opens with `post.fade` 0.85 → 0 over 0.4 s (smoothstep): first frame 0.28, max +0.05 per frame. From tt 0.4 the fade
+  is 0, so s09's last frame still equals s01 frame 0 (loop diff 0.005, unchanged). Only s09 was re-rendered.
+- **Cut hits (weak onset on 5 of 6 cuts → fixed):** check.py also reads 8.0 and 15.0 as hard cuts, and the risers and roar
+  masked every cut. `score.json`: a 0.10–0.12 s suck-out (true silence) right before each cut, firmer mid cracks (-9 to -12 dB),
+  low thuds at 8.0/15.0, risers end at the suck-out. Onsets now +12.4 / +14.8 / +15.7 / +15.9 / +14.3 / +29.5 dB.
+- **QC re-run on the reassembled final (s09 + score re-rendered, the other 8 shots reused): RESULT PASS.** 0 flash frames,
+  -14.1 LUFS, 93.35 MB, safe area OK.
+- **Text contrast is still a WARN (129 of 130 sampled frames below 3:1).** This can't be fixed from the project without breaking
+  LOOK rule 9. check.py measures each glyph against the 90th-percentile pixel 1.5–6 design px around it, so white text needs the
+  background darker than linear L 0.30 there, and the amber accent needs it darker than 0.165. Over a daylight plaza, a pale town or
+  white surf, only a band or a heavy outline gets there. ov.html's v2 halos (`tight` [0,2.5,0.6], `emHalo` [0,7,0.75]) are
+  hard-coded in tools/ (outside my write scope), and darkening the picture under the text would be a band baked into the frame.
+  See NEEDS APPROVAL.
+
 ## Known weak spots
 - **The DRAMATIZATION tag still draws a dark radial blob** (ov.html v2Tag ignores `band`). See NEEDS APPROVAL.
 - Skies are flat (no clouds, no visible sun, no birds after the stop); the hits have a sun disc and clouds.
@@ -65,6 +81,11 @@ s02 is at street level on the plaza's north edge: the same block, not a new plac
 - Edit `tools/overlay/ov.html` line 440 to honour the tag's own band:
   `const B = v2B(V2.tagBand, tg.band); if (B.a > 0) v2BandAt(...)` (default unchanged for every other project). overlay.js
   already passes `band: 0` on the tag, so the blob disappears with no change here. LOOK rule 9: no blobs behind text.
+- Text contrast without bands, pick one:
+  (a) accept the A4 WARN for v2-no-band films (the hits' plain shadowed text would fail it too); or
+  (b) let a spec set `style: { halo: [offY, blur, opacity] }` in ov.html to override `V2.tight`, e.g. [0, 6, 0.9]. That gives a
+  stronger soft halo with no box, and earth-stops would opt in. It raises contrast but may still not reach 3:1 over the brightest
+  sky. A lower accent luminance (#E89A2E) would help the accent words.
 - Text contrast (choose one): (a) accept the A4 WARN for this film (QC PASSES; LOOK's soft-shadow type, as the hits
   use); or (b) approve an opt-in `style.halo` in `tools/overlay/ov.html` (e.g. `V2.tight` → `[0, 3, 0.9]` plus a 1 design px
   dark stroke under glyphs, no box) and I set it in overlay.js. (b) reads as outlined TikTok type, not the LOOK serif.

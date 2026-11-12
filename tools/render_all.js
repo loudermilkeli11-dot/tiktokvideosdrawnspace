@@ -87,6 +87,17 @@ async function renderShot(s) {
   const c = spawnSync(PY, ['tools/check.py', `${P}/out/final.mp4`], { encoding: 'utf8', env: process.env });
   process.stdout.write(c.stdout || ''); process.stderr.write(c.stderr || '');
   const final = path.resolve(P, 'out', 'final.mp4');
+  if (c.status === 0) {   // tiktok.mp4: the upload copy, <= 45 MB (Telegram bots can send 50 MB; TikTok re-encodes anyway)
+    console.log('STEP phone copy');
+    const tk = path.resolve(P, 'out', 'tiktok.mp4'), size = fs.statSync(final).size;
+    if (size <= 45e6) fs.copyFileSync(final, tk);
+    else {
+      const dur = +(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', final], { encoding: 'utf8' }).stdout || 38);
+      const vk = Math.max(2500, Math.floor((45e6 * 8 / dur - 192e3) * 0.94 / 1000));
+      run('ffmpeg', ['-y', '-loglevel', 'error', '-i', final, '-c:v', 'libx264', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-b:v', `${vk}k`, '-maxrate', `${Math.round(vk * 1.4)}k`, '-bufsize', `${vk * 2}k`, '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', tk], 'phone copy');
+    }
+    console.log(`phone copy: ${tk} (${(fs.statSync(tk).size / 1e6).toFixed(1)} MB)`);
+  }
   console.log(`RESULT ${c.status === 0 ? 'PASS' : 'FAIL'} ${final} · ${((Date.now() - t0) / 60000).toFixed(1)} min`);
   process.exit(c.status === 0 ? 0 : 1);
 })();

@@ -71,8 +71,23 @@ export function createNotifier(dataDir, { onCommand, log = () => {} } = {}) {
     polling = false;
   }
   if (cfg.tg.token) poll();
+  // the finished film + its posting package, as separate messages so each can be long-pressed and copied
+  async function sendPackage(file, { title, cover, caption, hashtags = [], slot, notes } = {}) {
+    if (!cfg.tg.token || !cfg.tg.chat) return { ok: false, error: 'Telegram is not linked.' };
+    const st = fs.statSync(file); if (st.size > 49.5e6) return { ok: false, error: `The video is ${(st.size / 1e6).toFixed(0)} MB; Telegram bots can send 50 MB.` };
+    const form = new FormData();
+    form.append('chat_id', cfg.tg.chat); form.append('supports_streaming', 'true');
+    form.append('caption', `🎬 ${title || 'Your video'}: ready for TikTok. Save it, then upload.`.slice(0, 1000));
+    form.append('video', new Blob([fs.readFileSync(file)], { type: 'video/mp4' }), path.basename(file));
+    const r = await fetch(`${TG}/bot${cfg.tg.token}/sendVideo`, { method: 'POST', body: form }).then((x) => x.json()).catch((e) => ({ ok: false, description: e.message }));
+    if (!r?.ok) return { ok: false, error: r?.description || 'upload failed' };
+    const tags = hashtags.map((h) => (h.startsWith('#') ? h : '#' + h)).join(' ');
+    if (caption || tags) await tg('sendMessage', { chat_id: cfg.tg.chat, text: [caption, tags].filter(Boolean).join('\n\n') });
+    await tg('sendMessage', { chat_id: cfg.tg.chat, text: ['📋 Before you post:', cover ? `• Cover text: ${cover}` : '', '• Turn ON "AI-generated content" in TikTok\'s settings for this post', slot ? `• Post at: ${slot}` : '', notes ? `• ${notes}` : '', '↑ Long-press the caption message above → Copy, then paste it into TikTok.'].filter(Boolean).join('\n') });
+    return { ok: true };
+  }
   return {
-    send,
+    send, sendPackage,
     view() { return { ntfy: cfg.ntfy, tg: { set: !!cfg.tg.token, linked: !!cfg.tg.chat, link: cfg.tg.link || '', bot: cfg.tg.bot || '' }, events: cfg.events, labels: EVENTS }; },
     async update(b) {
       if (typeof b.ntfy === 'string') cfg.ntfy = b.ntfy.trim().replace(/^https?:\/\/ntfy\.sh\//, '');

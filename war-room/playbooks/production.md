@@ -23,4 +23,8 @@ PRODUCTION.md must contain exactly these sections:
 7. **Render and QC:** quality `max` on the Commander's PC. check.py must PASS: frames, −14 LUFS, no flashes, contrast ≥ 3:1, safe area.
 8. **Posting:** the cover, caption, the fixed hashtag set and the slot (from the brain).
 
-Write the file, then answer with SUMMARY, the slug, and the shot table, so the Commander can approve it at a glance. End with one line exactly: `BRIEF READY: projects/<slug>/PRODUCTION.md`
+Also write **projects/<slug>/POST.json** (machine-readable, used to send the finished video to the Commander's phone):
+`{"cover": "<cover line, all caps>", "caption": "<the TikTok caption, no hashtags, no question to the viewer>", "hashtags": ["#whatif", "..."], "slot": "<post time, Central>", "notes": "<anything to do at upload, e.g. turn on the AI-generated label>"}`
+Use the brain's fixed hashtag set and posting rules.
+
+Write the files, then answer with SUMMARY, the slug, and the shot table, so the Commander can approve it at a glance. End with one line exactly: `BRIEF READY: projects/<slug>/PRODUCTION.md`

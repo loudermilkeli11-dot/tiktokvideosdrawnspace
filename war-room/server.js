@@ -306,9 +306,20 @@ function prodAlert(pr) {
   const sig = `${pr.stage}|${pr.error || ''}`; if (pr.alertSig === sig) return; pr.alertSig = sig;
   const eta = etaOf(pr), when = eta ? ` If approved now, ready about ${new Date(eta.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : '';
   if (pr.stage === 'approval') notifier.send('approval', `🎬 Approve "${pr.title}"?`, `The production brief is ready (projects/${pr.slug}/PRODUCTION.md).${when}`, { buttons: [{ text: '✅ Approve & build', data: `approve:${pr.id}` }, { text: '✖ Reject', data: `reject:${pr.id}` }] });
-  else if (pr.stage === 'done') notifier.send('done', `🎬 Video ready: ${pr.title}`, `projects/${pr.slug}/out/final.mp4 is rendered and passed QC. It's in the Studio tab.`);
+  else if (pr.stage === 'done') { notifier.send('done', `🎬 Video ready: ${pr.title}`, `projects/${pr.slug}/out/final.mp4 is rendered and passed QC. Sending it to you now…`); sendToPhone(pr); }
   else if (pr.stage === 'failed') notifier.send('failed', `⚠️ Production stopped: ${pr.title}`, (pr.error || 'Unknown problem').slice(0, 600), { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
   else if (pr.stage === 'paused') notifier.send('failed', `⏸ Production paused: ${pr.title}`, pr.note || 'The War Room restarted during this stage.', { buttons: [{ text: '↻ Resume', data: `resume:${pr.id}` }] });
+}
+function postInfo(pr) {
+  let j = {}; try { j = JSON.parse(fs.readFileSync(path.join(WORKSPACE, 'projects', pr.slug, 'POST.json'), 'utf8')); } catch {}
+  if (!j.hashtags?.length) j.hashtags = ((brain().match(/#[a-z][a-z0-9_]+(?:\s+#[a-z][a-z0-9_]+){2,}/i) || [''])[0]).split(/\s+/).filter(Boolean);
+  return { title: pr.title, caption: j.caption || pr.title, cover: j.cover || '', hashtags: j.hashtags || [], slot: j.slot || '', notes: j.notes || '' };
+}
+async function sendToPhone(pr) {
+  const out = path.join(WORKSPACE, 'projects', pr.slug, 'out'), f = [path.join(out, 'tiktok.mp4'), path.join(out, 'final.mp4')].find((x) => fs.existsSync(x) && fs.statSync(x).size <= 49.5e6);
+  if (!f) return pemit(pr, 'Phone: no copy under 50 MB to send (re-render to make tiktok.mp4).');
+  const r = await notifier.sendPackage(f, postInfo(pr)).catch((e) => ({ ok: false, error: e.message }));
+  pemit(pr, r.ok ? '📱 Sent the video, caption and hashtags to your phone.' : `📱 Not sent to the phone: ${r.error}`);
 }
 function approveProd(pr, notes) { if (pr.stage !== 'approval') return `"${pr.title}" is not waiting for approval (stage: ${pr.stage}).`; if (notes) pr.notes = [pr.notes, notes].filter(Boolean).join('\n'); pr.approved = Date.now(); hive({ agent: null, kind: 'order', text: `🎬 approved: ${pr.title}` }); startBuild(pr); return `✅ Approved "${pr.title}". Building now.`; }
 function resumeProd(pr) { const from = pr.stage === 'paused' ? pr.pausedFrom : pr.failedAt; pr.error = null; if (!pr.slug) startBrief(pr); else if (!pr.approved) { pr.stage = 'approval'; pemit(pr); } else if (from === 'render') startRender(pr); else startBuild(pr); return `↻ Resumed "${pr.title}".`; }
@@ -595,6 +606,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, { ok: true, saved, task: t.id });
     }
     let pm;
+    if ((pm = p.match(/^\/api\/productions\/(\w+)\/post$/)) && req.method === 'GET') { const pr = prods.find((x) => x.id === pm[1]); return pr?.slug ? json(res, postInfo(pr)) : json(res, { error: 'not found' }, 404); }
     if ((pm = p.match(/^\/api\/productions\/(\w+)\/(video|brief)$/)) && req.method === 'GET') {
       const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
       if (pm[2] === 'video') { const f = path.join(WORKSPACE, 'projects', pr.slug || '_', 'out', 'final.mp4'); return fs.existsSync(f) ? sendVideo(req, res, f) : json(res, { error: 'no video yet' }, 404); }
@@ -608,7 +620,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/notify' && req.method === 'GET') return json(res, notifier.view());
     if (p === '/api/notify' && req.method === 'POST') { try { return json(res, await notifier.update(await body(req))); } catch (e) { return json(res, { error: e.message }, 400); } }
     if (p === '/api/notify/test' && req.method === 'POST') { await notifier.send('done', '📱 War Room test alert', 'Phone alerts work. You will get approvals, finished videos, failures and usage pauses here.', { force: true }); return json(res, { ok: true }); }
-    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open)$/)) && req.method === 'POST') {
+    if ((pm = p.match(/^\/api\/productions\/(\w+)\/(approve|cancel|render|resume|open|phone)$/)) && req.method === 'POST') {
       const b = await body(req); const pr = prods.find((x) => x.id === pm[1]); if (!pr) return json(res, { error: 'not found' }, 404);
       if (b.quality && ['draft', 'standard', 'max'].includes(b.quality)) pr.quality = b.quality;
       if (b.builder) pr.builder = b.builder === 'sonnet' ? 'sonnet' : 'opus';
@@ -617,6 +629,7 @@ const server = http.createServer(async (req, res) => {
       else if (pm[2] === 'cancel') cancelProduction(pr);
       else if (pm[2] === 'render' && pr.slug) { pr.fixes = 0; startRender(pr); }
       else if (pm[2] === 'resume') resumeProd(pr);
+      else if (pm[2] === 'phone' && pr.stage === 'done') await sendToPhone(pr);
       else if (pm[2] === 'open' && pr.final) { if (process.platform === 'win32') spawnProc('explorer.exe', [`/select,${pr.final}`], { detached: true }); }
       return json(res, pub(pr));
     }

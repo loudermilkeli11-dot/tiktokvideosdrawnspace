@@ -307,3 +307,7 @@ video.film{display:block;max-height:62vh;max-width:100%;margin:12px auto;border-
 .tgLink a{color:var(--cyan);word-break:break-all}
 .evts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px;margin:8px 0}
 .evt{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#c3cddc;cursor:pointer}
+
+.postBox{margin:10px 0;padding:12px 14px;border:1px solid rgba(74,222,128,.35);border-radius:12px;background:rgba(74,222,128,.05)}
+.pRow{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:start;margin:6px 0}
+.pCap{white-space:pre-wrap}

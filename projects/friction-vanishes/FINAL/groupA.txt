@@ -1,0 +1,73 @@
+friction-vanishes: Builder group A hand-over (PHASE 2), 2026-11-12
+Shots: s01_crossing, s02_grip, s09_loop. All three pages and their _sound pages build. Key frames were rendered on the GPU at full size with 12 samples.
+Files: src/s01_crossing.js (+_sound), src/s02_grip.js (+_sound), src/s09_loop.js (+_sound), plus new helpers:
+  src/groupA_crossing.js: the shared frame-1 logic (s01 and s09 both import it); src/groupA_hill.js: the s02 sliders, crash, skid marks and hazard lights.
+No shared file was edited: the kit, story.js, overlay, score and engine files are untouched.
+
+== s01_crossing (0.0-4.0, tau 0->4) ==
+What it shows: frame 1 is already moving. The red car (50 km/h, brakeCarX) is 7.6 m short of a new white stop line. Its enlarged brake lights glow
+  and throw a red light on the road. 4 m of dark skid marks lie behind it, laid from tau -0.3 to 0. Above the lanes, a NEW signal on a mast arm
+  shows red. The car does not slow: it crosses the stop line at about 0.55 s and the zebra at about 0.7-1.0 s, and is through the junction by about 2 s.
+  Ahead in the same lane, a blue car (also braking, coasting at 45 km/h) does the same. A yellow taxi caught mid-left-turn (R 16 m, 8 m/s) keeps
+  its velocity and its yaw rate (kit spinCar): it glides dead straight and pirouettes off toward the plaza. Three foreground walkers slip at
+  0.30 / 0.85 / 1.20 s, fall on their backs and keep gliding away from the lens. The far crowd also slips (walkers fall at 0.15-1.2 s; about 35% of the
+  people standing still fall at 0.9-3.5 s). A cafe terrace (9 tables, 2 planters, 1 bin) drifts and turns slowly (<= 0.25 m/s).
+  The hero (red coat, tote) stands on the kerb with a small sway: about 76 design px tall at design (321, 398-475), right of the counter block.
+  The last 0.35 s whips LEFT: one move across the cut, yaw = whip(film t, 4.0, 0.7, 70), so 0 -> 35 deg in s01 and 35 -> 70 deg in s02.
+Best frames: out/frames_s01/s01_crossing_t0.00.png (frame 1) and t1.50.png (the car in the junction under the red light).
+Layout: the title zone (y 140-270) shows buildings and sky. The counter block (x 50-290, y 370-500) shows the pavement, a planter and the
+  signal pole. The signal heads sit at y ~265-300, between the title and the counter. The caption band shows tables and fallen walkers (calm by 2.9 s).
+Sound: a 1.75-2.6 kHz squeal at full level on frame 1, cut dead at 0.25 s; then a pink hiss (high-cut 3 kHz), room tone,
+  a rising crowd, a gasp, 6 brown-noise thumps (< 260 Hz) timed to the falls, a rising drone, and a low whoosh (120 -> 900 Hz) on the whip.
+Weak spots:
+  - The deviation in the next block applies here: the camera is not the kit's FRAME1_CAM.
+  - 35 mm with the hero at 20 m keeps the red car mid-distance (about 55 design px wide at frame 1). The hook relies on brake glow + red light + motion.
+  - The blue car 2 and the taxi start near the counter block's right edge (x ~230-290, y ~350-380) for the first ~0.5 s.
+  - With 12 samples, the whip's sub-sample ghosts are visible in a still frame (about 9 px steps at full size); they are fine in motion.
+  - The s01 last frame is mostly the shadowed facade (dark navy); s02's first frame is brighter (pavement, zebra, tree).
+    This is a possible upward luma step at the 4.0 cut: please check it with check.py.
+
+== DEVIATION to sign off (frame-1 handshake) ==
+I did NOT use the kit's FRAME1_CAM. The kit framing put the hero and the receding car's vanishing point inside the counter block, and the
+  traffic signal would sit under the title. The Director's brief allowed this tuning in the shared group file.
+  s01 and s09 both use, from src/groupA_crossing.js:
+  - A_CAM = pos (108.5, 3.4, 71.2), yaw -83 deg (lookDir convention), pitch -9.7 deg, 35 mm;
+  - A_CAR_X0 = 75.5 (nose at tau 0, passed to crossingWorld({ carX0 }));
+  - A_HERO = (88.0, 0, 67.55), yaw 76 deg.
+  If the lead wants FRAME1_CAM in the kit to match, copy A_CAM (FRAME1_CAM itself is unchanged).
+  car 2 shares the hero car's lane, 30 m ahead (the brief said "opposite lane"): an oncoming car shows no brake lights, and the outer lane sat
+  behind the counter.
+
+== s09_loop (37.0-38.0, tau -1 -> 0) ==
+What it shows: the same page logic as s01 (crossingA + camA), with page time 4 + tau passed to the kit, so the crowd sway, birds and fountain are continuous.
+  The red car enters from the right edge at 50 km/h. The signal is amber, then red at tau -0.8. Brake lights, skid marks and the squeal start at tau -0.3.
+  The walkers stroll. The taxi drives its turning arc.
+Checked: s09_loop_t0.97.png (the last frame) vs s01_crossing_t0.00.png. Identical except the car's 0.46 m (1/30 s at 13.9 m/s) and the people's sub-cm moves.
+Best frames: out/frames_s09/s09_loop_t0.97.png and t0.50.png.
+Sound: room tone, the approaching engine (55-70 Hz, panned right -> centre), a low relay click at 0.2 s (brown, lowpass 600 Hz).
+  The same squeal voice as s01 rises from 0.7 s to -12 dB at the end, flowing into s01's frame-1 squeal. The 37.0 thud is the score's.
+
+== s02_grip (4.0-8.5, tau 4->8.5) ==
+What it shows: the whip lands from the right (-35 -> 0 deg in 0.35 s). Then 50 mm from the flat quay road (camera (60, 3.0, 301 -> 299.5),
+  slow push), with the zebra in the foreground. 13 cars, a white bus and 17 pavement props slide down at slopeX.
+  At tau 5 (shot 1.0 s = film 5.0) they switch to slideSkidX: locked cars skid and stop 1.68 s later.
+  Four sideways cars trip and roll about their downhill lower edge (90-180 deg over 0.8-1.2 s; they roll edge over edge, so the centre advances W/2+H/2 per 90 deg).
+  The bus, slewed across the right lanes, tips onto its side (90 deg over 1.15 s). Tables cartwheel, bins tip and roll, benches tip.
+  Dark rubber skid marks are laid from tau 5 (mostly hidden behind the cars from this angle). Amber hazard lights blink at 1.4 Hz from tau 5.5.
+  Kick shake on the hit. No people on the hill.
+  The nearest car starts 36 m above the street's foot (the brief said >= 60 m) and stops 8 m above it. That fills the lower frame; nothing reaches the quay road.
+Last frame (match cut to s03): street centre line vertical through x 270, gaze +6 deg, vanishing point at design y ~400. The cars are stopped and wrecked.
+Best frames: out/frames_s02/s02_grip_t4.30.png (aftermath) and t1.20.png (the trip just starting). Gate F2 frames: t0.50 / t1.20 / t2.50.
+Sound: whoosh tail, then the glide (hiss + drone).
+  At 1.0: a low crunch (brown noise lowpass 700 Hz) + metal crumple (350-800 Hz bursts) + sub; the score adds the big hit.
+  Then 4 skid squeals (1.25-1.9 kHz) that die out by 2.68 s, roll crunches, the bus slam at 2.23 s, low wood/metal knocks,
+  two far car alarms (triangle 520/610 Hz, lowpass 900 Hz, through the reverb), wind and a far crowd. No glass tinkles (they would be high tones).
+Weak spots:
+  - The HILL READ IS WEAK from this handshake framing. Looking straight up a 10 deg street, the slope is a pitch, and from here pitch is invisible:
+    only perspective cues remain (the street vanishes 220 px above the true horizon; vertical buildings; the zebra on the flat).
+    Gate F2 may fail on the hill read alone; the crash itself reads.
+    A stronger fix needs a different angle (side-on or oblique) for tt 0-2.5, then a move back to the on-axis match framing.
+  - The left lanes sit behind the counter block, so I kept mid-distance left-lane sliders out. The near blue car and the upturned purple car still overlap the counter's lower edge after 2.5 s (stopped, calm).
+  - The kit's box cars (black glass cabins) read as blocks at 20 m; the upturned cars read, the bus on its side reads less.
+
+Kit/law needs (for the lead): none required. Optional: adopt A_CAM as FRAME1_CAM in the kit so the other pages and the cover use the same frame 1.

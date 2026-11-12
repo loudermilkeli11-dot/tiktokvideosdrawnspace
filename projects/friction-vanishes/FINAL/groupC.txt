@@ -1,0 +1,61 @@
+friction-vanishes: GROUP C hand-over (s06_hills, s07_after, s08_orbit). Builder C, 2026-11-12. Not committed (lead commits).
+
+FILES (all new; no shared or engine file touched)
+  src/s06_hills.js + src/s06_hills_sound.js
+  src/s07_after.js + src/s07_after_sound.js
+  src/s08_orbit.js + src/s08_orbit_sound.js
+  src/groupC_flow.js       N3 flow field (JS + GLSL twins), terrain morph/colour patch, ocean sediment + mud patch, trees, riding houses
+  src/groupC_sediment.js   N4 Earth patch (coast plumes + desert smear) on space.js's ShaderMaterial (string patch before compile)
+Key frames (GPU, full size): out/frames_s06/, out/frames_s07/, out/frames_s08/. Sound: out/s06_hills.wav, s07_after.wav, s08_orbit.wav.
+
+s06_hills (22.0-26.5, tau 0 -> 4.5, samples 8)  BEST FRAME: 3.0 (out/frames_s06/s06_hills_t3.00.png)
+  From the water (y 3 m, 35 mm) ~130 m off the west headland's inner shore (cam -283, 3, -1407; yaw -25), looking up its face:
+  green hillside, houses on the brink, trees, moored boats (tau 0 = the normal world). Grain friction gone: every land point slides
+  along its fall line by flowX(tau) * mob (story.js FLOW_V; mob 0.3 flats .. 1 steep faces, so the surface shears). The terrain
+  is morphed in the vertex shader and coloured at its SOURCE point, so the ground's texture visibly travels downhill; the turf tears
+  into rafts over wet brown soil streaming along the fall line; houses, rooftop clutter, lamp poles and trees ride the same field
+  (JS twin) intact; a brown sediment plume + churned toe spread into the bay (reach 15 + 9 fD m). Crane: rising 0.7 m/s, then
+  >= 4 m/s over the last 0.5 s (14 m/s at the cut) with a 6 deg tilt down. Not lava (no emission), no smoke.
+  Verdict: N3 reads as "the hillside is flowing" by 1.5 s (tears open) and fully by 3.0 s. Fallback NOT needed in my judgement;
+  the Director should confirm on a moving preview (the read depends on motion: ~22 m of travel over the shot, mostly in the last 2 s).
+  Weak spots: houses are the bay's plain boxes (they slide rigidly with a slight lean); low-poly trees; the face mesh is coarse
+  (10-15 m) so trees are seated 1.6 m into it to avoid floating; promenade lamp poles read as thin black lines on the face;
+  ~30 % of the frame is plain sky at the top. Counter block (y 370-500) sits over the houses/face: busy, keep the counter band on.
+
+s07_after (26.5-30.5, tau 600, samples 4 -> 12 from shot 3.25 for the tilt)  BEST FRAME: 0.2 (out/frames_s07/s07_after_t0.20.png)
+  Aerial 24 mm at 255 -> ~290 m (cam -40, 255, -560; yaw -8, pitch -22) looking down the bay to the mouth: the lagoon filled to
+  the brim with a glossy wet mud flat (ocean patch: flat at +0.35 m, ripples from the water normals, ridges parallel to every old
+  shore, streaks radiating from the shores, wet puddles reflecting the sky, debris specks), 160 city cars + 14 boats stranded on
+  it, ~70 % of the near-shore houses carried out onto it (settled, tilted, half sunk), the headlands stripped to grey rock, the old
+  beach under mud, still water beyond the mouth with a brown fringe. Continues s06's crane (fast rise decelerating over the first
+  0.5 s, drifting out); tilts up 58 deg from shot 3.35 -> 100 % deep-blue sky at the cut (dayZen 0x1f58c4).
+  Weak spots: the mud's large-scale texture is soft from this height; cars are 3-6 px specks; headland rock is pale grey with
+  the bay's tall city blocks still standing on it (reads as "town on bare rock"); horizon haze is pale.
+
+s08_orbit (30.5-37.0, samples 4)  BEST FRAME: 6.3 (out/frames_s08/s08_orbit_t6.30.png)
+  API R4, 70 mm, ring off, coast SDF on, seg 512x256, sunI 1.15, post exposure 0.85 (deserts read white at 1.0). Sub-camera point
+  lat 17 N, lon 19 E looking north at an inland sea full of peninsulas and islands with a desert shore in front (no labels on
+  screen). Frame 1: the sunlit limb + air band at y ~585 design px (lower ~40 %), black space above; mean luma is far below s07's
+  all-sky last frame (no upward jump). Push-in 2,300 -> 1,850 km altitude, the limb rising to y 400; plumes: a brown hem on every
+  shore + noisy plumes reaching 170 -> 235 km (still spreading, staged); glint dimmed on brown water; desert contrast smeared.
+  36.0-37.0: the picture keeps drifting (no hold).
+  Weak spots: the coast SDF is blobby at this scale (plume edges are soft blobs); the region is recognisable geography (as
+  gravity-flip s08 was).
+
+SOUND (audio_core names: t/dur/gain and t0/t1/gain, dB). No hit() anywhere (the score carries 22.0); nothing high or ticking.
+  s06: groan saw 34 -> 27 Hz low-passed, rumble following flowV (constant FLOW_V = 9, tau0 0 written in the file), brown-noise grind,
+       pink scrape at 260 Hz, 4 muffled far groans (< 400 Hz, no cracks), soft surf, low whoosh 3.9 (90 -> 700 Hz).
+  s07: near silence (peak -25 dBFS): wind, far surf, the crane tail fading, 5 soft mud plops (sine 270-410 Hz), one distant car
+       alarm (620/470 Hz square, low-passed 900 Hz, in the reverb), two faint gulls (band-passed ~1 kHz, -40 dB), low whoosh 3.3.
+  s08: faint sub hum 38-41 Hz + low brown noise, out by shot 5.5 (= film 36.0, the true-silence beat).
+
+HANDSHAKES
+  22.0 (s05 -> s06): s06 frame 0 = normal world, green hills, kit SUN, from the water at y 3 m, 35 mm. OK.
+  26.5 (s06 -> s07): s06 ends rising at 14 m/s with a tilt down; s07 opens still rising (decelerating) at aerial height, same
+       heading (SW -> S). Cut on the move: the altitude jump (14 m -> 255 m) is a cut, not a continuous move.
+  30.5 (s07 -> s08): s07's last frame 100 % sky (deep blue at top); s08 frame 1 limb in the lower 40 %, black above.
+  37.0 (s08 -> s09): s08 keeps drifting to the end.
+
+NEEDS FROM THE LEAD: none required. Notes: (1) groupC_flow.js hides bay.glow and bay.beam (the lighthouse lamp and red warning
+  sprites stay lit in daylight otherwise, Pitfall 9) and enlarges the bay sun's shadow box to +-340 m (4096 map) for s06; (2) s06
+  uses shadows: true; s07 none.

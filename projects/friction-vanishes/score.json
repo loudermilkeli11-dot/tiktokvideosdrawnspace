@@ -59,8 +59,8 @@
    "gain_db": -3
   },
   {
-   "_cue": "first cars leave the quay edge (T_EDGE ~ 15.7) — the shot sound carries the water slams; this is the low body",
-   "t": 15.7,
+   "_cue": "the bus from the 400 m mark hits the harbour: T_EDGE 22.69 + fallTime(V_EDGE, 2, 0) 0.64 - tau0 20 = shot 3.33 = film 16.33 (s04_quay_sound slams there too); the low body under it",
+   "t": 16.33,
    "gain_db": -9
   },
   {

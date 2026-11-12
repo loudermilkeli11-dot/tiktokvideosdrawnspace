@@ -1,0 +1,73 @@
+friction-vanishes - Builder group B hand-over (s03_minute, s04_quay, s05_town). 2026-11-12. Nothing committed (lead commits).
+
+FILES (all new, group B only)
+  src/s03_minute.js + src/s03_minute_sound.js
+  src/s04_quay.js   + src/s04_quay_sound.js
+  src/s05_town.js   + src/s05_town_sound.js
+  src/groupB_kit.js  helpers: slideS/slideV (the story.js slope law from ANY initial speed, closed form, incl. cars driving uphill),
+                     gridSlide (loose object in the tilted street grid: free down Z streets, pressed on the downhill facade in level
+                     X streets, released into a Z street when it drifts into one), darkSpray (muddy shadow-side spray), hideFromMirror.
+  No shared file, no engine file touched. All pages build; all three sounds render (peaks -14.0 / -7.4 / -6.7 dBFS).
+  Key frames (GPU, full size): out/frames_s03_minute/, out/frames_s04_quay/, out/frames_s05_town/ (t 0.20 / 1.50 / 3.40 / 4.30).
+
+s03_minute (8.5-13.0, tau 0 -> 4.5)  samples 8, 12 from 4.08 s (whip)     BEST FRAME: 3.40
+  Match cut: camera on the street centre line (x = MAIN_X) 16 m above the street at TOP_Z - 10, 24 mm, pitch -5.8 deg at frame 0 ->
+  harbour horizon at y ~ 410-420 design px, centre line vertical through x 270, same lane markings. Eases to -13 deg + 4 m crane-in,
+  then whip(tt, 4.5, 0.7, 80): 0 at 4.15 s, -40 deg pitch at the cut, at full speed (571 deg/s, matched by s04's settle).
+  Picture: dense parked rows both kerbs + traffic + ~90 benches/bins/planters/tables on both pavements; all slide away downhill by
+  slopeX (17 m, 28 km/h by 4.5 s); the car driving UP at 9 m/s is slowed by gravity+drag and carried back (slideS with v0 < 0).
+  Car A crosses from the side street at 9 m/s (can't turn), T-bones car B at T_CRASH = 3.18 s, both then keep a constant yaw rate.
+  Weak spots: the T-bone is ~60 m away (small, ~45 px cars); the 2nd side-street car (A2) only drifts in (its contact falls after the
+  cut); whip ghosting at 12 samples is visible at draft quality (16 at max should smooth it).
+
+s04_quay (13.0-17.5, tau 20 -> 24.5)  samples 12                           BEST FRAME: 3.40 (the bus slam)
+  Camera on a moored boat ~60 m off the quay, 3.6 m above the water, 9 m to the right of the stream, 28 mm, looking back UP the street
+  (bob + roll from waveHeight). Opens settling from the -40 deg whip (pitch offset -40 (1 - tt/0.35)^5).
+  Law chain per object: z0 + slopeX on the street -> foot at slopeTimeTo(ZF - z0) -> coastX/coastV across the flat quay road ->
+  launch(ve, dt, 0) off the edge (the quay road is level, so slopeDeg 0: story.js launch() defaults to THETA, which would be wrong
+  here) -> fallTime(ve, 2, 0) = 0.64 s, ~22 m out -> plough with staged water drag (KW 0.28 /m) -> float, sink within ~3 s (staged).
+  THE BUS starts at TOP_Z: foot tau 22.00 (film 15.0, 126 km/h), edge 22.69 (15.69), water 23.33 (film 16.33). Every arrival has the
+  counter's speed slopeV(tau) (all started at rest at tau 0). Spinning cars keep their yaw rate in flight; cars parked on the level
+  quay road away from the junction never move. Spray: droplets + small sheets (no veil), hidden from the mirror. The wipe: a car
+  drifting sideways at 3.2 m/s (from an upstream collision) hits the water at tt 3.55 and ploughs toward the lens; 3,600 muddy
+  shadow-side parts (darkSpray) cover the frame by 4.3-4.47: dark brown, no white (luma goes DOWN).
+  Weak spots: not strictly side-on (a portrait 28 mm frame can't hold the street foot AND the landing zone side-on; the 3/4 view from
+  the water up the street reads the chute + launch better); floating cars pile at the left as blocky shapes; spray crown reads a bit
+  "confetti" at draft quality; the wipe's first 0.4 s looks like a brown starburst.
+
+s05_town (17.5-22.0, tau 55.5 -> 60)  samples 8, 12 for the first 0.4 s   BEST FRAME: 1.50
+  Camera on the WEST headland (-470, ground + 30 m, -1520), 50 mm -> 54 mm with a 30 m push, looking along the west arm's curved
+  beach/promenade (key action y ~300-750). NOT the lighthouse headland: from there the town is 1-1.7 km away (cars < 4 px) and the
+  view faces into the kit SUN (backlit). Buildings within 260 m of the lens are removed (they filled a third of the frame).
+  Every object slides on bay groundH by the same law (g along the local slope - KM v|v|), integrated at load (dt 0.05); buildings
+  hold (paths into a building are rejected); in water: buoyant (g x 0.3) + heavy water drag, so they stall in the shallows.
+  DRAMATIZATION / deviation: integrated honestly from tau 0, the town drains before tau 50 (nothing would still be pouring at 55-60).
+  So each object is jammed in a pile against the buildings until a staged release time o.tr, then slides from rest by the law.
+  ~310 objects (232 cars, props, 8 boats); ~92 water entries during the shot, each with a splash scaled by entry speed.
+  Beach slump: terrain vertex shader + ocean depth lowered by up to 1.6 m along the shore (JS twin for the objects); per-pixel
+  waterline in the ocean shader. Brown-olive churned water within ~150 m of the shore (ocean fragment patch, sun-lit mud colour).
+  Opens on the tail of s04's wipe: 900 dark drops on the lens falling out of frame by ~0.35 s (frame 0 dark, ramps to the bay).
+  Weak spots: at the last frame things are still moving: grip returns ON the cut (tau 60 = film 22.0), so the "everything stopped"
+  handshake state can't happen inside s05; the hard cut + hit carries it. Splashes are small at 300-900 m. Mild saw-tooth on the
+  waterline at the bottom right (coarse terrain mesh vs the slump). The churn is olive-grey more than brown. Cars are boxy at this
+  size (city.js cars).
+
+SOUND (all low: no ticks, no cracks, no hit() blocks; option names per API §22)
+  s03: low whoosh on the match cut, distant traffic hum, glassy hiss (pink 450 Hz-3 kHz), slide rumble scaled by slopeV, low crunch
+       at T_CRASH 3.18, low whoosh on the whip (4.15).
+  s04: whip-settle whoosh, harbour lapping, the stream's low roar, a run of low water slams (~0.24-0.46 s apart), THE BUS slam at
+       3.33 (= T_EDGE + fallTime - tau0), the wipe car at 3.55, the muddy sheet rushing at the lens to the cut.
+  s05: wipe drips at 0, wide churned surf, the town's low grind building to the cut, distant water slams; stops dead at 4.5 s
+       (the 22.0 braaam/impact is the score's).
+
+FOR THE LEAD
+  1. score.json impact at 15.7 is labelled "first cars leave the quay edge": physically that is the BUS from the 400 m mark
+     (things below TOP_Z arrived earlier, so the harbour already has cars in it at 13.0). The bus hits the WATER at film 16.33; my shot
+     sound slams there. Consider moving that score impact to 16.33 (or keep 15.7 as the launch).
+  2. story.js could take slideS/slideV from groupB_kit.js (the slope law with an initial speed) if other shots need driving cars.
+  3. launch() default slopeDeg = THETA is wrong for the flat quay road; s04 passes 0 explicitly.
+  4. s05 staged release (piles letting go) is a new dramatization detail; worth one line in script.md's DRAMATIZATION note.
+  5. Debug query params left in (harmless): s04 ?ns=1 (no spray), ?sn ?tw ?cx..; s05 ?dbg=1 (console count), ?mud ?cx ?ch ?lx ?clr.
+  6. Not tested here: check.py on a full render (flash check across the 17.5 wipe: s04 ends dark, s05 frame 0 dark and ramps up
+     over ~10 frames, so each step should stay well under the 0.35 jump), and the overlay over these frames (caption band y 560-640
+     sits on water in s04/s05: calm, but use `band` if contrast WARNs).

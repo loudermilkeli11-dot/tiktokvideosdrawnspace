@@ -80,6 +80,13 @@ After step 6: You can **Show in folder** (`projects/<slug>/out/final.mp4`) or **
 Quality: **max** uses 16 anti-aliasing and motion-blur sub-samples per frame and a higher-bitrate final; **standard** uses each shot's own setting; **draft** is a quick half-size look.
 A full build is the expensive step on your plan (the Director on Opus works for a long time). Rendering is free. One render runs at a time.
 
+## Phone alerts (Telegram)
+
+The War Room can message your phone through your own free Telegram bot. Set it up in **Memory → 📱 Phone alerts**: create a bot with @BotFather, paste its token, then scan the QR code and tap **Start**.
+- **What it sends:** briefs waiting for approval, with **Approve / Reject** buttons; finished videos; failures and blocks, with **Resume**; usage pauses, with **Resume anyway**; and sign-in problems. Tick "every finished task" if you want everything.
+- **Commands:** `/status` (who is working, productions and their ETAs, usage), `/approve`, `/reject`, `/resume`.
+- **Who it obeys:** only your linked chat. The token stays on this PC (`war-room/data/notify.json`). It works from anywhere, because the War Room only makes outgoing connections to Telegram.
+
 ## Usage and safety
 
 - **PLAN mode (default):** the agents run through Claude Code on this PC, signed in with your Claude account, so their work counts against your Claude plan's usage limits. There is no separate bill. (API mode is still there: put a key in `.env` and agents bill that key instead.)

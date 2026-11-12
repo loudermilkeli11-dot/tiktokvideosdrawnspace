@@ -127,6 +127,10 @@
 
   <!-- MEMORY -->
   <section id="memory" class="view">
+    <div class="panel hud full" id="phonePanel">
+      <h3>📱 Phone alerts · Telegram</h3>
+      <div id="phoneBody"><p class="muted small">Loading…</p></div>
+    </div>
     <div class="panel hud full">
       <h3>Pinned memory</h3>
       <p class="muted small">Every agent reads this before every task. Put the channel's standing orders here: goals, taste, what worked, what never to do again.</p>
@@ -139,6 +143,7 @@
 
 <div id="drawer" class="drawer"><div class="drawerIn"><button class="x" id="drawerX" title="Close (Esc)">✕</button><div id="drawerBody"></div></div></div>
 <div id="toasts" class="toasts" aria-live="polite"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

@@ -309,3 +309,33 @@ document.addEventListener('paste', (e) => { if (!$('#intel').classList.contains(
 $('#glForm').addEventListener('submit', async (e) => { e.preventDefault(); const source = $('#glSource').value.trim(); if (!source) return;
   const pr = await api('/api/productions', { source, title: $('#glSource').dataset.title || '', notes: $('#glNotes').value, quality: $('#glQuality').value, builder: $('#glBuilder').value });
   $('#glSource').value = ''; $('#glNotes').value = ''; delete $('#glSource').dataset.title; S.prOpen = pr.id; if (!S.productions.find((x) => x.id === pr.id)) S.productions.push(pr); renderProds(); toast({ c: '#ff7ab6', title: '🎬 Greenlit', text: 'The Producer is writing the brief. You will be asked to approve it.' }); });
+
+// ---------------- phone alerts (Telegram) ----------------
+async function renderPhone(v) {
+  v = v || await api('/api/notify'); const el = $('#phoneBody'); if (!el) return;
+  const ev = Object.entries(v.labels).map(([k, l]) => `<label class="evt"><input type="checkbox" data-evt="${k}" ${v.events[k] ? 'checked' : ''}> ${esc(l)}</label>`).join('');
+  const link = v.tg.bot ? `https://t.me/${v.tg.bot}?start=${v.tg.link}` : '';
+  el.innerHTML = !v.tg.set ? `
+    <ol class="steps">
+      <li>On your phone, install <b>Telegram</b> and open a chat with <b>@BotFather</b> (the official bot maker, blue tick).</li>
+      <li>Send <code>/newbot</code>, pick any name (e.g. "IJ War Room") and a username ending in <code>bot</code>. BotFather replies with a <b>token</b> like <code>123456:ABC…</code>.</li>
+      <li>Paste the token here (it stays on this PC):</li>
+    </ol>
+    <div class="cmdrow"><input id="tgToken" placeholder="123456789:AA…" autocomplete="off"><button class="primary" id="tgSave">Connect</button></div>`
+    : !v.tg.linked ? `
+    <p><b>Almost done:</b> link your phone to <b>@${esc(v.tg.bot)}</b>. Scan this with your phone camera, or open the link on your phone, then tap <b>Start</b>.</p>
+    <div class="tgLink"><div id="tgQr"></div><div><a href="${link}" target="_blank" rel="noopener">${link}</a><p class="muted small">Or in Telegram, open @${esc(v.tg.bot)} and send: <code>/start ${esc(v.tg.link)}</code></p><button class="ghost" id="tgRefresh">I tapped Start ↻</button> <button class="no" id="tgUnlink">Start over</button></div></div>`
+    : `<p>✅ Linked to <b>@${esc(v.tg.bot)}</b>. Alerts arrive on your phone, with <b>Approve / Reject / Resume</b> buttons. You can also send <code>/status</code> any time.</p>
+    <div class="evts">${ev}</div>
+    <div class="cmdrow"><button class="ghost" id="tgTest">Send a test alert</button><button class="no" id="tgUnlink">Disconnect</button></div>`;
+  if (link && !v.tg.linked && window.QRCode && $('#tgQr')) new QRCode($('#tgQr'), { text: link, width: 140, height: 140, colorDark: '#05070b', colorLight: '#ffffff' });
+}
+document.addEventListener('click', async (e) => {
+  const id = e.target.id;
+  if (id === 'tgSave') { const r = await api('/api/notify', { tgToken: $('#tgToken').value }); if (r.error) toast({ c: '#ff5d6c', title: 'Telegram', text: r.error }); renderPhone(r.error ? null : r); }
+  else if (id === 'tgRefresh') renderPhone();
+  else if (id === 'tgUnlink') { if (confirm('Disconnect Telegram alerts?')) renderPhone(await api('/api/notify', { tgUnlink: true })); }
+  else if (id === 'tgTest') { await api('/api/notify/test', {}); toast({ title: '📱 Test alert sent', text: 'Check your phone.' }); }
+});
+document.addEventListener('change', async (e) => { const k = e.target.dataset?.evt; if (k) await api('/api/notify', { events: { [k]: e.target.checked } }); });
+renderPhone();

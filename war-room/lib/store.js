@@ -13,8 +13,10 @@ export class Store {
     this.hive = fs.existsSync(this._p('hive.jsonl'))
       ? fs.readFileSync(this._p('hive.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)
       : [];
-    // tasks that were running when the server stopped can't resume: mark them
-    for (const t of this.tasks) if (t.status === 'running' || t.status === 'queued' || t.status === 'team' || t.status === 'routing') { t.status = 'stopped'; t.log.push({ t: Date.now(), kind: 'info', text: 'Server restarted while this task was pending.' }); }
+    // tasks interrupted by a restart: running/queued ones are marked to CONTINUE (the server re-queues them, a running one
+    // reopens its saved Claude Code session); team and routing steps live in memory and can't continue
+    for (const t of this.tasks) if (t.status === 'running' || t.status === 'queued') { t.wasRunning = t.status === 'running'; t.status = 'stopped'; t.interrupted = true; t.log.push({ t: Date.now(), kind: 'info', text: 'Server restarted: this task continues from where it stopped.' }); }
+    else if (t.status === 'team' || t.status === 'routing') { t.status = 'stopped'; t.log.push({ t: Date.now(), kind: 'info', text: 'Server restarted while this task was pending.' }); }
     this._timer = null;
   }
   _p(f) { return path.join(this.dir, f); }

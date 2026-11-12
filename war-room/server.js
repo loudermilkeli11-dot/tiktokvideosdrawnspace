@@ -114,6 +114,8 @@ async function refreshPlan(force) {   // keep the reading fresh while there is w
   probing = true; lastProbe = Date.now(); try { await probeUsage(WORKSPACE); } catch {} probing = false; if (!readingStale()) pump();
 }
 setInterval(() => refreshPlan(false), 60e3);
+// After a restart, interrupted standalone tasks continue by themselves (production steps continue through their production)
+setTimeout(() => { let n = 0; for (const t of store.tasks) if (t.interrupted && t.status === 'stopped' && !t.production) { continueTask(t, 'Continuing after the restart.'); n++; } if (n) { hive({ agent: null, kind: 'info', text: `↻ ${n} task(s) continue after the restart` }); pump(); } }, 4000);
 // After a restart or an update, interrupted builds and renders continue by themselves from their saved work
 // (finished phases and Builder groups are reused, agents pick up from their files): the Commander isn't asked.
 setTimeout(() => { for (const pr of store.productions) if (pr.stage === 'paused' && ['build', 'render'].includes(pr.pausedFrom) && /War Room restarted/.test(pr.note || '')) { hive({ agent: null, kind: 'info', text: `↻ Continuing "${pr.title}" after the restart, from its saved work` }); resumeProd(pr); } }, 5000); setTimeout(() => refreshPlan(true), 3000);
@@ -267,8 +269,13 @@ function pump() {
 const waiters = new Map();   // taskId -> resolve(task) for team orders
 const settle = (t) => { const w = waiters.get(t.id); if (w) { waiters.delete(t.id); w(t); } };
 const waitFor = (t) => (['done', 'failed', 'stopped'].includes(t.status) ? Promise.resolve(t) : new Promise((r) => waiters.set(t.id, r)));
+function continueTask(t, why) {   // re-queue an interrupted task; one that was running reopens its own saved session
+  t.status = 'queued'; t.interrupted = false; if (t.wasRunning && t.sessionId) t.resumeSession = t.sessionId; t.wasRunning = false;
+  t.log.push({ t: Date.now(), kind: 'info', text: why }); store.save(); emit('task', publicTask(t));
+}
 async function runTask(task) {
   const agent = byId[task.agent];
+  task.sessionId ||= crypto.randomUUID();
   task.status = 'running'; task.started = Date.now(); store.save(); emit('task', publicTask(task)); emit('usage', usage());
   live[agent.id].n = (live[agent.id].n || 0) + 1;
   setAgent(agent.id, { status: 'working', taskId: task.id, last: live[agent.id].n > 1 ? `${live[agent.id].n} tasks at once` : 'Starting…' });
@@ -276,11 +283,12 @@ async function runTask(task) {
   let r;
   try {
     const pb = task.playbook && playbooks.find((x) => x.id === task.playbook);
-    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined });
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined, sessionId: task.sessionId, resumeSession: task.resumeSession || null });
+    if (task.resumeSession) task.resumeSession = null;
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
-  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(HARD_STOP * 100)}% of your 5-hour usage (hard stop); it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
-  if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
+  if (task.capStop) { task.capStop = false; task.status = 'queued'; task.resumeSession = task.sessionId; task.log.push({ t: Date.now(), kind: 'info', text: `Paused at ${Math.round(HARD_STOP * 100)}% of your 5-hour usage (hard stop); it runs again (from its saved files) when the window resets.` }); store.save(); emit('task', publicTask(task)); live[agent.id].n = Math.max(0, (live[agent.id].n || 1) - 1); setAgent(agent.id, { status: live[agent.id].n ? 'working' : 'idle', taskId: null, last: 'paused at the usage cap' }); return; }
+  if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.resumeSession = task.sessionId; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
   task.finished = Date.now(); task.result = r.text; task.cost += r.cost; task.turns = r.turns;
   task.status = abort.signal.aborted ? 'stopped' : r.ok ? 'done' : 'failed';
   if (r.error) logTo(task, { kind: 'error', text: r.error });
@@ -404,6 +412,10 @@ async function startBrief(pr) {
 const PARALLEL_MIN_SHOTS = +(process.env.WARROOM_PARALLEL_MIN_SHOTS || 8), BUILDERS_N = +(process.env.WARROOM_BUILDERS || 3);
 const builderModel = (pr) => (pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5');
 async function prodTask(pr, agent, text, demoText) {
+  // the same step was interrupted by a restart: continue that task (and its session) instead of starting a new one
+  const full = `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}`;
+  const prev = store.tasks.find((t) => t.production === pr.id && t.agent === agent && t.interrupted && t.status === 'stopped' && t.text === full);
+  if (prev) { continueTask(prev, 'Continuing after the restart.'); (pr.buildTasks ||= []).push(prev.id); pemit(pr); pump(); return waitFor(prev); }
   const t = await createTask({ agent, production: pr.id, model: builderModel(pr), demoText: DEMO ? demoText : null, text: `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
   (pr.buildTasks ||= []).push(t.id); pemit(pr); return waitFor(t);
 }

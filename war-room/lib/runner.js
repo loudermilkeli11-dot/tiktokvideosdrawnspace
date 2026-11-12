@@ -9,6 +9,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 export function findClaude() {
   if (process.env.CLAUDE_BIN && fs.existsSync(process.env.CLAUDE_BIN)) return process.env.CLAUDE_BIN;
@@ -100,6 +101,8 @@ const ALL_TOOLS = [...READ_TOOLS, 'Bash', 'Edit', 'Write', 'MultiEdit', 'Noteboo
 const q = (a) => (a === '' || /[\s"&|<>^()]/.test(a) ? '"' + a.replace(/"/g, '""') + '"' : a);   // cmd.exe quoting (only for a .cmd shim)
 function planArgs(a, p, tools) {
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--model', p.model || a.model, '--max-turns', String(p.maxTurns ?? a.maxTurns), '--setting-sources', a.claudeMd === false ? '' : 'project', '--strict-mcp-config'];   // non-code agents skip the engine-focused CLAUDE.md; no MCP servers: agents don't need them, and their tool lists cost tokens on every call
+  // a saved session per task: after a restart or a pause the agent continues its own conversation instead of starting over
+  if (p.resumeSession) args.push('--resume', p.resumeSession); else if (p.sessionId) args.push('--session-id', p.sessionId);
   const allow = tools.filter((t) => READ_TOOLS.includes(t));
   if (tools.some((t) => ['Write', 'Edit', 'MultiEdit'].includes(t))) for (const w of a.writes || []) allow.push(`Edit(${w.replace(/\/$/, '')}/**)`);
   // command prefixes as glob rules ("Bash(node tools/*)"); the older "prefix:*" form is refused by current Claude Code
@@ -113,8 +116,10 @@ function planArgs(a, p, tools) {
 }
 const OLD_CLI = /does(n't| not) support (the |this )?model|newer version of Claude Code|or newer is (needed|required)|run `?claude update/i;
 const aliasOf = (m) => (/opus/.test(m) ? 'opus' : /haiku/.test(m) ? 'haiku' : /sonnet/.test(m) ? 'sonnet' : m);
+const RESUME_NOTE = 'The War Room restarted (or paused for usage) while you were working on this task. Continue this same task exactly where you left off: do not redo steps that are already finished, re-check only the step you were on, then finish with the same final lines the task asks for.';
 async function planRun(p) {
-  const r = await planRun1(p);
+  let r = await planRun1(p);
+  if (p.resumeSession && !r.ok && /no conversation found|session.*not found|--resume/i.test(`${r.error || ''}`)) { p.onLog({ kind: 'info', text: 'Could not reopen the saved session; continuing from the saved files instead.' }); r = await planRun1({ ...p, resumeSession: null, sessionId: randomUUID() }); }
   const model = p.model || p.agent.model;
   if (!r.ok && OLD_CLI.test(`${r.error || ''} ${r.text || ''}`)) {
     const alias = aliasOf(model);
@@ -129,7 +134,7 @@ function planRun1(p) {
   const rules = tools.length
     ? `\n\n# Permissions\nYou may read anything${(a.writes || []).length ? `, and write only under: ${a.writes.join(', ')}` : ''}${(a.bash || []).length ? `. Commands you may run start with: ${a.bash.join(' | ')}. Run each command on its own from the repo root, with forward slashes, no "cd … &&", no env-var prefixes (IJ_GPU is already set)` : ''}. Anything else is refused automatically: do not retry it; finish with a line "NEEDS APPROVAL: <exact action and why>" so the Commander can decide.`
     : '\n\nAnswer directly in text. You have no tools in this seat.';
-  const prompt = `# Your role\n${role}${rules}\n\n${p.prompt}`;
+  const prompt = p.resumeSession ? RESUME_NOTE : `# Your role\n${role}${rules}\n\n${p.prompt}`;
   const env = { ...process.env }; delete env.ANTHROPIC_API_KEY;
   if (process.platform === 'win32' && env.IJ_GPU === undefined) env.IJ_GPU = '1';   // agents' renders and frame checks use the graphics card   // use the Claude login on this PC, never an API key
   const isCmd = /\.(cmd|bat)$/i.test(CLAUDE);

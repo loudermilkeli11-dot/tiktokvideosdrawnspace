@@ -23,7 +23,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 ## Tools (`tools/`)
 - `build_page.py`: shot.js → one HTML, plus `<shot>_sound.html`.
 - `frames.js`: key frames.
-- `render.js` / `run.sh`: render a page to MP4 with 2 renderers.
+- `render.js` / `run.sh`: render a page to MP4 with 2 renderers. All render tools start Chromium through `browser.js`: SwiftShader by default, the real graphics card with `IJ_GPU=1` (never mix the two inside one shot). `gpu_check.js` prints which chip renders and times frames.
 - `audio.js`: render a sound page to WAV.
 - `overlay/`: captions + counter → overlay.mov. `stylelab.*` holds the style options.
 - `score.py`: ticks, risers, braaams, cracks, the big hit, silences.
@@ -47,7 +47,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 
 ## Commander
 - Time zone: US Central. Give every ETA in CST/CDT, and never promise one you can't keep.
-- Rendering on the Commander's PC is free. It is not connected yet: they need to share a folder (Claude desktop app → Settings → Claude Code → Remote Control) and tell us their GPU.
+- Rendering on the Commander's PC is free. Setup: `pc/Render PC Setup.cmd` (Git, Node, ffmpeg, Python, the repo at `%USERPROFILE%\InvisibleJourneys`, renderer, GPU check, stay-awake). Then they share that folder (Claude desktop app → Settings → Claude Code → Remote Control); find it with `list_computer_folders`. On Windows, use `py` for Python.
 
 ## War Room
 - Sealed dossiers live in `channel/war-room/`: the first video, and the channel strategy (2026-11-11). The strategy covers the sky lane, fact-with-number covers, 34 s by default, and Gates A and B on 2026-11-13.

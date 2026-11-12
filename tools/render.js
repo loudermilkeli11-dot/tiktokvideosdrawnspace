@@ -1,16 +1,15 @@
 // Deterministic headless render: page.html -> MP4 (H.264 intermediate). frame i -> page time t = 4 + i/30.
-// node tools/render.js page.html out.mp4 [--from 0] [--to N] [--scale 1] [--mb n] [--crf 12]
-const { chromium } = require('playwright'); const { spawn } = require('child_process'); const path = require('path');
+// node tools/render.js page.html out.mp4 [--from 0] [--to N] [--scale 1] [--mb n] [--crf 12] [--gpu]   (or IJ_GPU=1)
+const { launch, fileUrl } = require('./browser.js'); const { spawn } = require('child_process'); const path = require('path');
 const A = process.argv.slice(2); const arg = (k, d) => { const i = A.indexOf('--' + k); return i >= 0 ? A[i + 1] : d; };
 const page_ = path.resolve(A[0]), out = path.resolve(A[1]);
 const from = +arg('from', 0), to = +arg('to', 90), scale = arg('scale', '1'), mb = arg('mb', ''), crf = arg('crf', '12');
-const FLAGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-sandbox', '--js-flags=--max-old-space-size=8192'];
 (async () => {
-  const b = await chromium.launch({ args: FLAGS });
+  const b = await launch();
   const p = await b.newPage(); p.on('console', (m) => { if (m.type() === 'error') console.error('[page]', m.text()); });
   p.on('pageerror', (e) => console.error('[pageerror]', e.message));
   p.setDefaultTimeout(0);
-  await p.goto('file://' + page_ + `?static&scale=${scale}${mb ? '&mb=' + mb : ''}`, { timeout: 600000 });
+  await p.goto(fileUrl(page_) + `?static&scale=${scale}${mb ? '&mb=' + mb : ''}`, { timeout: 600000 });
   await p.waitForFunction(() => window.ASSETS_READY === true || window.ASSETS_ERROR, null, { timeout: 600000, polling: 250 });
   const err = await p.evaluate(() => window.ASSETS_ERROR); if (err) throw new Error(err);
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', '30', '-c:v', 'png', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', crf, '-pix_fmt', 'yuv420p', '-g', '30', '-bf', '0', '-r', '30', out], { stdio: ['pipe', 'inherit', 'inherit'] });

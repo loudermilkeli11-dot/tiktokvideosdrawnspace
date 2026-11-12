@@ -5,7 +5,7 @@ const [pg, out, dur] = process.argv.slice(2);
 (async () => {
   const b = await chromium.launch(); const p = await b.newPage(); p.setDefaultTimeout(0);
   p.on('pageerror', (e) => console.error('[pageerror]', e.message)); p.on('console', (m) => { if (m.type() === 'error') console.error('[page]', m.text()); });
-  await p.goto('file://' + path.resolve(pg));
+  await p.goto(require('url').pathToFileURL(path.resolve(pg)).href);
   const r = await p.evaluate((d) => renderSound(d), +dur);
   const L = new Float32Array(Buffer.from(r.ch[0], 'base64').buffer.slice(0)), R = new Float32Array(Buffer.from(r.ch[1], 'base64').buffer.slice(0));
   const n = L.length, data = Buffer.alloc(n * 8); for (let i = 0; i < n; i++) { data.writeFloatLE(L[i], i * 8); data.writeFloatLE(R[i], i * 8 + 4); }

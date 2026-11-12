@@ -3,6 +3,7 @@
 Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, caption style and rules. The owner is the Commander.
 
 ## Engine (`engine/src/`, three.js r169; `engine/tex/` holds processed NASA/Poly Haven textures)
+- **`engine/API.md`**: the verified cheat sheet of every module (signatures, options, units, update calls, shot/sound skeletons, recipes, pitfalls). Builders read it instead of the sources.
 - `engine.js`: studio, deterministic `frame(t)` (page time t = shot time + 4), sub-frame motion blur, `?scale=0.5&mb=1` for fast iteration.
 - `post.js`: bloom, ACES, grain, vignette.
 - `camera.js`: lenses in mm, eased paths, shake, whip.
@@ -30,7 +31,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 - `assemble.sh`: produces final.mp4 at −14 LUFS.
 - `check.py`: contact sheets plus checks for frames, size, loudness, flashes (upward jumps only), jumps, cut hits (above 200 Hz), silence and text contrast (A4, ≥ 3:1 after yuv420p). `--contrast overlay.mov --bg clean.mp4 --every 0.2` checks type before assembly.
 - `overlay/`: Studio v2 look (`style: {look: 'v2'}`); any title, caption or counter item takes `band` for a stronger backing band over bright picture.
-- `render_all.js`: the whole render pipeline for a built project on any OS (pages → shots + sound → score → captions → assemble → QC), `--quality draft|standard|max` (max = 16 sub-samples, 120 MB target), `--shots a,b`; prints STEP/PROGRESS/RESULT lines. `pc/render_project.ps1` and the War Room's Studio tab both call it.
+- `render_all.js`: the whole render pipeline for a built project on any OS (pages → shots + sound → score → captions → assemble → QC), `--quality draft|standard|max` (max = 16 sub-samples, 120 MB target), `--shots a,b`, `--reuse` (skip shots unchanged since their last render at that quality), `--jobs N` (2 on the GPU); captions are rendered and safe-area-checked first (`check.py --safe`); prints STEP/PROGRESS/RESULT lines. `pc/render_project.ps1` and the War Room's Studio tab both call it.
 - `cloud/`: `RENDER_BRANCH=render-<x> snapshot.sh` (pages → a per-batch branch, so batches can run while others build) → `plan.py --chunk N --shots a,b` (chunks + worker prompts) → `create_session` per chunk (source_revision `render`, clone_depth 1, model claude-fable-5-2) → `collect.sh` → `join.sh`. Proven: about 2 min for 6 frames; cloud and local frames match.
 - Commander's PC (Dragon1, Intel Iris Xe, D3D11): 0.10 s per frame on gravity-flip s07 with `IJ_GPU=1` (2026-11-11), vs about 9 s in the cloud. Prefer it for renders: the Commander runs `.\pc\render_project.ps1 <slug>` in PowerShell (pull, build, GPU render, sound, score, captions, assemble, QC; `-Shots a,b` for a partial redo). Push the project to `main` first.
 - Measured speed (cloud CPU): about 9 s per frame alone, or about 18 s per frame with 2 renderers in parallel, at full size with 4 samples (hook shot).

@@ -19,14 +19,14 @@ You are a Builder on an Invisible Journeys production. The Director (the lead) h
 skeleton and split the shots between several Builders who work AT THE SAME TIME. You build ONLY the shots assigned
 to you, to the same look bar as the lead.
 
-**Read first.** Read CLAUDE.md, PLAYBOOK.md, channel/BRAIN.md and the project's files:
+**Read first.** Read engine/API.md (the engine cheat sheet: every module's options, shot skeletons, recipes, pitfalls) INSTEAD of opening engine source files; open a source file only for a detail the cheat sheet lacks. Then read CLAUDE.md, PLAYBOOK.md, channel/BRAIN.md and the project's files:
 - PRODUCTION.md;
 - script.md;
 - BUILDERS.md, which holds your assignment and the shared rules;
 - src/story.js, the law;
 - the shared kit the lead wrote.
 
-Study the reference shots in projects/gravity-flip/src/.
+Study the reference shots in projects/gravity-flip/src/. Exception: its `*_sound.js` files pass `{t, dur, g}`, which audio_core ignores; write sound calls as engine/API.md §22 shows (`t0`, `t1`, `gain` in dB).
 
 **Contract** (other Builders are working in the same folder right now):
 - **Write only:**

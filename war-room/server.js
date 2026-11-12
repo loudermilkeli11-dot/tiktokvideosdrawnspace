@@ -283,7 +283,7 @@ async function runTask(task) {
   let r;
   try {
     const pb = task.playbook && playbooks.find((x) => x.id === task.playbook);
-    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined, sessionId: task.sessionId, resumeSession: task.resumeSession || null });
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model, maxTurns: task.maxTurns || pb?.maxTurns || agent.maxTurns }, prompt: `${teamContext(agent.id)}${pb ? `\n\n${pb.prompt}` : ''}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text, demoText: task.demoText ? () => task.demoText : undefined, sessionId: task.sessionId, resumeSession: task.resumeSession || null });
     if (task.resumeSession) task.resumeSession = null;
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
@@ -390,7 +390,7 @@ function archiveVersion(pr) {
 function editProd(pr, text) {
   text = text.trim(); if (!text) return { error: 'Describe the change.' };
   if (pr.stage !== 'done') return { error: `"${pr.title}" is ${pr.stage}; edits start from a finished video.` };
-  archiveVersion(pr); pr.editNote = text; pr.lastEdit = text; pr.fixes = 0; pr.fixNote = null; (pr.edits ||= []).push({ t: Date.now(), text });
+  archiveVersion(pr); pr.editNote = text; pr.lastEdit = text; pr.fixes = 0; pr.fixNote = null; pr.fixLight = false; (pr.edits ||= []).push({ t: Date.now(), text });
   hive({ agent: null, kind: 'order', text: `✏️ edit "${pr.title}": ${text.slice(0, 160)}` }); startBuild(pr); return { ok: true };
 }
 function restoreProd(pr, v) {
@@ -411,12 +411,13 @@ async function startBrief(pr) {
 }
 const PARALLEL_MIN_SHOTS = +(process.env.WARROOM_PARALLEL_MIN_SHOTS || 8), BUILDERS_N = +(process.env.WARROOM_BUILDERS || 3);
 const builderModel = (pr) => (pr.builder === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-opus-5-5');
-async function prodTask(pr, agent, text, demoText) {
+async function prodTask(pr, agent, text, demoText, opts = {}) {
   // the same step was interrupted by a restart: continue that task (and its session) instead of starting a new one
   const full = `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}`;
   const prev = store.tasks.find((t) => t.production === pr.id && t.agent === agent && t.interrupted && t.status === 'stopped' && t.text === full);
   if (prev) { continueTask(prev, 'Continuing after the restart.'); (pr.buildTasks ||= []).push(prev.id); pemit(pr); pump(); return waitFor(prev); }
-  const t = await createTask({ agent, production: pr.id, model: builderModel(pr), demoText: DEMO ? demoText : null, text: `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
+  const t = await createTask({ agent, production: pr.id, model: opts.model || builderModel(pr), demoText: DEMO ? demoText : null, text: `${text}${pr.notes ? `\nCommander's notes: ${pr.notes}` : ''}` });
+  if (opts.maxTurns) { t.maxTurns = opts.maxTurns; store.save(); }
   (pr.buildTasks ||= []).push(t.id); pemit(pr); return waitFor(t);
 }
 async function startBuild(pr) {
@@ -432,6 +433,11 @@ async function startBuild(pr) {
       if (pr.editNote) {
         pemit(pr, `Director is making your edit (${who})…`);
         const t = await prodTask(pr, 'director', `EDIT the finished film projects/${pr.slug} (its brief: projects/${pr.slug}/PRODUCTION.md if it exists, else script.md).\nThe Commander wants these changes:\n${pr.editNote}\n\nChange ONLY what this needs (the shot files, overlay.js, score.json, story.js…). Leave everything else byte-for-byte identical, so unchanged shots keep their renders. Check every changed shot's key frames on the GPU. Commit, then finish with BUILD COMPLETE.`, `SUMMARY: (demo) edit applied.\nBUILD COMPLETE: projects/${pr.slug}`);
+        return buildDone(pr, t);
+      }
+      if (pr.fixNote && pr.fixLight) {
+        pemit(pr, 'Small QC problem: a light fixer (Sonnet) makes the minimal change…');
+        const t = await prodTask(pr, 'director', `LIGHT FIX of the finished build ${base}. The render's QC failed on a SMALL, specific problem. Make the smallest change that fixes exactly this (one shot file, overlay.js or score.json), leave everything else byte-for-byte identical so other shots keep their renders, rebuild that page and check the exact failing frame/time. Don't re-read the look bible or redo the build. Then finish with BUILD COMPLETE.\n\nQC report:\n${pr.fixNote}`, `SUMMARY: (demo) light fix.\nBUILD COMPLETE: projects/${pr.slug}`, { model: 'claude-sonnet-5-5', maxTurns: 40 });
         return buildDone(pr, t);
       }
       const t = await prodTask(pr, 'director', `Build ${base}.${pr.fixNote ? `\n\nFIX ROUND: the render's QC failed. Fix these problems, then finish with BUILD COMPLETE again:\n${pr.fixNote}` : ''}`, `SUMMARY: (demo) build finished.\nBUILD COMPLETE: projects/${pr.slug}`);
@@ -540,9 +546,13 @@ async function startRender(pr) {
     if (pr.stats?.frames && pr.quality !== 'draft' && !pr.early) { calib.renderSecPerFrame[pr.quality] = ema(calib.renderSecPerFrame[pr.quality], Math.max(0.02, ((Date.now() - pr.renderStarted) / 1000 - calib.renderOverheadMin * 60) / pr.stats.frames)); calib.learnedRender++; saveCalib(); }
     pr.stage = 'done'; pr.final = final; pr.finished = Date.now(); pr.version = pr.editNote ? (pr.version || 1) + 1 : (pr.version || 1); pr.editNote = null; pemit(pr, `Done: ${final} (version ${pr.version})`);
     hive({ agent: 'director', kind: 'done', text: `Film ready: ${pr.title} → projects/${pr.slug}/out/final.mp4` }); emit('notify', { title: '🎬 Your video is ready', text: pr.title, production: pr.id });
-  } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < 1) {
-    pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = (pr.log || []).slice(-25).map((l) => l.text).join('\n'); pr.early = null; earlyJobs.delete(pr.id);
-    pemit(pr, /captions/i.test(result) ? 'Captions are outside the safe area: back to the Director for a quick fix (no picture was rendered).' : 'QC failed: sending the report back to the Director for one fix round.'); startBuild(pr);
+  } else if ((fs.existsSync(final) || /captions/i.test(result)) && (pr.fixes || 0) < (pr.fixLight ? 2 : 1)) {
+    const note = (pr.log || []).slice(-25).map((l) => l.text).join('\n');
+    // small, specific failures (a flash frame, text contrast, loudness, captions outside the safe area) go to a light fixer first;
+    // if that doesn't pass, the Director gets one full fix round
+    const small = /flash|contrast|LUFS|loud|dBTP|peak|safe area|captions/i.test(note) && !/missing|exited with code|crash|frames?: .*(missing|wrong)|size/i.test(note);
+    pr.fixLight = !pr.fixes && small; pr.fixes = (pr.fixes || 0) + 1; pr.fixNote = note; pr.early = null; earlyJobs.delete(pr.id);
+    pemit(pr, /captions/i.test(result) ? 'Captions are outside the safe area: back to the Director for a quick fix (no picture was rendered).' : (pr.fixLight ? 'QC failed on a small problem: a light fixer takes it first.' : 'QC failed: sending the report back to the Director for one fix round.')); startBuild(pr);
   } else { pr.failedAt = 'render'; pr.stage = 'failed'; pr.error = result || `Render exited with code ${code}`; pemit(pr, pr.error); }
 }
 const briefPath = (pr) => path.join(WORKSPACE, 'projects', pr.slug || '_', 'PRODUCTION.md');

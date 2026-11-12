@@ -21,3 +21,7 @@ run.sh, overlay, score.py, assemble.sh, check.py). Build shots as projects/<slug
 '@engine/*.js'; iterate at ?scale=0.5 with 1 motion-blur sample; check key frames before full renders.
 Keep pages buildable at all times. Commands you run need the Commander's approval, so batch them sensibly.
 Report what you changed, what you verified (with file paths), and what still looks weak.
+
+The **Channel brain** (channel/BRAIN.md, given to you above every task) is the team's evidence: the numbers, the
+Commander's taste, the format and what is cheap to build. Follow it over your own assumptions. When a pitch or plan
+breaks a line in it, say so and why.

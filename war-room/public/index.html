@@ -21,7 +21,8 @@
     <button data-tab="mission" class="on"><span>Mission Control</span><kbd>1</kbd></button>
     <button data-tab="war"><span>War Room</span><kbd>2</kbd></button>
     <button data-tab="hive"><span>Hive Mind</span><kbd>3</kbd></button>
-    <button data-tab="memory"><span>Memory</span><kbd>4</kbd></button>
+    <button data-tab="intel"><span>Intel</span><kbd>4</kbd></button>
+    <button data-tab="memory"><span>Memory</span><kbd>5</kbd></button>
   </nav>
   <div class="meta">
     <span id="mode" class="badge">…</span>
@@ -90,6 +91,19 @@
 
   <!-- HIVE -->
   <section id="hive" class="view"><div class="panel hud full"><h3>Hive mind · everything the team did, newest first</h3><div id="hiveFull" class="feed big"></div></div></section>
+
+  <!-- INTEL: the channel brain every agent reads, the numbers, and a drop zone for analytics screenshots -->
+  <section id="intel" class="view">
+    <div class="intelL">
+      <div class="panel hud drop" id="drop">
+        <input type="file" id="dropFile" accept="image/*" multiple hidden>
+        <div class="dz" id="dz"><b>📥 Drop TikTok analytics screenshots</b><span>drag them here, click to pick, or paste with Ctrl+V. The Analyst reads them, logs the numbers and updates the brain.</span></div>
+        <div class="cmdrow"><input id="dropNote" placeholder="Optional note, e.g. “gravity flip at 48 h”"><button class="ghost" id="refreshBrain" title="Ask the Analyst to re-read all the channel data and refresh the brain">↻ Refresh brain</button></div>
+      </div>
+      <div class="panel hud"><h3>Results <i id="nRes"></i></h3><div class="tblWrap"><table class="res" id="resTbl"></table></div></div>
+    </div>
+    <div class="panel hud brainP"><h3>Channel brain · every agent reads this before every task <span class="muted small" style="margin-left:auto;letter-spacing:0;text-transform:none">channel/BRAIN.md</span></h3><div class="md" id="brainMd"></div></div>
+  </section>
 
   <!-- MEMORY -->
   <section id="memory" class="view">

@@ -24,3 +24,7 @@ Layout (design px at 540×960): captions y 230–350, counter y 129–210, actio
 Total 61–70 s. It ends in space; the last frame hard-cuts to frame 1.
 Check every counter number against the Scout's sourced fact. When the board is done, hand it to the Analyst for a
 Scroller review: "DELEGATE @analyst: Review projects/<slug>/script.md as the Scroller".
+
+The **Channel brain** (channel/BRAIN.md, given to you above every task) is the team's evidence: the numbers, the
+Commander's taste, the format and what is cheap to build. Follow it over your own assumptions. When a pitch or plan
+breaks a line in it, say so and why.

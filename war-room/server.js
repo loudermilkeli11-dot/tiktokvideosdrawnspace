@@ -62,6 +62,8 @@ function noteResult(r) {
 setInterval(() => { emit('usage', usage()); pump(); }, 60e3);
 
 // ---------------- context every agent gets ----------------
+const BRAIN_F = () => path.join(WORKSPACE, 'channel', 'BRAIN.md');
+function brain() { try { return fs.readFileSync(BRAIN_F(), 'utf8').slice(0, 12000); } catch { return '(channel/BRAIN.md is missing)'; } }
 function teamContext(agentId) {
   const roster = agents.map((a) => `- @${a.id} (${a.name}): ${a.role}`).join('\n');
   const h = store.recentHive(15).map((e) => `- ${new Date(e.t).toISOString().slice(5, 16).replace('T', ' ')} ${e.agent ? byId[e.agent]?.name || e.agent : 'Commander'}: ${e.text}`).join('\n') || '- (nothing yet)';
@@ -163,7 +165,7 @@ async function runTask(task) {
   const abort = new AbortController(); aborts.set(task.id, abort);
   let r;
   try {
-    r = await runAgent({ agent: { ...agent, model: task.model || agent.model }, prompt: `# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}\n\n${teamContext(agent.id)}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
+    r = await runAgent({ agent: { ...agent, model: task.model || agent.model }, prompt: `${teamContext(agent.id)}\n\n# Task from ${task.by === 'Commander' ? 'the Commander' : '@' + task.by}\n${task.text}`, cwd: WORKSPACE, onLog: (e) => logTo(task, e), canUseTool: makeCanUseTool(task, agent), abort, taskText: task.text });
   } catch (e) { r = { ok: false, text: '', cost: 0, turns: 0, error: String(e?.message || e) }; }
   aborts.delete(task.id); noteResult(r);
   if (r.limited && !abort.signal.aborted) { task.status = 'queued'; task.log.push({ t: Date.now(), kind: 'info', text: 'Paused by the Claude usage limit; it runs again when the limit resets.' }); store.save(); emit('task', publicTask(task)); setAgent(agent.id, { status: 'idle', taskId: null, last: 'waiting for the usage limit to reset' }); return; }
@@ -202,7 +204,7 @@ const DEMO_OFFICER = {
 
 async function convene(wr) {
   const officers = wr.seats.filter((s) => s.role === 'officer');
-  const ctx = `# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
+  const ctx = `# Channel brain (what we know works)\n${brain()}\n\n# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
   const seatRun = async (seat, prompt, tools, demoText) => {
     seat.status = 'speaking'; emit('warroom', wr);
     const a = byId[seat.agent];
@@ -243,7 +245,7 @@ function dossierMarkdown(wr) {
 
 // ---------------- HTTP ----------------
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
-const body = (req) => new Promise((res) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 1e6) req.destroy(); }); req.on('end', () => { try { res(JSON.parse(s || '{}')); } catch { res({}); } }); });
+const body = (req, max = 1e6) => new Promise((res) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > max) req.destroy(); }); req.on('end', () => { try { res(JSON.parse(s || '{}')); } catch { res({}); } }); });
 const json = (res, data, code = 200) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
 
 const server = http.createServer(async (req, res) => {
@@ -261,6 +263,26 @@ const server = http.createServer(async (req, res) => {
       const ka = setInterval(() => res.write(': ka\n\n'), 20000);
       req.on('close', () => { clients.delete(res); clearInterval(ka); });
       return;
+    }
+    if (p === '/api/intel') {
+      let rows = [];
+      try { const L = fs.readFileSync(path.join(WORKSPACE, 'channel', 'results.csv'), 'utf8').trim().split(/\r?\n/); const H = L[0].split(','); rows = L.slice(1).map((l) => { const c = l.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map((x) => x.replace(/,$/, '').replace(/^"|"$/g, '')); return Object.fromEntries(H.map((h, i) => [h, c[i] ?? ''])); }); } catch {}
+      return json(res, { brain: brain(), results: rows });
+    }
+    if (p === '/api/upload' && req.method === 'POST') {
+      const b = await body(req, 60e6);
+      const day = new Date().toISOString().slice(0, 10), dir = path.join(WORKSPACE, 'channel', 'analytics', day); fs.mkdirSync(dir, { recursive: true });
+      const saved = [];
+      for (const f of (b.files || []).slice(0, 12)) {
+        const m = String(f.data || '').match(/^data:image\/(png|jpe?g|webp);base64,(.+)$/); if (!m) continue;
+        const name = `${Date.now()}-${saved.length + 1}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`; fs.writeFileSync(path.join(dir, name), Buffer.from(m[2], 'base64'));
+        saved.push(`channel/analytics/${day}/${name}`);
+      }
+      if (!saved.length) return json(res, { error: 'no images' }, 400);
+      hive({ agent: null, kind: 'order', text: `dropped ${saved.length} analytics screenshot(s)` });
+      const note = String(b.note || '').trim();
+      const t = await createTask({ agent: byId.analyst ? 'analyst' : null, text: `Log the new analytics screenshots${note ? ` (Commander's note: ${note})` : ''}.\nFiles: ${saved.join(', ')}\n1. Read each image. Identify the video by its cover/caption and the numbers shown.\n2. Append one row per video to channel/results.csv (same columns; a new snapshot is a new row; leave unknown fields empty, never guess).\n3. Update channel/BRAIN.md: the Evidence table, Lessons (what the numbers now show, with the sample-size caveat) and Open questions. Keep it under ~1,000 words.\n4. Finish with SUMMARY and the ONE change the next video should make.` });
+      return json(res, { ok: true, saved, task: t.id });
     }
     if (p === '/api/state') return json(res, {
       demo: DEMO, mode: MODE, usage: usage(), workspace: WORKSPACE,

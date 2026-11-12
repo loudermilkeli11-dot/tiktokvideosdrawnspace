@@ -13,12 +13,19 @@ function md(src) {
   const inline = (s) => s.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
     .replace(/(https?:\/\/[^\s)<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
     .replace(/^(SUMMARY|POSITION|WHY|RISK|STRATEGY|BATTLE PLAN|CONSENSUS|OBVIOUS|PRE-MORTEM[^:]*|PREDICTABILITY|DELEGATE|REMEMBER|VERIFIED|LIKELY|SPECULATIVE|ALL CLEAR):/, '<span class="kw">$1:</span>');
+  let tbl = null;
+  const flushT = () => { if (!tbl) return ''; const [hd, ...rows] = tbl.filter((r) => !/^\s*\|?\s*:?-{2,}/.test(r)); tbl = null;
+    const cells = (r) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => inline(c.trim()));
+    return `<table><tr>${cells(hd).map((c) => `<th>${c}</th>`).join('')}</tr>${rows.map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>`; };
   for (const l of lines) {
+    if (/^\s*\|/.test(l)) { if (list) { out += `</${list}>`; list = null; } (tbl ||= []).push(l); continue; }
+    out += flushT();
     const h = l.match(/^(#{1,4})\s+(.*)/), li = l.match(/^\s*(?:[-*]|\d+[.)])\s+(.*)/);
     if (li) { const tag = /^\s*\d/.test(l) ? 'ol' : 'ul'; if (list !== tag) { if (list) out += `</${list}>`; out += `<${tag}>`; list = tag; } out += `<li>${inline(li[1])}</li>`; continue; }
     if (list) { out += `</${list}>`; list = null; }
     if (h) out += `<h4>${inline(h[2])}</h4>`; else if (l.trim()) out += `<p>${inline(l)}</p>`;
   }
+  out += flushT();
   return out + (list ? `</${list}>` : '');
 }
 
@@ -128,6 +135,7 @@ function connect() {
   es.addEventListener('agent', (e) => { const d = JSON.parse(e.data); Object.assign(A(d.id), d); renderRoster(); });
   es.addEventListener('task', (e) => { const t = JSON.parse(e.data); const i = S.tasks.findIndex((x) => x.id === t.id);
     const was = i >= 0 ? S.tasks[i].status : null;
+    if (was && was !== t.status && t.status === 'done' && t.agent === 'analyst') loadIntel();
     if (was && was !== t.status && ['done', 'failed'].includes(t.status)) { const a = A(t.agent); toast({ c: t.status === 'done' ? a.color : '#ff5d6c', title: `${a.emoji} ${a.name} ${t.status === 'done' ? 'finished' : 'failed'}`, text: t.summary || t.title, task: t.id }); } if (i >= 0) S.tasks[i] = t; else S.tasks.push(t); renderBoard(); renderRoster(); if (S.open === t.id && ['done', 'failed', 'stopped'].includes(t.status)) openTask(t.id); else if (S.open === t.id) $('#dStatus').textContent = t.status; });
   es.addEventListener('log', (e) => { const d = JSON.parse(e.data); if (S.open === d.taskId) { const L = $('#dLog'); if (L) { const stick = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.insertAdjacentHTML('beforeend', logRow(d.entry)); if (stick) L.scrollTop = L.scrollHeight; } } });
   es.addEventListener('usage', (e) => renderUsage(JSON.parse(e.data)));
@@ -154,6 +162,26 @@ function toast({ c, title, text, task }) {
   el.innerHTML = `<b>${esc(title)}</b>${esc(text || '')}`; if (task) el.dataset.task = task;
   $('#toasts').appendChild(el); setTimeout(() => el.remove(), 6500);
 }
+async function loadIntel() {
+  const d = await api('/api/intel'); $('#brainMd').innerHTML = md(d.brain);
+  const latest = {}; for (const r of d.results) latest[r.slug] = r;   // newest snapshot per video
+  const rows = Object.values(latest).reverse(), max = Math.max(1, ...rows.map((r) => +r.views || 0));
+  const num = (v, f = (x) => x) => (v === '' || v == null ? '<span class="dim">—</span>' : f(v));
+  $('#nRes').textContent = rows.length ? `${rows.length} videos` : '';
+  $('#resTbl').innerHTML = '<tr><th>video</th><th>views</th><th>len</th><th>avg watch</th><th>full</th><th>likes</th><th>saves</th><th>posted</th></tr>' + rows.map((r) => `<tr class="${/studio film/.test(r.notes) ? 'studio' : ''}" title="${esc(r.notes)}">
+    <td>${esc(r.slug)}</td><td><span class="vbar" style="width:${Math.max(3, ((+r.views || 0) / max) * 60)}px"></span>${num(r.views, (v) => (+v).toLocaleString())}</td><td>${num(r.length_s, (v) => v + 's')}</td>
+    <td>${num(r.avg_watch_s, (v) => v + 's')}</td><td>${num(r.completion_pct, (v) => v + '%')}</td><td>${num(r.likes)}</td><td>${num(r.saves)}</td><td>${esc(((r.post_utc || '').match(/\d{4}-(\d\d-\d\d)/) || [, ''])[1])}</td></tr>`).join('');
+}
+async function uploadShots(files) {
+  files = [...files].filter((f) => f.type.startsWith('image/')); if (!files.length) return;
+  const box = $('#drop'); box.classList.add('busy');
+  try {
+    const data = await Promise.all(files.map((f) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok({ name: f.name, data: r.result }); r.readAsDataURL(f); })));
+    const r = await api('/api/upload', { files: data, note: $('#dropNote').value });
+    $('#dropNote').value = '';
+    toast({ c: '#4fd1ff', title: r.ok ? `📥 ${r.saved.length} screenshot(s) sent to the Analyst` : 'Upload failed', text: r.ok ? 'The numbers go into results.csv and the brain. Watch Mission Control.' : r.error, task: r.task });
+  } finally { box.classList.remove('busy'); }
+}
 async function load() {
   const st = await api('/api/state'); Object.assign(S, st); S.mode = st.mode || (st.demo ? 'demo' : 'api');
   const M = { plan: ['PLAN', 'live', 'Real agents through Claude Code on this PC, on your Claude plan'], api: ['API', 'live', 'Real agents billed to the API key in war-room/.env'], demo: ['DEMO', 'demo', 'Simulated agents. Install Claude Code and sign in, then restart, for real ones.'] }[st.mode || (st.demo ? 'demo' : 'api')];
@@ -161,7 +189,7 @@ async function load() {
   renderUsage(st.usage);
   if (document.activeElement !== $('#pinned')) $('#pinned').value = st.pinned || '';
   if (!S.wrOpen && S.warrooms.length) S.wrOpen = S.warrooms[S.warrooms.length - 1].id;
-  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr();
+  renderRoster(); renderBoard(); renderApprovals(); renderHive(); renderWrForm(); renderWrList(); renderWr(); loadIntel();
 }
 
 // ---------------- interactions ----------------
@@ -171,6 +199,8 @@ document.addEventListener('click', async (e) => {
   if ((x = el('[data-tab]'))) { document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b === x)); document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === x.dataset.tab)); try { localStorage.setItem('tab', x.dataset.tab); } catch {} }
   else if ((x = el('[data-task]'))) { openTask(x.dataset.task); x.classList.contains('toast') && x.remove(); }
   else if ((x = el('[data-agent]'))) { const sel = $('#cmdAgent'); sel.value = sel.value === x.dataset.agent ? '' : x.dataset.agent; renderRoster(); $('#cmdText').focus(); }
+  else if ((x = el('#dz'))) $('#dropFile').click();
+  else if ((x = el('#refreshBrain'))) { await api('/api/tasks', { agent: 'analyst', text: 'Refresh channel/BRAIN.md: re-read channel/results.csv, channel/analytics/, channel/postmortems/, channel/war-room/ (sealed dossiers) and channel/references/. Update Evidence, Lessons and Open questions so they match the data exactly. Keep it under ~1,000 words.' }); toast({ c: '#4fd1ff', title: '↻ Analyst is refreshing the brain' }); }
   else if ((x = el('[data-q]'))) { const t = $('#cmdText'); t.value = x.dataset.q; autosize(); t.focus(); }
   else if ((x = el('[data-goto]'))) { document.querySelector(`[data-tab="${x.dataset.goto}"]`)?.click(); setTimeout(() => $('#wrQ').focus(), 50); }
   else if ((x = el('[data-ap]'))) { x.parentElement.querySelectorAll('button').forEach((b) => (b.disabled = true)); await api('/api/approvals/' + x.dataset.ap, { allow: x.dataset.allow === '1' }); }
@@ -192,7 +222,7 @@ $('#cmdAgent').addEventListener('change', renderRoster);
 document.addEventListener('keydown', (e) => {
   const typing = /TEXTAREA|INPUT|SELECT/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' || (!typing && e.key === '/')) { e.preventDefault(); document.querySelector('[data-tab="mission"]').click(); $('#cmdText').focus(); }
-  else if ((e.altKey || !typing) && /^[1-4]$/.test(e.key) && !e.ctrlKey && !e.metaKey) { const b = document.querySelectorAll('[data-tab]')[+e.key - 1]; if (b && (e.altKey || !typing)) { e.preventDefault(); b.click(); } }
+  else if ((e.altKey || !typing) && /^[1-5]$/.test(e.key) && !e.ctrlKey && !e.metaKey) { const b = document.querySelectorAll('[data-tab]')[+e.key - 1]; if (b && (e.altKey || !typing)) { e.preventDefault(); b.click(); } }
   else if (e.key === 'Escape') { $('#drawer').classList.remove('on'); S.open = null; }
 });
 setInterval(() => { for (const el of document.querySelectorAll('[data-start]')) el.textContent = fmtDur((Date.now() - +el.dataset.start) / 1000); }, 1000);
@@ -205,3 +235,10 @@ const tick = () => { $('#clock').textContent = new Date().toLocaleTimeString([],
 setInterval(renderBoard, 15000);
 try { const t = localStorage.getItem('tab'); if (t) document.querySelector(`[data-tab="${t}"]`)?.click(); } catch {}
 connect();
+
+// intel: drag and drop, file picker and paste for analytics screenshots
+$('#dropFile').addEventListener('change', (e) => { uploadShots(e.target.files); e.target.value = ''; });
+['dragenter', 'dragover'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
+$('#drop').addEventListener('drop', (e) => uploadShots(e.dataTransfer.files));
+document.addEventListener('paste', (e) => { if (!$('#intel').classList.contains('on')) return; const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); uploadShots(f); } });

@@ -47,7 +47,7 @@ Code-rendered what-if TikToks. Read PLAYBOOK.md for the formula, look bar, capti
 
 ## Commander
 - Time zone: US Central. Give every ETA in CST/CDT, and never promise one you can't keep.
-- Rendering on the Commander's PC is free. Setup: `pc/Render PC Setup.cmd` (Git, Node, ffmpeg, Python, the repo at `%USERPROFILE%\InvisibleJourneys`, renderer, GPU check, stay-awake). Then they share that folder (Claude desktop app → Settings → Claude Code → Remote Control); find it with `list_computer_folders`. On Windows, use `py` for Python.
+- Rendering on the Commander's PC is free. Setup: `pc/Render PC Setup.cmd` (Git, Node, ffmpeg, Python, the repo at `D:\ClaudeStudio`, the Commander's studio folder, renderer, GPU check, stay-awake). Their desktop app has no Remote Control setting (2026-11-11), so cloud sessions can't reach the PC: GPU work runs in a Claude Code session on the PC itself (desktop app, or `claude remote-control` there to drive it from the phone). Re-check `list_computer_folders` now and then. On Windows, use `py` for Python.
 
 ## War Room
 - Sealed dossiers live in `channel/war-room/`: the first video, and the channel strategy (2026-11-11). The strategy covers the sky lane, fact-with-number covers, 34 s by default, and Gates A and B on 2026-11-13.

@@ -436,7 +436,7 @@ async function startBuild(pr) {
       return null;
     };
     // 1. lead: skeleton + shared kit + the split
-    pr.buildPhase = 'lead'; pemit(pr, `Parallel build (${who}): the Director writes the law, the shared kit and the split…`);
+    pr.buildPhase = 'lead'; pr.phaseStarted = Date.now(); pemit(pr, `Parallel build (${who}): the Director writes the law, the shared kit and the split…`);
     const lead = prior(/^PHASE 1 of 3/, /PLAN READY/) || await prodTask(pr, 'director', `PHASE 1 of 3 (lead) of a PARALLEL build of ${base}.
 Do build-order steps 1 (skeleton: script.md, src/story.js, shots.txt) and write the SHARED KIT every shot imports (sets, palette, lighting, camera helpers: src/kit.js), checked on one key frame. Do NOT build the shots yourself.
 Also write overlay.js (captions + counter, every number from story.js, inside the safe area) and score.json now: they depend only on the law and the board, so the shots can be rendered the moment they are built.
@@ -446,14 +446,14 @@ Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>
     const groups = [...(lead.result || '').matchAll(/^\s*GROUP\s+([A-Z])\s*:\s*(.+)$/gm)].map((m) => ({ g: m[1], shots: m[2].trim() }));
     if (!groups.length) return buildDone(pr, lead);   // the lead built it all itself
     // 2. Builders in parallel, one per group
-    pr.buildPhase = 'shots'; pemit(pr, `${groups.length} Builders are building shots in parallel: ${groups.map((x) => `${x.g} (${x.shots})`).join(' · ')}`);
+    pr.buildPhase = 'shots'; pr.phaseStarted = Date.now(); pemit(pr, `${groups.length} Builders are building shots in parallel: ${groups.map((x) => `${x.g} (${x.shots})`).join(' · ')}`);
     const since = lead.finished ? lead.finished - 6 * 3600e3 : 0;   // hand-overs written after the split (with slack for a lead re-run)
     const reused = groups.filter((x) => reuseGroup(x.g, since)).map((x) => x.g); if (reused.length) pemit(pr, `Reusing finished Builder group(s): ${reused.join(', ')}`);
     const done = await Promise.all(groups.map((x) => reuseGroup(x.g, since) || prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`).then((t) => { if (t.status === 'done' && /SHOTS DONE/i.test(t.result || '')) earlyRender(pr, x.shots.split(/[,\s]+/).filter(Boolean)); return t; })));
     const bad = done.filter((t) => t.status !== 'done' || !/SHOTS DONE/i.test(t.result || ''));
     if (bad.length) return buildFail(pr, bad[0], `Builder group(s) ${bad.map((t) => (t.text.match(/group ([A-Z])/) || [])[1]).join(', ')} did not finish`);
     // 3. lead: integrate, consistency pass, captions, score, commit
-    pr.buildPhase = 'finish'; pemit(pr, 'All shots built. The Director integrates them, does the consistency pass, captions and score…');
+    pr.buildPhase = 'finish'; pr.phaseStarted = Date.now(); pemit(pr, 'All shots built. The Director integrates them, does the consistency pass, captions and score…');
     const fin = await prodTask(pr, 'director', `PHASE 3 of 3 (finish) of the PARALLEL build of ${base}. All Builder groups are done: read projects/${pr.slug}/FINAL/*.txt.
 1. Apply any shared-file changes the Builders asked for.
 2. Consistency pass: check every cut's handshake and the look across all shots (key frames on the GPU), and fix what doesn't match.
@@ -555,23 +555,33 @@ const calib = (() => { let c = {}; try { c = JSON.parse(fs.readFileSync(CALIB_F,
   return Object.assign({}, CALIB_DEF, c); })();
 const saveCalib = () => { try { fs.writeFileSync(CALIB_F, JSON.stringify(calib, null, 1)); } catch {} };
 const ema = (old, v) => +(old * 0.6 + v * 0.4).toFixed(3);
-function briefStats(pr) {   // shots and frames from the board table in PRODUCTION.md
+function briefStats(pr) {   // shots and frames from shots.txt once the board is built, else the table in PRODUCTION.md
+  try { const L = fs.readFileSync(path.join(WORKSPACE, 'projects', pr.slug, 'shots.txt'), 'utf8').split(/\r?\n/).map((l) => l.replace(/#.*/, '').trim()).filter(Boolean); if (L.length) return { shots: L.length, frames: L.reduce((a, l) => a + (+l.split(/\s+/)[1] || 0), 0) }; } catch {}
   try { const md = fs.readFileSync(briefPath(pr), 'utf8'); const rows = md.split('\n').filter((l) => /^\|\s*`?s?\d{1,2}/i.test(l));
     const frames = rows.map((l) => +((l.split('|')[2] || '').match(/\d{2,4}/) || [0])[0]).reduce((a, b) => a + b, 0);
     if (rows.length) return { shots: rows.length, frames: frames > 300 ? frames : rows.length * 100 }; } catch {}
-  try { const L = fs.readFileSync(path.join(WORKSPACE, 'projects', pr.slug, 'shots.txt'), 'utf8').split(/\r?\n/).map((l) => l.replace(/#.*/, '').trim()).filter(Boolean); return { shots: L.length, frames: L.reduce((a, l) => a + (+l.split(/\s+/)[1] || 0), 0) }; } catch { return { shots: 11, frames: 1100 }; }
+  return { shots: 11, frames: 1100 };
 }
 function etaOf(pr) {   // minutes left per stage -> finish time
-  const now = Date.now(), st = pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
+  const now = Date.now(), st = (pr.slug && briefStats(pr)) || pr.stats || { shots: 11, frames: 1100 }, b = pr.builder === 'sonnet' ? 'sonnet' : 'opus';
   const par = (st.shots >= PARALLEL_MIN_SHOTS && byId.builder) || pr.parallel, build = (par ? st.shots / BUILDERS_N + 3 : st.shots) * calib.buildMinPerShot[b];
   const render = (st.frames * (calib.renderSecPerFrame[pr.quality] || 1) * (par && pr.quality !== 'draft' ? 1 / BUILDERS_N : 1)) / 60 + calib.renderOverheadMin;   // early renders cover the other groups
+  // agents still working on a failed/paused production: it is still building, so show the build ETA
+  const busy = store.tasks.some((t) => t.production === pr.id && ['running', 'queued', 'routing'].includes(t.status));
+  const stage = ['failed', 'paused'].includes(pr.stage) && busy ? pr.failedAt || pr.pausedFrom : pr.stage;
+  // build time by phase (lead ≈ 1.5 shots, the parallel shots, finish ≈ 1.5 shots), counted from when the current phase started
+  const m = calib.buildMinPerShot[b], since = (now - (pr.phaseStarted || pr.buildStarted || now)) / 60e3;
+  const parts = par ? { lead: 1.5 * m, shots: (st.shots / BUILDERS_N) * m, finish: 1.5 * m } : null;
+  const buildLeft = parts && pr.buildPhase && parts[pr.buildPhase] != null
+    ? Math.max(2, parts[pr.buildPhase] - since) + (pr.buildPhase === 'lead' ? parts.shots + parts.finish : pr.buildPhase === 'shots' ? parts.finish : 0)
+    : Math.max(2, build - (now - (pr.buildStarted || now)) / 60e3);
   let left = 0;
-  if (pr.stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;
-  else if (pr.stage === 'approval') left = build + render;
-  else if (pr.stage === 'build') left = Math.max(2, build - (now - (pr.buildStarted || now)) / 60e3) + render;
-  else if (pr.stage === 'render') left = pr.progress > 0.03 ? ((now - pr.renderStarted) / 60e3) * (1 - pr.progress) / pr.progress + 2 : render;
+  if (stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;
+  else if (stage === 'approval') left = build + render;
+  else if (stage === 'build') left = buildLeft + render;
+  else if (stage === 'render') left = pr.progress > 0.03 ? ((now - pr.renderStarted) / 60e3) * (1 - pr.progress) / pr.progress + 2 : render;
   else return null;
-  return { minutes: Math.round(left), at: now + left * 60e3, approx: pr.stage !== 'render' || !(pr.progress > 0.03), waitingOnYou: pr.stage === 'approval' };
+  return { minutes: Math.round(left), at: now + left * 60e3, approx: stage !== 'render' || !(pr.progress > 0.03), waitingOnYou: stage === 'approval' };
 }
 
 // ---------------- phone (Telegram): alerts out, commands in ----------------

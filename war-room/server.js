@@ -113,7 +113,10 @@ async function refreshPlan(force) {   // keep the reading fresh while there is w
   if (!force && !stale && (running || !queued || Date.now() - plan.t < 15 * 60e3)) return;
   probing = true; lastProbe = Date.now(); try { await probeUsage(WORKSPACE); } catch {} probing = false; if (!readingStale()) pump();
 }
-setInterval(() => refreshPlan(false), 60e3); setTimeout(() => refreshPlan(true), 3000);
+setInterval(() => refreshPlan(false), 60e3);
+// After a restart or an update, interrupted builds and renders continue by themselves from their saved work
+// (finished phases and Builder groups are reused, agents pick up from their files): the Commander isn't asked.
+setTimeout(() => { for (const pr of store.productions) if (pr.stage === 'paused' && ['build', 'render'].includes(pr.pausedFrom) && /War Room restarted/.test(pr.note || '')) { hive({ agent: null, kind: 'info', text: `↻ Continuing "${pr.title}" after the restart, from its saved work` }); resumeProd(pr); } }, 5000); setTimeout(() => refreshPlan(true), 3000);
 function noteResult(r) {
   addSpend(r.cost);
   if (r.needsLogin) { emit('login', { text: r.error }); notifier.send('setup', '🔑 Claude Code needs signing in on your PC', r.error, { photo: alertImg('setup') }); }

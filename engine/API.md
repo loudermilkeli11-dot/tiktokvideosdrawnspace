@@ -620,3 +620,6 @@ node tools/frames.js ... 1.0 --scale 1 --mb 2                                   
 node tools/audio.js projects/<slug>/dist/<shot>_sound.html <out.wav> <dur>       # dur = shot length + 0.6
 ```
 Look at the PNGs before handing over. `IJ_GPU=1` renders on a real GPU; never mix GPU and CPU frames in one shot.
+
+## 28. Automatic QC after the render (don't redo it by hand)
+After BUILD COMPLETE the War Room runs `render_all.js`, which renders the captions first and checks them against TikTok's safe area (`check.py --safe`), renders every shot, then runs `tools/check.py` on `final.mp4`. That check fails the video on: frame count/size, loudness (−14 LUFS, peaks ≤ −1 dBTP), upward white flashes, missing cut hits above 200 Hz, and caption contrast below 3:1 (after yuv420p). A failure goes to an automatic fix round with the exact report. So builders and the Director do NOT hand-test loudness, flashes or contrast, and never read check.py, render_all.js or other tool sources to learn them. Your job is the picture and the story: build each shot right and check its key frames by eye. If you need a contrast spot-check while choosing caption colours, the only command is `python tools/check.py --contrast <overlay.mov> --bg <clean.mp4> --every 0.2`.

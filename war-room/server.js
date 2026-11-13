@@ -62,6 +62,9 @@ const clients = new Set();
 function emit(type, data) { const s = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`; for (const c of clients) c.write(s); }
 const publicTask = (t) => ({ ...t, log: undefined, logCount: t.log.length });
 function setAgent(id, patch) { Object.assign(live[id], patch); emit('agent', { id, ...live[id] }); }
+// watchdog: if the server ever freezes (an order once took 28 min to arrive), record when and for how long in data/stall.log
+let lastTick = Date.now(); setInterval(() => { const now = Date.now(), lag = now - lastTick - 1000; lastTick = now; if (lag > 3000) { try { fs.appendFileSync(path.join(ROOT, 'data', 'stall.log'), `${new Date(now).toISOString()} server froze for ${Math.round(lag / 1000)} s
+`); } catch {} } }, 1000);
 function hive(entry) { emit('hive', store.addHive(entry)); }
 const SPEND_F = path.join(ROOT, 'data', 'spend.json');
 const spendLog = (() => { try { return JSON.parse(fs.readFileSync(SPEND_F, 'utf8')); } catch { return []; } })();

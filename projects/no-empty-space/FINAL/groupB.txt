@@ -1,0 +1,79 @@
+no-empty-space — GROUP B hand-over (s05_ferry, s06_tower, s07_drop). Builder, 2026-11-13. Nothing committed.
+
+FILES (all new; no shared or engine file touched — `git status` shows only untracked group files)
+  src/groupB_fx.js        waterRing (bore / ring wave), pitDisc, foamPatches, fishMesh, boatsB, vortexShards (the tower FUNNEL),
+                          dustPuffs (translucent faceted dust, no fluffy smoke), headCap + caveDrop + CAVE (the headland cave-in law)
+  src/s05_ferry.js + _sound.js, src/s06_tower.js + _sound.js, src/s07_drop.js + _sound.js
+  Frames checked on the GPU: out/frames_s05, out/frames_s06, out/frames_s07 (half size), out/frames_s0X_full (full size).
+
+s05_ferry (23.5-30.0) — VERDICT: PASS. Best frame: t 4.2 (geyser at full height; out/frames_s05_full/s05_ferry_t4.20.png)
+  Vantage: our own gozzo mid-inlet, 35 mm, ~110 m off the ferry broadside-3/4 (she fills ~80% of the width), sun behind-left.
+  Lands out of s04's whip (yaw -38° -> 0 over 0.32 s, 12 samples). Foreground frame: the wheelhouse roof (life ring, rope coils,
+  bucket), a fisherman sitting on a fish crate in the bow with his rod, a tourist in a pink shirt filming on the port side.
+  25.5: the ferry (with a 15 m FUORI SERVIZIO banner on her rail) implodes: 15,000 shards + 1,100 big hull plates, bead drops
+  into the sea; mooring ropes are dragged in then whip slack; crates/buoys/papers on the quay rush in. The water walls converge
+  (teal bore with a white crest + dark pit) and SLAM at 26.32 into a curtain geyser to ~70 m (streaky spray + white low-poly
+  clumps); a ring wave runs out and rocks the moored boats (kit + 9 extra gozzi); the quay alongside is slapped with spray; the
+  promenade crowd (64) turns and runs. Gag: startled fish leap; one (0.9 m) arcs into the tourist's arms (28.45), he turns round
+  to us holding it (figure ~1/4 frame tall, frame left, clear of the right rail). Fisherman points, then hands on head.
+  Sound: room (lapping, town, sparse low gulls), steel-groan inhale 25.5 -> HARD stop 26.1, rope snaps, slam thump + geyser
+  roar + rain-down, quay slap, crowd, gasps, fish flop + flaps. No cut hit, no squeeze boom. WAV peak -9.2 dBFS.
+  Time: ~1.3 s/frame full size at 5-6 samples; ~3 s inside the 12-sample windows (whip 23.5-23.85, squeeze 25.45-26.6).
+  Weak spots: from a boat at 3 m the hole reads as a teal ring with a white crest closing (not a deep crater); the bow people
+  are simple; the counter (x 50-300, y 370-500) sits over the busy pastel east shore.
+
+s06_tower (30.0-37.0) — VERDICT: PASS (set piece). Best frame: t 3.45 (the funnel; out/frames_s06_full/s06_tower_t3.50.png)
+  FRAME1_CAM.pos, 85 mm, locked; tower right of centre (x ~330), its foot at y ~700 (below the captions).
+  30.0-33.0 pre-rumble: one crane jib slews 30° (jibs lifted out of the merged tower mesh and re-hung on pivots), hooks swing,
+  the water trembles, a flock of gulls lifts off the quay and flaps across the lens (~35 m out), the frame micro-trembles.
+  33.0: the tower implodes OUTSIDE-IN in 0.8 s as a DEBRIS FUNNEL (vortexShards: 38,000 skin shards 0.6-3.5 m + 2,600 panels
+  4-11 m + 7,000 rock shards torn off a 75 m disc of the headland): shards peel out into a cone up to ~300 m wide, spiral faster
+  and dive into ONE blazing point at the foot (bead r 6 m, min 20 px, a PointLight lights the headland); the OPENING 2027 banner
+  tears into red/cream shards. Physical, never a scale-down (the kit's radial contraction read as a shrinking model on a 381 m
+  column, see KIT REQUESTS). 33.8: kick; the dust ring (3,800 translucent faceted puffs + 1,400 flakes, ~1,000 m/s decaying)
+  races over the harbour, the water flattens, gradeDust -> 0.52; 36.3 the pressure front: geranium petals, leaves, napkins and
+  glass whip past the lens + the big jolt; at 37.0 the dust wall fills the lower ~2/3.
+  Sound: harbour room + gull flurry + growing ground growl + steel groan; inhale (pink sweep 260 -> 2,000 Hz + low-passed glass
+  shriek + saw) 33.0 -> HARD stop 33.42; everything gated to TRUE silence 33.42-33.8 (measured: -inf dBFS); after 33.8 shock
+  roar, far windows (low-passed), town screaming, the 36.3 pressure-front whoosh + wind + debris. WAV peak -11.2 dBFS.
+  Time: ~0.6 s/frame pre-rumble (4 samples), ~2 s in the implosion (12), ~1.4 s dust (6), ~1.9 s front (8); average ~1.2 s.
+  RULE BROKEN (brief): the terrace awning ripping, glass shattering and people ducking are NOT shown: at 85 mm from
+  FRAME1_CAM.pos the frame is 1.5 m wide at the rail and the rail/deck people fall below frame (the lens looks up 7°). I used
+  the gulls, the debris through the lens and the camera jolt as the terrace beat. The hero is not shown (his straw hat flew
+  into his car's squeeze in s03, so holdHat would contradict). If the lead wants visible ducking: an insert in s07's first
+  second or a group A terrace angle.
+  Weak spots: the funnel can read a little "tornado"; the dust is stylised translucent facets (crisp, not smoke).
+
+s07_drop (37.0-43.0) — VERDICT: PASS. Best frame: t 3.1 (out/frames_s07_full/s07_drop_t3.10.png)
+  From the sea SW of the headland, 50 -> 54 mm slow push, sunlit cliff facing us; opens inside thin dust clearing (fades by ~1 s).
+  The tower is gone (harbourWorld tower:false). headCap replaces the plateau with its own 4 m grid (the kit terrain under it is
+  sunk once, this page only) displaced per frame by caveDrop (groupB_fx.js CAVE: T_CAVE 37.2, DUR 3.8): a star of 8 fissures
+  (two bound the breach, one splits it) runs out and notches the cliffs with dust spurting from them, the centre caves into a
+  bowl, the breach wedge facing us slumps out below sea level and the sea pours in (white water jets + foam swirl), ~250 boulders
+  (1.4-8 m) tumble off the cliffs into the sea, each with a splash solved at load; the headland's trees ride the ground down and
+  lean into the cracks; dust rises and drifts in the gold light; a blue gozzo ahead-left with 3 tourists (two point, one holds
+  his hat; one switches to hands-on-head). gradeDust 0.30 -> 0.48.
+  Sound: dust wind, sea, a falling deep groan (52 -> 24 Hz) + rumble, cracks (low snaps), cave-in roar + rock rattle, 16 rock
+  splashes, the sea pouring into the breach, gasps. WAV peak -8.1 dBFS.
+  Time: ~1.3 s/frame full size (6 samples; the ground is evaluated once per frame, quantised to 1/30 s — deterministic).
+  Weak spots: the cliff faces are big smooth facets and the fissures read as deep V-gorges rather than thin cracks; the first
+  ~1.1 s is calm (dust clearing) before the first crack; the gozzo's tourists are small (~25 design px); "people on the far mole"
+  are replaced by the people in the nearby boat (the mole is behind this camera).
+
+RULES BENT (and why)
+  - SAMPLES lowered to meet the 1.5 s/frame budget: s05 5 outside its 12-sample whip/squeeze windows; s06 4 / 12 / 6 / 8 by phase;
+    s07 6 (kit says 8). Measured numbers above.
+  - s06 terrace beats (awning / glass / ducking / hero holdHat): not visible at the locked 85 mm (see s06).
+
+KIT REQUESTS (for the lead, phase 3)
+  1. BUG harbour.js FERRY.x = 84 puts the ferry inside the east promenade and the first row of houses (xE(-335) = 72.3; houses
+     start at xE + 15). s05 moves her locally to x = xE(FERRY.z) - beam/2 - 1.6 = 64.2. Please set FERRY.x ≈ 64.2 in harbour.js
+     so s01/s03/s08 match (the FUORI SERVIZIO quay sign at xE + 4 is fine).
+  2. squeeze.js: shards contract radially (r *= 1 - k), which on tall objects reads as a model scaling down. groupB_fx.js
+     vortexShards (peel-out funnel + accelerating spiral + path-aligned stretch, same tear/kpow/heat) fixed it for the tower;
+     consider it for s08's mountain.
+  3. The CAVE constants (cave-in timing, breach sector) live in groupB_fx.js; if s08 (reverse from the mole) shows the headland,
+     it can import caveDrop/headCap to match the scar.
+  4. Continuity: the hero loses his hat in s03 (squeezed with the car), so no later shot should show him in it.
+
+SHOTS DONE: groupB

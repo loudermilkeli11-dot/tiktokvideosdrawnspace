@@ -24,7 +24,7 @@ export const HEAD = { x: 230, z: -1700, r: 200, y: 48 };
 export const TOWER = { x: 236, z: -1712, base: HEAD.y, h: 381, w0: 44, w1: 30 };
 export const MOUNT = { x: -200, z: 3600, h: MOUNTAIN.h, r: MOUNTAIN.r };
 export const CHURCH = { x: -124, z: -760 };
-export const FERRY = { x: 84, z: -335, len: 70, beam: 13 };
+export const FERRY = { x: 64.2, z: -335, len: 70, beam: 13 };   // moored 1.6 m off the east quay wall (xE(-335) - beam/2 - 1.6; was 84 = inside the houses)
 export const xW = (z) => (z > -1050 ? -62 - 0.035 * Math.max(0, -z - 40) : -95.6 - 0.6 * (-1050 - z));
 export const xE = (z) => (z > MOUTH_Z ? 62 + 0.035 * Math.max(0, -z - 40) : 95.6 + 0.45 * (MOUTH_Z - z));
 

@@ -1,0 +1,27 @@
+COMMANDER REVIEW of the phase-2 frames (2026-11-13 ~6:20 AM CST). The Director MUST fix these in phase 3 before BUILD COMPLETE, and check each fix on key frames against channel/references/look/.
+
+KEEP: s01_phone is excellent (the colourful harbour, golden light, the woman with the phone big in frame, the flower-box railing, the tower on the headland). Match its quality everywhere.
+
+FIX:
+1. s05_ferry, the foreground person: the hero's back fills ~40% of the frame and reads as a pink armless blob. Reframe: over-the-shoulder at one side of the frame (at most ~20% of the frame), with arms, shoulders and hat clearly shaped. People seen from behind must always have visible arms and natural shapes.
+2. s05_ferry, the geyser: it reads as a pile of white balls / popcorn, not water. Make a real water column: a tall vertical jet of translucent white-blue water with streaming spray droplets, sheets of water falling back, mist at the top, and a white foam ring spreading on the water. No clumps of spheres.
+3. s08_mountain, the mountain: a flat brown triangle mesh. Give it real shape and colour: rocky ridges, lighter and darker faces, green scrub on the lower slopes, warm golden light on one side, and haze. The squeeze must visibly tear it into slabs that stream into one point (at least one frame where that is obvious).
+4. s08_mountain, the people: they stand still facing away. They must react big: ducking, clutching hats, grabbing each other, laundry and umbrellas tearing out of hands; the gelato gag framed close (at least a quarter of the frame height).
+5. Everywhere: no clumped spheres or blobs for water, dust or debris; physical shards, sheets, droplets and slabs only.
+
+SECOND REVIEW (~7:00 AM CST, group B and C frames):
+GOOD: s05 the geyser is now a real white water burst, and the two people are framed small with arms. Keep it.
+6. s06_tower, the implosion: it reads as a TORNADO / twister funnel, not a building being crushed. The viewer must see the TOWER itself fail: its floors, glass panels and frame buckle and fold inward toward one point in the middle of the tower (top and bottom racing toward the centre), shards converging, cranes snapping in. Keep a spiral only as a slight twist in the final 0.2 s.
+7. s06_tower, the aftermath dust: big lumpy beige blobs (clumpy, fluffy). Replace with a thin, crisp-edged dust ring racing over the water plus flying debris and shards. No cloud blobs.
+8. s09_earth: the Earth is tiny in a mostly black frame. Frame it large (at least 60% of the frame width) so the cracking plates and white ocean streams are readable, then pull back as it shrinks.
+9. s10_speck: the glowing ball is small and plain; make the scale comparison read (the ghost tower outline clearly visible beside it, a bit larger in frame).
+10. s11_moon: the thin straight white lines across the frame look like rendering glitches. Make the orbit arc a clear, gently curved line that obviously follows the Moon's path, or remove it.
+
+FIXED BY FIX PASS: items 3-10 (Builder, 2026-11-13; frames in out/fixBC_s05..s11, details in FINAL/fixBC.txt). Not fully fixed / to watch:
+  - 3: the new massif is ridged, two-toned and sun-shaded, but its green lower slopes stay mostly hidden behind the town's ridge from this vantage (green shows only in the gullies; the town hill in front is green).
+  - 4: reactions are pose changes, not animated in-betweens; the clinging woman of the couple is seen from behind; the two foreground groups are partly cropped at the frame edges (by design: a foreground frame).
+  - 6: the buckle lasts the law's 0.8 s; the bottom crush front reads as a brushy skirt of shards for ~0.3 s. Liberty: the bead drops from mid-tower to the foot in 0.75 s (real free fall ~6 s) so it is in the rock when s07's cave-in starts.
+  - 7: the ring reads as a low crisp wall with a faint vertical facet striping; it fades out within ~150 m of the lens (no wall over the lens at the cut any more).
+  - 8: the Earth is held at ~74% of the width while it cracks; its lower-left (night) limb sits behind the counter (x 64-300, y 384-470) from 52.0 to ~54.5: run check.py --contrast there.
+  - 10: the orbit line is REMOVED (a 135 mm lens cannot show its curve honestly), not redrawn.
+  - Also fixed (NEVER SHIP #1/#3, not in the list): s07's lumpy dust puffs -> crisp dust rings, its round boulders -> angular blocks, its grade start matched to s06's new end.

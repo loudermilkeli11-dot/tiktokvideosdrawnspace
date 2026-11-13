@@ -1,0 +1,41 @@
+no-empty-space · FIX PASS groups B + C (Builder, 2026-11-13) · items 3-10 of FINAL/commander_review.txt + NEVER SHIP check
+Nothing shared or group-A edited; nothing committed; no group A file imports anything changed here (checked).
+Every page builds; key frames checked on the GPU at half size in out/fixBC_s05 .. out/fixBC_s11.
+
+NEW FILES
+  src/fixBC_tower.js     tessellate (split a mesh to <= 5 m tris), foldTower (patches the tower's own materials: the tower buckles),
+                         crushShards (shards torn off at the crush fronts fly straight into the point), dustRing (thin crisp dust ring)
+  src/fixBC_mountain.js  slabMountain: own ridged, coloured, sun-shaded 1,500 m massif cut into ~1,900 irregular thick slabs that
+                         tear off summit-first and stream into the point (GPU, lit MeshStandardMaterial, reduced fog so it keeps colour)
+LOCAL OVERRIDES INSTEAD OF SHARED EDITS (for the lead)
+  - s06: the kit tower (harbour.js towerGroup) is tessellated and its materials cloned+patched on this page only.
+  - s08/s09 (groupC_mole.js): the kit mountain (W.mountain) is hidden every frame and replaced by slabMountain; the kit squeeze keeps
+    only the bead/streak/drop (sources: [], one dummy shard).
+
+PER SHOT (best frame = shot time)
+s05_ferry   unchanged; passes NEVER SHIP (t 4.2: water burst, two small people with arms).
+s06_tower   item 6: the tower itself fails: top and bottom crush toward one point at 47% height, floors pancake at both fronts,
+            walls dent (ripples) and fold in at the waist, Z-kink, cranes droop/snap, slight twist only in the last 0.2 s; shards
+            fly straight in, heating. Best t 3.40. item 7: blobs and the plume removed; ONE crisp ring (+ a fainter second)
+            launched 33.92, 1,030 m/s decaying, fading within 150 m of the lens; 240 heavy dark chunks + glass arc into the harbour.
+            Best t 5.20. Grade end 0.32 (was 0.52). Liberty: bead dropped to the foot in 0.75 s (see review note).
+s07_drop    NEVER SHIP fixes: dust puffs -> crisp rings (bowl, up to 15 crack spurts, breach wall with spray skirt); boulders and water
+            bits angular (no spheres); opening no longer shows s06's old dust wall; grade start 0.32. Best t 3.10.
+s08_mountain items 3/4: slabMountain (see above): slabs visibly tear and stream at t 2.0-2.1 (best), bright point by 2.65.
+            People: a foreground frame both sides: left a lady under a navy/white umbrella that rips out of her hand at 45.97 and
+            tumbles across the lens toward the gap (she goes hands-on-head); right a couple chatting -> look -> she clings to him,
+            he clamps his hat. The 5 one-offs and the townsfolk point at the mountain at the inhale, then turn their backs to the
+            gale (facing us: ducking, holding hats, braced). Gelato gag unchanged (seller ~55% of frame height at the push). Best t 3.2.
+s09_earth   item 8: the lens follows the shrinking crust (softplus-limited at 45% of R) so the cracking Earth holds ~74% of the
+            width from the cut to ~54.4, then pulls back as it collapses; ends on the point at design (300, 300) as before (s10 match).
+            Best t 4.2.
+s10_speck   item 9: camera ends at 1.35 km (was 2.1), ghost tower 90 m from the ball (was 150), edges brighter + faint glass fill;
+            ball ~200 px, tower same height beside it; framing raised so the tower's base clears the counter. Best t 4.0.
+s11_moon    item 10: orbit line removed. Best t 2.5.
+
+WEAK SPOTS: see the "FIXED BY FIX PASS" note in commander_review.txt (hidden green lower slopes, pose-swap reactions, brushy
+bottom crush front, faint ring striping, Earth limb behind the counter 52.0-54.5, orbit removed not redrawn).
+Render cost: s06 tower is now ~20k more tris + 32k shards (was 47k + funnel): similar; s08 lost the kit's 40k slab shards
+(slabMountain ~75k tris, one draw) so it should be a little faster. Not measured at full size.
+
+SHOTS DONE: fixBC

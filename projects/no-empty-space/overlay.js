@@ -30,7 +30,9 @@ export default () => ({
     c(14.0, 17.8, 'His car: *thinner | than a hair.*'),
     c(18.3, 23.3, `Still ${RUNG.car.m / 1000} tonnes. | It *sinks through rock.*`),
     c(25.8, 29.8, 'The ferry: *a grain | of sand.*'),
-    c(33.3, 36.8, `A ${SHOW.tower[0]} tower | *implodes to ${SHOW.tower[1]}.*`),
+    // phase 3: raised into the deeper blue upper sky (top y 130) so the type never covers the tower's crush (it sat on the
+    // tower at y 590) and reads against the darker zenith instead of the pale horizon
+    cap(33.3, 36.8 + 1e-6, `A ${SHOW.tower[0]} tower | *implodes to ${SHOW.tower[1]}.*`, [], { ...NB, y: 130 }),
     c(37.3, 42.8, `${(RUNG.tower.m / 1000).toLocaleString('en-US')} tonnes | *punch through the hill.*`),
     c(45.0, 49.8, 'The mountain: | *a tennis ball.*'),
     c(T_ORBIT + 0.2, 55.8, 'Then the | *whole Earth.*'),

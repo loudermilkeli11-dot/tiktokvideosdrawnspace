@@ -1,0 +1,89 @@
+no-empty-space · GROUP C hand-over (Builder, 2026-11-13) · s08_mountain, s09_earth, s10_speck, s11_moon
+All four pages + sound pages build (python tools/build_page.py ...), every frame checked on the GPU (half size; full-size where noted).
+Nothing shared was edited. Nothing committed.
+
+FILES (all new, group-owned)
+  src/s08_mountain.js  + _sound.js
+  src/s09_earth.js     + _sound.js
+  src/s10_speck.js     + _sound.js
+  src/s11_moon.js      + _sound.js
+  src/groupC_wind.js   wind-carried bits (closed form dv/dt = k(w - v) - g; GPU) + windPos() JS twin (scoops, parasols, kites, hats)
+  src/groupC_mole.js   the s08 set: moleWorld(S) + moleCam(film) (s09 starts from moleCam(50.0), so the handshake is exact)
+  src/groupC_earth.js  N3 Earth squeeze: plates on space.js's own Earth shader, hot walls, core, cloud shell, ocean spray, bead
+  (no engine files touched or added)
+
+PER SHOT
+s08_mountain (43.0-50.0) — best frame t 3.4 (film 46.4: gale + glowing point + kites/parasols flying)
+  • RULE BROKEN (with reason): vantage is the EAST PROMENADE looking south along it, 0.9 m high, 70 mm locked, NOT the mole at 24 mm.
+    The town's slope hides the mountain's base: at 24 mm from the mole the whole mountain is ~100 px tall; at 70 mm it fills the upper
+    third (~230 px + the slab stream), so the event fills the frame (LOOK rule 6). The mole is only 12 m wide (no room for a ¼-frame
+    gag subject at a long lens); the promenade gives a 40 m deep foreground: bunting, lamp posts, bollards, a café with parasols,
+    the gelato cart, one-off people, kit townsfolk, moored boats.
+  • 43.0-44.5 life: people watch the headland (s07) facing us; seller offers a cone to a customer (sun hat, teal top).
+  • 44.5 the mountain implodes (kit squeeze, 40,000 slabs 10-52 m from its own faces, tear 0.5) into a point 1,000 m up its axis
+    (placed above the town's ridge so it reads); ridge trees and rock are dragged in (2,600 bits, gone by ~45.8); the bead then
+    sinks behind the ridge (depthAt). People turn to the mountain at the inhale.
+  • 45.85 the GALE (stylised: no sound-speed delay): ~13,000 wind bits stream away from the lens into the gap: leaves, napkins,
+    bunting flags (they REST on their strings until the gust), café chairs, roof tiles and laundry off the head town, spray off the
+    inlet, 5 parasols, 3 kites (lines snap), gulls, ~1 in 5 townsfolk hats; boats rock; small camera buffeting.
+  • GAG 3: 45.95-47.2 one eased push 70 -> 150 mm onto the seller (navy/white Breton stripes, white paper hat, 3/4 profile facing
+    screen-left). 47.35 his two scoops (strawberry, pistachio) pop off and fly to the mountain; he stares at the empty cone (a lick
+    of strawberry on the rim) to 50.0. At the gag he is ~55% of frame height; the cone (stylised 26 cm) sits at design ~(270, 300),
+    ABOVE the counter block (the scoop launch was moved from 46.95 to 47.35 so the cone is clear of the counter when they go).
+  • Samples: 12 only in film 44.4-48.1 (implosion, gale burst, push, scoops), 8 elsewhere.
+s09_earth (50.0-56.0) — best frame t 3.5 (film 53.5: the crust cracked into plates with glowing seams)
+  • 50.0-51.5 crane: starts on s08's exact last framing, rises 70 m, pulls back, lens 150 -> 32 mm, tilts to the empty sky over the
+    ridge. Hard cut at frame 45 (51.5): one world per FRAME (town/space chosen by frame index, never mixed in motion-blur samples).
+  • Orbit: 70 mm, whole sunlit Earth over the Mediterranean, centre at design (300, 300) (disc clear of the caption band), Sun up-right
+    (46° phase) so the terminator falls lower-left; slow pull-back 58,000 -> 66,000 km. The crust IS space.js's Earth shader on an
+    icosphere (74k faces) cut into 34 thick jagged plates -> exactly as sharp as space.js (4k day map, glint, rim).
+  • 52.0-55.0: plates fall inward on the counter's curve (implodeK; radius RE(1-k) + R_MINI k), each with its own late start
+    (0-1.0 s) and tilt, drawing in about their centres so white-gold seams open; hot rock walls; a core glows through; oceans tear into
+    13,000 white spray streaks that lag the crust (kept only over ocean via the same texture channel space.js reads); the cloud shell
+    lags 0.45 s, tears and is pulled in last; the air halo fades. 55.0 -> 56.0 the white-gold point holds at (300, 300).
+s10_speck (56.0-61.0) — best frame t 4.0
+  • 367 m ball (R_MINI) as a flat-shaded low-poly sphere, every facet flickering hot (orange limb -> white-gold), a wavering corona
+    (heat shimmer), bloom. Ghost of the 381 m tower = the kit's towerGroup geometry as thin pale edges, standing on the ball's
+    baseline, fading in from 56.5. Opens at the s09 point's spot (300, 300, ~40 px); eased dolly 8.6 -> 2.1 km; ends with the ball
+    ~130 px at (335, 280), tower at x ~200, both ABOVE the counter block. Last 1.2 s: a gentle 6° pan left (kept small: no star streaks).
+s11_moon (61.0-66.0) — best frame t 2.5
+  • 135 mm, the camera 30,000 km beyond the Moon and 10.5° above its orbital plane: the crisp 8k Moon (opaque, no haze/earthshine, the
+    breakup crack lines zeroed) low in frame, its limb at y ~670 (below the caption band); the Earth-speck a single bright white-gold
+    star at (300, 236); the orbit one faint thin line (it reads as two near-straight lines in a 135 mm frame: the near arc through the
+    Moon, the far arc just above the star — honest geometry). The camera trucks 1,400 km along the orbit so the Moon glides right
+    (continuing s10's pan), the star stays put; real orbital rate used (it barely moves, as it should). Fade to black 65.5-66.0.
+  • Honest detail: seen from beyond the Moon we see its FAR side (near side faces the Earth-speck).
+
+SOUND (API §22 names only; no hits on cuts, no squeeze booms — the score owns them; nothing repeating above ~1.5 kHz)
+  s08: water lapping, crowd; the 1.2 s deep inhale 44.5 -> HARD stop 45.7 (+ low groan); the gale roar (3 bands + wind) easing by
+       49-50; irregular low cloth/tile bursts; scoop whoosh + the seller's single low "oh" at 47.8.  peak -14.5 dBFS
+  s09: the gale fading, cut dead at 51.5; space: a low sawtooth groan 48 -> 30 Hz + rumble under the deep inhale 52.2 -> HARD stop 55.0.
+       peak -8.9 dBFS
+  s10: one low tone (55 Hz + soft fifth/octave, slow detune) + a faint drifting 3.2 -> 2.6 kHz noise band (shimmer). peak -20.1 dBFS
+  s11: the low pad thinning out, gone by 65.5. peak -25.8 dBFS
+  WAVs: out/s08_mountain.wav, s09_earth.wav, s10_speck.wav, s11_moon.wav
+
+MEASURED FULL-SIZE FRAME TIME (GPU, this PC)
+  s08: 1.5-1.7 s at 8 samples; 2.3-3.2 s at 12 samples (111 of 210 frames) -> ~8 min single-job. OVER the 1.5 s brief at 12 samples:
+       the per-sample cost (~0.19 s) equals the lead's town; only fewer samples would fix it.
+  s09: town part 2.3 s (45 frames, 8 samples); orbit 0.5 s; the FIRST orbit frame pays ~11 s of one-time shader compile.
+  s10: ~0.2 s (half size; trivial scene).   s11: 0.5-0.6 s.
+
+KNOWN WEAK SPOTS
+  • s08: after the mountain goes, the skyline is the terrain mesh's far edge (z 1,500 m): a straight, flat-looking crest with tree dots.
+    A low back-ridge beyond it would read more natural (kit/harbour.js change; not mine to make).
+  • s08: in the wide (43-46) the counter block sits over the busy hillside/town top; run check.py --contrast on 43.0-46.0.
+  • s08: in the push the bottom ~25% is empty paving (inside TikTok's lower UI zone, so acceptable).
+  • s09: space.js's twilight line draws a thin orange arc along the terminator on the dark limb (stock look).
+  • s09: around 54.3-54.8 the spray streaks give the shrinking ball a slightly hairy halo at half size (cut down twice; check at full).
+  • s09 crane: the 32 mm end shows large blocky foreground houses on the left for ~0.3 s before the cut.
+  • s11: no visible orbit curvature (physics of a 135 mm frame); the Earth-star is small (~10 design px with its halo).
+LOOK CHECK vs channel/references/look/sheet_sun_exploded_lunar.jpg (key frames side by side): matches the golden light + haze, the
+  kites/birds/bunting density, the foreground frame (cart, customer, bunting), the event filling the upper frame and the frame-wide
+  flying debris; one style family throughout. Gap: the hits' blasts end in a dense dust haze; ours stays clean (no fluffy smoke rule).
+
+KIT REQUESTS / NOTES FOR THE LEAD
+  • Beware query-param names in qn(): the engine reads ?mb= (motion-blur samples) from the same URL — my s11 'mb' param collided
+    with frames.js --mb (fixed: renamed). Worth a line in BUILDERS.md / API.md.
+  • Optional: a back-ridge behind the terrain's south edge for s08/s09 (see weak spots).
+  • The overlay is unchanged; picture timings match story.js (44.5/45.7, 51.5, 52.0/55.0, 56.0, 61.0, 66.0).

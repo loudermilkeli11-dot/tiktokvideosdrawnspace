@@ -32,6 +32,9 @@ References in `channel/references/look/`: Lunar Animation "What if the sun explo
 8. **Fuzzy or mismatched space:** zoomed satellite texture, streaky blur, a photoreal close-up next to a stylised world.
 9. **Sameness:** the same towers or plaza as a previous video; the same gag twice.
 10. **Text:** bands or boxes behind captions, text over the action, an on-screen DRAMATIZATION tag.
+11. **The cause hidden by its own effect:** a splash or dust cloud so big and soft that the object it came from (a ferry, a tower) is gone before the viewer sees what happened to it (the no-empty-space ferry read as a white geyser). Show the object being crushed first, then a modest, crisp splash.
+12. **Debris in the lens:** big motion-blurred shards flying at or past the camera so the hero subject disappears for a moment (no-empty-space mountain). Keep debris to the sides and behind; the subject must stay readable in every frame.
+13. **A weak last act:** the closing beats (space, scale reveal) shrinking to tiny, still dots. The final comparison must be big and move.
 
 ## What this changes for us
 - These hits are most likely code-generated, as ours are. No bought assets: build ONE coherent stylised low-poly kit in code (flat-shaded buildings, cars, trees, people and props, all in the same proportions and palette) and use it for every set. Never mix cartoon pieces with glossy photoreal ones.

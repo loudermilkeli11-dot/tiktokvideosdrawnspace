@@ -21,6 +21,18 @@ References in `channel/references/look/`: Lunar Animation "What if the sun explo
 10. **The end card loops.** It's black, with the title again plus one real fact in small text ("Arica, Chile once went 14 years without rain"), and it cuts back to frame 1.
 11. **No voice.** Text + music + sound only. Two creators run series: "Post 7", a playlist, labelled AI-generated.
 
+## NEVER SHIP: the checklist (every failure the Commander has caught; check every key frame against it before you call a shot done)
+1. **Blobs:** water, dust, smoke or debris made of clumped spheres or lumpy cloud shapes (the "popcorn" geyser, the beige dust blobs, the smooth blue sea wall). Use sheets, droplets, spray, shards, slabs and thin crisp dust ribbons/rings.
+2. **Wrong-reading effects:** an implosion that looks like a tornado/twister, layers sliding off each other, a model just scaling down. The viewer must see the OBJECT itself break, buckle and fold.
+3. **Light debris for heavy things:** confetti/paper-coloured bits from concrete or steel. Heavy things throw big, dark, heavy chunks that fall under gravity.
+4. **Tiny subject in an empty frame:** the event or planet filling less than ~half the frame in its hero moment; a gag subject smaller than a quarter of the frame height.
+5. **Bad people:** a person's back filling a big part of the frame, armless or blob-shaped bodies, crowds standing still while the world ends. People need arms, shapes, outfits and big reactions.
+6. **Flat shapes:** an untextured triangle mountain, a pale grey flat sky, flat light without long shadows.
+7. **Glitch-looking marks:** thin straight lines across the frame, z-fighting, flicker, popping objects.
+8. **Fuzzy or mismatched space:** zoomed satellite texture, streaky blur, a photoreal close-up next to a stylised world.
+9. **Sameness:** the same towers or plaza as a previous video; the same gag twice.
+10. **Text:** bands or boxes behind captions, text over the action, an on-screen DRAMATIZATION tag.
+
 ## What this changes for us
 - These hits are most likely code-generated, as ours are. No bought assets: build ONE coherent stylised low-poly kit in code (flat-shaded buildings, cars, trees, people and props, all in the same proportions and palette) and use it for every set. Never mix cartoon pieces with glossy photoreal ones.
 - Default board shape: one hero vantage, with time steps. Travel to a new place only when the story truly needs it.

@@ -473,9 +473,11 @@ Commit. End with SUMMARY and exactly one line per group: "GROUP <letter>: <shot>
     const done = await Promise.all(groups.map((x) => reuseGroup(x.g, since) || prodTask(pr, 'builder', `PHASE 2 of 3 of ${base}. You are Builder group ${x.g}. Build ONLY these shots: ${x.shots}. Read projects/${pr.slug}/BUILDERS.md first (your assignment, the handshakes and the contract).`, `SUMMARY: (demo) group ${x.g} built.\nSHOTS DONE: ${x.g}`).then((t) => { if (t.status === 'done' && /SHOTS DONE/i.test(t.result || '')) earlyRender(pr, x.shots.split(/[,\s]+/).filter(Boolean)); return t; })));
     const bad = done.filter((t) => t.status !== 'done' || !/SHOTS DONE/i.test(t.result || ''));
     if (bad.length) return buildFail(pr, bad[0], `Builder group(s) ${bad.map((t) => (t.text.match(/group ([A-Z])/) || [])[1]).join(', ')} did not finish`);
+    // 2b. the Critic reviews every shot against LOOK.md's NEVER SHIP checklist; the Director applies its fix list in phase 3
+    if (byId.critic && !prior(/^CRITIC REVIEW/, /CRITIC DONE/)) { pr.buildPhase = 'critic'; pr.phaseStarted = Date.now(); pemit(pr, 'The Critic reviews every shot against the look bible…'); await prodTask(pr, 'critic', `CRITIC REVIEW of ${base}. Review every shot before the render and write projects/${pr.slug}/FINAL/critic.txt.`, `SUMMARY: (demo) critic.\nCRITIC DONE: 0 fixes`); }
     // 3. lead: integrate, consistency pass, captions, score, commit
     pr.buildPhase = 'finish'; pr.phaseStarted = Date.now(); pemit(pr, 'All shots built. The Director integrates them, does the consistency pass, captions and score…');
-    const fin = await prodTask(pr, 'director', `PHASE 3 of 3 (finish) of the PARALLEL build of ${base}. All Builder groups are done: read projects/${pr.slug}/FINAL/*.txt.
+    const fin = await prodTask(pr, 'director', `PHASE 3 of 3 (finish) of the PARALLEL build of ${base}. All Builder groups are done: read projects/${pr.slug}/FINAL/*.txt. FINAL/critic.txt (and any commander_review.txt) is a MUST-FIX list: apply every item and re-check its key frames before BUILD COMPLETE.
 1. Apply any shared-file changes the Builders asked for.
 2. Consistency pass: check every cut's handshake and the look across all shots (key frames on the GPU), and fix what doesn't match.
 3. Check overlay.js and score.json still fit the finished shots (adjust only if needed), write FINAL.md, commit everything. End with BUILD COMPLETE as usual.
@@ -596,9 +598,9 @@ function etaOf(pr) {   // minutes left per stage -> finish time
   const stage = ['failed', 'paused'].includes(pr.stage) && busy ? pr.failedAt || pr.pausedFrom : pr.stage;
   // build time by phase (lead ≈ 1.5 shots, the parallel shots, finish ≈ 1.5 shots), counted from when the current phase started
   const m = calib.buildMinPerShot[b], since = (now - (pr.phaseStarted || pr.buildStarted || now)) / 60e3;
-  const parts = par ? { lead: 1.5 * m, shots: (st.shots / BUILDERS_N) * m, finish: 1.5 * m } : null;
+  const parts = par ? { lead: 1.5 * m, shots: (st.shots / BUILDERS_N) * m, critic: 0.8 * m, finish: 1.5 * m } : null;
   const buildLeft = parts && pr.buildPhase && parts[pr.buildPhase] != null
-    ? Math.max(2, parts[pr.buildPhase] - since) + (pr.buildPhase === 'lead' ? parts.shots + parts.finish : pr.buildPhase === 'shots' ? parts.finish : 0)
+    ? Math.max(2, parts[pr.buildPhase] - since) + (pr.buildPhase === 'lead' ? parts.shots + parts.critic + parts.finish : pr.buildPhase === 'shots' ? parts.critic + parts.finish : pr.buildPhase === 'critic' ? parts.finish : 0)
     : Math.max(2, build - (now - (pr.buildStarted || now)) / 60e3);
   let left = 0;
   if (stage === 'brief') left = Math.max(1, calib.briefMin - (now - pr.created) / 60e3) + build + render;

@@ -32,16 +32,20 @@ PALETTE.hair.splice(0, PALETTE.hair.length, 0x2a1d14, 0x4a3524, 0x6e5238, 0xb08a
 // ONE sun for every ground set: late afternoon, 28° high, from the west-south-west (screen-left, a little behind a north-looking camera)
 // v4 (Commander 11-12 fix #3, golden light): the sun drops to ~19° (longer, visible shadows), warmer and a touch stronger;
 // a deeper blue zenith over a warm golden horizon band; warmer haze; a gentle warm grade. Still full daylight.
-export const SUN = new THREE.Vector3(-0.84, 0.33, 0.43).normalize();
-export const SUN_COL = 0xffc683, SUN_I = 4.1;
-export const SKY = { zen: 0x2f7ee6, hor: 0xead8a2, altI: 1.0 };   // zen must stay bright in LINEAR or the gold mixes it to lavender          // deep blue overhead, a warm golden band at the horizon (yellow-gold: a redder one blends to pink)
-export const HAZE = { col: 0xeed3a0, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows gold
-export const HEMI = { sky: 0x9ab8e8, ground: 0x9a7650, i: 0.85 };
+// v5 (Commander 11-12 light fix): sun ~23.5° high from the WEST side (long shadows run screen-right across the plaza), yellow-
+// orange and stronger; a cooler, weaker fill so the shadows read; golden-hour sky (sky.js `gold`: saturated blue top, a peach
+// band only near the horizon, so blue and gold never average to grey).
+export const SUN = new THREE.Vector3(-0.88, 0.40, 0.25).normalize();
+export const SUN_COL = 0xffb25c, SUN_I = 5.4;
+export const SKY = { zen: 0x2f72d2, hor: 0xffc47e, altI: 0, gold: 1, goldH: 0.22, goldSun: 1.1 };
+export const HAZE = { col: 0xf4c48e, near: 260, far: 5200 };    // distance haze (linear fog): towers soften, the skyline glows gold
+export const HEMI = { sky: 0x86a8e6, ground: 0x9a6e46, i: 0.5 };
+export function goldSky(sky) { const U = sky.U; if (U.altI) U.altI.value = SKY.altI; if (U.gold) { U.gold.value = SKY.gold; U.goldH.value = SKY.goldH; U.goldSun.value = SKY.goldSun; } }
 // warm grade (lift/gain) on top of ACES; dust shots push it to amber with gradeDust()
-export const POST_DAY = { exposure: 1.02, bloom: 0.14, bloomThreshold: 1.8, bloomRadius: 0.6, vignette: 0.3, grain: 0.014, ca: 0.0008, sat: 1.14, contrast: 1.07, lift: [0.018, 0.012, 0.0], gain: [1.05, 1.01, 0.89] };
+export const POST_DAY = { exposure: 1.0, bloom: 0.16, bloomThreshold: 1.6, bloomRadius: 0.6, vignette: 0.3, grain: 0.014, ca: 0.0008, sat: 1.2, contrast: 1.12, lift: [0.02, 0.01, 0.0], gain: [1.06, 1.0, 0.87] };
 export const POST_ORBIT = { exposure: 1.0, bloom: 0.22, bloomThreshold: 1.1, bloomRadius: 0.55, vignette: 0.4, grain: 0.02, ca: 0.0006, sat: 1.1, contrast: 1.05, lift: [0.01, 0.006, 0.0], gain: [1.03, 1.0, 0.94] };
 // k 0..1: how much tan dust is in the air (story: ramps with e). Call each frame after createStudio: gradeDust(S, k).
-export function gradeDust(S, k) { const p = S.post.p; p.gain = [1.05 + 0.03 * k, 1.01 - 0.01 * k, 0.89 - 0.10 * k]; p.lift = [0.018 + 0.010 * k, 0.012 + 0.010 * k, 0.0]; p.sat = 1.14 - 0.12 * k; p.contrast = 1.07 - 0.04 * k; }
+export function gradeDust(S, k) { const p = S.post.p; p.gain = [1.06 + 0.03 * k, 1.0 - 0.01 * k, 0.87 - 0.10 * k]; p.lift = [0.02 + 0.010 * k, 0.01 + 0.010 * k, 0.0]; p.sat = 1.2 - 0.12 * k; p.contrast = 1.12 - 0.04 * k; }
 export const COL = { heroTop: 0xd9a21b /* mustard */, heroBot: 0x22252c, heroBag: 0x2b2f36, heroHair: 0x2a1d14, rail: 0x6a3222, railDark: 0x3c1c14, dust: 0x8f5c30 };   // dust: ochre, darker than the paving so it reads
 // motion-blur samples (brief §6): 12 fast, 8 moving, 4 calm. s09 = s01's pre-stop value so the loop frames match.
 export const SAMPLES = { s01_pre: 4, s01_plaza: 12, s02_street: 12, s03_towers: 8, s04_river: 8, s05_bay: 8, s06_town: 8, s07_coast: 4, s08_earth: 4, s09_loop: 4 };
@@ -94,9 +98,9 @@ export function skyline(C, o = {}) {
 // ---------------------------------------------------------------- lights (sky + golden sun + hemi + haze), every ground set
 export function dayLights(S, o = {}) {
   const { scene } = S;
-  S.hdri('hdri_day_1k.hdr', o.envI ?? 0.55);
+  S.hdri('hdri_day_1k.hdr', o.envI ?? 0.4);
   const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(o.hor ?? SKY.hor);
-  if (sky.U.altI) sky.U.altI.value = SKY.altI;                    // v4: blue climbs faster + a thin golden band hugging the horizon
+  goldSky(sky);
   const sun = new THREE.DirectionalLight(SUN_COL, o.sunI ?? SUN_I); sun.castShadow = !!o.shadows; sun.shadow.mapSize.set(o.map ?? 2048, o.map ?? 2048);
   const b = o.box ?? 90;
   Object.assign(sun.shadow.camera, { left: -b, right: b, top: b, bottom: -b, near: 10, far: o.far ?? 2500 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
@@ -355,7 +359,7 @@ export const BAY_CAM = { pos: new THREE.Vector3(qn('bx', 0), 0, qn('bz', 420)), 
 export function bayWorld(S, o = {}) {
   const { scene } = S;
   S.hdri('hdri_day_1k.hdr', 0.5);
-  const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(SKY.hor);
+  const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(SKY.hor); goldSky(sky);
   scene.fog = new THREE.Fog(HAZE.col, o.fog0 ?? 900, o.fog1 ?? 16000);
   const ocean = createOcean(S, { amp: o.waveAmp ?? 0.45, level: 0, groundGLSL: GROUND_GLSL, deep: 0x0d5a72, shallow: 0x35b0b0, amb: 0x6a98b8, reflScale: o.reflScale ?? 0.25, slab: !!o.slab });
   ocean.add(scene); ocean.U.sunCol.value.set(SUN_COL);

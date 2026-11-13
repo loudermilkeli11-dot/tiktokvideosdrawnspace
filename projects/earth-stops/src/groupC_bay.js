@@ -18,7 +18,7 @@ import { createBoats, createSpray } from '@engine/splash.js';
 import { rng, clamp } from '@engine/util.js';
 import { NOISE } from '@engine/glsl.js';
 import { V, drift, ev, SHUTTER_E, leafLeft, lean } from './story.js';
-import { SUN, SUN_COL, SUN_I, SKY, HAZE, HEMI, styliseMat, createChips, D2R, qn } from './kit.js';
+import { SUN, SUN_COL, SUN_I, SKY, HAZE, HEMI, goldSky, styliseMat, createChips, D2R, qn } from './kit.js';
 
 // THE TERRACE (s05 and s06 share it): a hillside house south of the town, a little east of centre so a 22 mm frame holds the
 // drained west AND the east shore. Eye = groundH + up.
@@ -132,7 +132,7 @@ function repaint(bay) {
 export function bayWorldC(S, o = {}) {
   const { scene } = S;
   S.hdri('hdri_day_1k.hdr', 0.5);
-  const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(SKY.hor);
+  const sky = createSky(S, { lp: 0, stars: 0, beltI: 0 }); scene.add(sky); sky.U.dayZen.value.set(SKY.zen); sky.U.dayHor.value.set(SKY.hor); goldSky(sky);
   scene.fog = new THREE.Fog(HAZE.col, o.fog0 ?? 900, o.fog1 ?? 16000);    // = the kit's bayWorld haze
   const ocean = createOcean(S, { amp: 0.45, level: 0, groundGLSL: GROUND_GLSL, deep: 0x0d5a72, shallow: 0x35b0b0, amb: 0x6a98b8, reflScale: o.reflScale ?? 0.25, rings: o.rings ?? 360, segs: o.segs ?? 480 });
   ocean.add(scene); ocean.U.sunCol.value.set(SUN_COL);

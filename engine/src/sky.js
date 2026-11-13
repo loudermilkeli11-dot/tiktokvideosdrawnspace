@@ -16,12 +16,15 @@ export function createSky(S, o = {}) {
     tintAll: { value: new THREE.Color(0xffffff) }, beltCol: { value: new THREE.Color(o.beltCol ?? 0xc98a96) }, beltI: { value: o.beltI ?? 0.35 },
     // high altitude (all 0 = off): dip = horizon depression (rad); altI 0..1 = steeper day gradient + bright limb haze band; sunDisc = sun disc + aureole
     dip: { value: 0 }, altI: { value: 0 }, sunDisc: { value: 0 },
+    // golden hour (0 = off): gold 0..1 replaces the day gradient with a saturated dayZen that meets dayHor only in a thin band
+    // (goldH = band height in sin(elev)) so the two never average to grey, plus a warm glow toward the sun (goldSun)
+    gold: { value: 0 }, goldH: { value: 0.09 }, goldSun: { value: 0.6 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.BackSide, depthWrite: false, depthTest: false,
     vertexShader: `varying vec3 vD; void main(){ vD = normalize((modelMatrix*vec4(position,0.)).xyz); vec4 p = projectionMatrix*viewMatrix*vec4(cameraPosition + vD*1000., 1.); gl_Position = p.xyww; }`,
     fragmentShader: `${NOISE}
-      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure; uniform float thru, coreI, coreAng, skyGlow; uniform vec3 coreCol; uniform float dip, altI, sunDisc;
+      uniform vec3 beltCol; uniform float beltI; uniform vec3 sunDir, moonDir, nightZen, nightHor, duskCol, dayZen, dayHor, lpDir, lpCol, mwN, tintAll; uniform float moonAng, moonLight, stars, milky, pxAng, time, lp, exposure; uniform float thru, coreI, coreAng, skyGlow; uniform vec3 coreCol; uniform float dip, altI, sunDisc; uniform float gold, goldH, goldSun;
       varying vec3 vD;
       vec3 starLayer(vec3 d, float sc, float dens, float bright){
         vec3 p = d*sc; vec3 c = floor(p); float h = h13(c);
@@ -55,6 +58,10 @@ export function createSky(S, o = {}) {
         float dy = smoothstep(-0.02, 0.25, sy);
         vec3 dayC = mix(dayHor, dayZen, pow(yc, mix(0.5, 0.3, altI))) * 1.5;
         if (altI > 0.) dayC += dayHor * altI * 0.8 * exp(-yc * 30.);
+        if (gold > 0.) { float gk = exp(-yc / (goldH * 0.5));                        // blue -> pale blue (hue kept) -> gold: never lavender
+          vec3 gc = mix(dayZen, mix(dayZen, vec3(1.), 0.55), exp(-yc / goldH));
+          gc = mix(gc, dayHor, gk*gk*(3. - 2.*gk)) * 1.5;
+          gc += dayHor * goldSun * pow(az, 3.) * exp(-yc * 4.); dayC = mix(dayC, gc, gold); }
         col = mix(col, dayC, dy);
         // moon-lit sky (blue wash) + glow halo
         float ca = dot(d, normalize(moonDir)); float ang = acos(clamp(ca, -1., 1.));

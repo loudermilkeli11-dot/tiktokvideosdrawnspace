@@ -11,7 +11,7 @@
 // East = +X = screen-right. Nothing goes up or west (chips only fall; dust only grows from the ground).
 import { THREE } from '@engine/engine.js';
 import { rng } from '@engine/util.js';
-import { cityWorld, balcony, createChips, gradeDust, styliseMat, FRAME1_CAM, D2R, ZERO_M, qn } from './kit.js';
+import { SKY, goldSky, cityWorld, balcony, createChips, gradeDust, styliseMat, FRAME1_CAM, D2R, ZERO_M, qn } from './kit.js';
 import { createDustA } from './groupA_dust.js';
 import { plazaLife } from './plazaLife.js';
 import { evAt, drift, hop, roll } from './story.js';
@@ -22,7 +22,7 @@ const sst = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a)))
 // The kit's horizon is a pale grey-cream; the hits have a blue sky warming to gold at the horizon. Applied identically in
 // s01 and s09 so the loop matches.
 export function plazaLook(W) {
-  W.sky.U.dayZen.value.set(qn('zen', 0x2f7ee6)); W.sky.U.dayHor.value.set(qn('hor', 0xead8a2)); if (W.sky.U.altI) W.sky.U.altI.value = 1.0;   // v4: = kit SKY (golden horizon)
+  W.sky.U.dayZen.value.set(qn('zen', SKY.zen)); W.sky.U.dayHor.value.set(qn('hor', SKY.hor)); goldSky(W.sky);   // v5: = kit SKY (golden hour)
 }
 
 export function plazaSet(S, o = {}) {

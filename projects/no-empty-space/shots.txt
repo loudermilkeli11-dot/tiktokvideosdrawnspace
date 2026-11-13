@@ -1,0 +1,14 @@
+# no-empty-space: 70.0 s = 2100 frames. Board: script.md. Law: src/story.js (SHOT table built from this same list; keep them equal)
+# <name> <frames>
+s01_phone 180
+s02_cup 165
+s03_car 195
+s04_hole 165
+s05_ferry 195
+s06_tower 210
+s07_drop 180
+s08_mountain 210
+s09_earth 180
+s10_speck 150
+s11_moon 150
+s12_loop 120

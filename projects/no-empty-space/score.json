@@ -1,0 +1,58 @@
+{
+ "_note": "no-empty-space score (70.0 s). Times from src/story.js: SHOT table (cuts at 6.0 11.5 18.0 23.5 30.0 37.0 43.0 50.0 56.0 61.0 66.0), T_ORBIT 51.5, T_LOOP 69.0; squeeze completions doneAt = T + dur: phone 1.95, cup 8.05, car 14.0, ferry 26.1, tower 33.8, mountain 45.7, Earth 55.0. TASTE 11-12: NO ticks block, nothing repeating above ~3 kHz. The squeeze family (brief section 5): the shot sound plays the INHALE (a reversed whoosh sucking inward, from T) and the aftermath (air rush, debris); the score lands the hard stop + the BOOM at completion: a low impact (body) + a mid-range crack (onset above 200 Hz, check.py), bigger rungs deeper and louder. The tower gets the big_hit after a TRUE 0.38 s silence (the cut-off of the inhale). Soft cuts get a low thud + a quiet crack (onset for check.py, never a ding); hard cuts (30.0, 43.0, 51.5, 69.0) get a short suck-out before them and a firm hit. Riser 1 climbs the tower's pre-rumble 30.0 -> 33.4; riser 2 climbs from the crane-up into the Earth's collapse 50.2 -> 54.9; braaam on the cut to orbit (51.5) and the Earth's completion (55.0). The end card (66.0-69.0) is TRUE silence: the last beat; the soft loop thud at 69.0 starts the terrace's room tone (s12 sound = s01's pre-squeeze bed).",
+ "master_peak_db": -3.0,
+ "reverb": { "decay": 3.0, "send": 0.18, "predelay": 0.02 },
+ "risers": [
+  { "_cue": "riser 1: the tower's pre-rumble, into the inhale", "t0": 30.0, "t1": 33.4, "gain_db": -16, "speed": 0.24, "noise": 0.22 },
+  { "_cue": "riser 2: crane up through the dust, into the Earth's collapse", "t0": 50.2, "t1": 54.9, "gain_db": -15, "speed": 0.2, "noise": 0.2 }
+ ],
+ "braaams": [
+  { "_cue": "the cut to orbit (51.5)", "t": 51.5, "gain_db": -8, "decay": 3.0, "root": 41.2 },
+  { "_cue": "the Earth is complete: 367 m (55.0)", "t": 55.0, "gain_db": -6, "decay": 4.2, "root": 36.7 }
+ ],
+ "big_hit": { "_cue": "THE TOWER: the boom at completion (33.8), after the 0.38 s cut-off", "t": 33.8, "gain_db": -2, "decay": 6.0, "root": 41.2 },
+ "impacts": [
+  { "_cue": "frame 1: a soft low thud (PLAYBOOK: a sound hit on frame 1; = the loop thud at 69.0)", "t": 0.0, "gain_db": -12 },
+  { "_cue": "PHONE boom (small)", "t": 1.95, "gain_db": -8, "decay": 0.5 },
+  { "_cue": "soft cut 6.0 (napkin wipe)", "t": 6.0, "gain_db": -16 },
+  { "_cue": "CUP pop (tiny)", "t": 8.05, "gain_db": -15, "decay": 0.35 },
+  { "_cue": "soft cut 11.5 (tilt down to the street)", "t": 11.5, "gain_db": -16 },
+  { "_cue": "CAR boom (medium)", "t": 14.0, "gain_db": -5, "decay": 0.9 },
+  { "_cue": "soft cut 18.0 (match cut on the hole)", "t": 18.0, "gain_db": -16 },
+  { "_cue": "soft cut 23.5 (whip-pan to the harbour)", "t": 23.5, "gain_db": -14 },
+  { "_cue": "FERRY boom + the water slam", "t": 26.1, "gain_db": -4, "decay": 1.1 },
+  { "_cue": "HARD cut 30.0 to the tower (on its pre-rumble)", "t": 30.0, "gain_db": -9 },
+  { "_cue": "soft cut 37.0 (push through the dust)", "t": 37.0, "gain_db": -15 },
+  { "_cue": "HARD cut 43.0 to the reverse", "t": 43.0, "gain_db": -6 },
+  { "_cue": "MOUNTAIN boom (deep, long)", "t": 45.7, "gain_db": -3, "decay": 1.6 },
+  { "_cue": "soft cut 50.0 (crane up)", "t": 50.0, "gain_db": -16 },
+  { "_cue": "HARD cut 51.5 to orbit (under the braaam)", "t": 51.5, "gain_db": -6 },
+  { "_cue": "soft cut 56.0 (dolly to the speck)", "t": 56.0, "gain_db": -16 },
+  { "_cue": "soft cut 61.0 (pan to the Moon)", "t": 61.0, "gain_db": -17 },
+  { "_cue": "fade to the end card 66.0 (very soft)", "t": 66.0, "gain_db": -20 },
+  { "_cue": "HARD cut 69.0 to the terrace (loop): soft", "t": 69.0, "gain_db": -12 }
+ ],
+ "cracks": [
+  { "_cue": "phone: the hard stop", "t": 1.95, "gain_db": -12 },
+  { "t": 6.0, "gain_db": -18 },
+  { "_cue": "cup", "t": 8.05, "gain_db": -17 },
+  { "t": 11.5, "gain_db": -18 },
+  { "_cue": "car: metal crunch onset", "t": 14.0, "gain_db": -9 },
+  { "t": 18.0, "gain_db": -18 },
+  { "t": 23.5, "gain_db": -16 },
+  { "_cue": "ferry", "t": 26.1, "gain_db": -9 },
+  { "t": 30.0, "gain_db": -11 },
+  { "_cue": "tower", "t": 33.8, "gain_db": -6 },
+  { "t": 37.0, "gain_db": -17 },
+  { "t": 43.0, "gain_db": -9 },
+  { "_cue": "mountain", "t": 45.7, "gain_db": -7 },
+  { "t": 50.0, "gain_db": -18 },
+  { "t": 51.5, "gain_db": -9 },
+  { "_cue": "Earth", "t": 55.0, "gain_db": -8 },
+  { "t": 56.0, "gain_db": -18 },
+  { "t": 61.0, "gain_db": -19 },
+  { "t": 69.0, "gain_db": -15 }
+ ],
+ "silent": [[29.89, 29.99], [33.42, 33.8], [42.89, 42.99], [51.39, 51.49], [66.12, 68.98]],
+ "loop_silence_frames": 0
+}

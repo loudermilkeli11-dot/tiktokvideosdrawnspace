@@ -101,7 +101,9 @@ export const CUTS = SHOTS.slice(1).map((n) => SHOT[n].t0);             // every 
 export const HARD_CUTS = [SHOT.s06_tower.t0, SHOT.s08_mountain.t0, 51.5, 69.0];   // 30.0, 43.0, 51.5 (to orbit), 69.0 (loop)
 export const T_ORBIT = 51.5;                                           // film s: s09 cuts from the rising crane to orbit on a hit
 export const T_ENDCARD = SHOT.s12_loop.t0, T_LOOP = 69.0;              // 66.0 end card; 69.0 hard cut to the terrace
-export const LOOP_PAGE_T = 4.0;                                        // s12's terrace = s01 at page time 4.0 (shot time 0)
+// s12's terrace (film 69.0-70.0) is s01's world LIVE at film -1.0 .. -0.033 (people sway, water moves; nothing has happened
+// yet), so s12's last frame + 1/30 s == s01 frame 0 (the seamless loop). s12 shot time tt (0..4) -> s01 film:
+export const loopFilm = (tt) => tt - SHOT.s12_loop.dur;               // tt 3.0 -> -1.0 ; tt 3.967 -> -0.033
 
 // ---------------------------------------------------------------- text helpers (SI units; values lowercase, Space Grotesk has µ)
 const sig = (v, n = 2) => { if (v >= 100) return Math.round(v).toLocaleString('en-US'); return (+v.toPrecision(n)).toString(); };

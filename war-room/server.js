@@ -166,7 +166,7 @@ function teamContext(agentId) {
   const h = store.recentHive(15).map((e) => `- ${new Date(e.t).toISOString().slice(5, 16).replace('T', ' ')} ${e.agent ? byId[e.agent]?.name || e.agent : 'Commander'}: ${e.text}`).join('\n') || '- (nothing yet)';
   const pinned = store.pinned().trim() || '(none)';
   const mine = store.agentMemory(agentId).trim() || '(none)';
-  const taste = tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 5000);
+  const taste = tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 9000);
   return `# Channel brain (what we know works)\n${brain()}\n\n# Taste profile (what the Commander likes: follow it)\n${taste}\n\n# Your team
 ${roster}
 
@@ -660,7 +660,7 @@ const DEMO_OFFICER = {
 
 async function convene(wr) {
   const officers = wr.seats.filter((s) => s.role === 'officer');
-  const ctx = `# Channel brain (what we know works)\n${brain()}\n\n# Taste profile (what the Commander likes)\n${tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 4000)}\n\n# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
+  const ctx = `# Channel brain (what we know works)\n${brain()}\n\n# Taste profile (what the Commander likes)\n${tasteRead().replace(TASTE_HEAD, '').trim().slice(0, 9000)}\n\n# Context\n${store.recentHive(10).map((e) => `- ${e.agent || 'Commander'}: ${e.text}`).join('\n') || '- (no history yet)'}\nPinned memory: ${store.pinned().trim() || '(none)'}`;
   const seatRun = async (seat, prompt, tools, demoText) => {
     seat.status = 'speaking'; emit('warroom', wr);
     const a = byId[seat.agent];

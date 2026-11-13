@@ -33,6 +33,8 @@ Sources are cited, so check them when a decision depends on a detail.
 - They use a bright, clean, stylised daylight world full of everyday places and simple people.
 - The event changes the WHOLE frame at once, then new counters track the aftermath.
 - Hits get 100K–466K likes. Saves run 5–9% of likes, and ours are already inside that range. **Our gap is reach and shares, not saves.**
+- **The Commander's reference hits (2026-11-12, `channel/references/LOOK.md` + images):** Lunar Animation "sun exploded" (2M likes), Then What? "rained 1,000 years" (1.5M), Bolt "never rained" / "ran out of oil". They are NOT more realistic than us: simple stylised low-poly, likely code-made. They win on art direction: one hero place transformed over time, a foreground frame, dense life and story props, golden light and haze, an event that fills the frame, clean text with no boxes, a calm 69–84 s, no voice, numbered series.
+- **Wider animation research (`channel/research/2026-11-12-animation-trends.md`):** the biggest animated hits are voiced (AI micro-dramas, brainrot characters, Zack D. Films), but wordless formats win with strong sound and text. Series and recurring characters drive follows. A voice test (captions only vs a good narration) is still open.
 
 ## The Commander's taste (learned from their calls; follow it)
 - **They want chaos and drama:** something crazy happening on screen, big visible disasters, aftermath (tsunamis, impacts, things flying into space). "Interesting to look at" is not enough.
@@ -41,14 +43,16 @@ Sources are cited, so check them when a decision depends on a detail.
 - **Never:** remake our own past premises or the niche's (the Sun vanishing, protons/neutrons vanishing, A119, Pickaxe, dinosaur killer, rods from God, meteors, the Blaze Star, the Moon 2× closer).
 - **Visuals:** full-colour people and places, not silhouettes. Daylight first, then escalate.
 - **Speed:** they hate waiting. Ship fast and give honest ETAs in Central time.
+- **Premises (2026-11-12):** CRAZY and impossible, world-wide, "wait, WHAT?" (Earth stops spinning, every proton vanishes). Real disasters made bigger (avalanche, dust storm, lava, whirlpool, cold snap) were rejected as boring.
+- **Look and feel (2026-11-12):** match LOOK.md; plenty of full-colour people; a light comedic human moment when it fits (new each time); physical destruction (never layers sliding); variety of places, architecture and people between videos; sharp space views; calm pace ("too fast" and "annoying ding" were complaints). Full rules: `channel/TASTE.md`.
 
 ## The format that ships (Studio v2; `PLAYBOOK.md`)
-- **Length:** 30–38 s by default. 61–70 s only as a flagged test.
+- **Length:** the hits run 69–84 s at a calm pace; earth-stops v2 is 65 s. Agents choose 45–80 s for the story (Gate A data may refine it).
 - **Frame 1:** the title question with one accent word ("What if gravity *flipped* for 5 seconds?"), a mid-left counter (label / number / fact line) already running (no DRAMATIZATION tag).
 - **By 0:03:** a visible payoff or escalation, with no calm exposition shot first.
 - **Then:** escalating steps, each with a new location or counter, and captions of 6–8 words.
 - **Ending:** ends big (space works) and hard-cuts back to frame 1 for the loop.
-- **Sound:** no voiceover; ticks, risers, hits on cuts, silence as the last beat.
+- **Sound:** no voiceover; low risers, rumble, hits on cuts, silence as the last beat. NO ticks or high repeating dings (Commander, 2026-11-12).
 - **Text:** stays inside TikTok's safe area: x 60–480 and y 100–765 (design px at 540×960), and off the right button rail.
 - **Physics:** ONE honest law per video (`projects/<slug>/src/story.js`), with the one liberty stated in the post caption (no on-screen tag, Commander 2026-11-12). Every number on screen is computed from it.
 
@@ -60,7 +64,9 @@ Sources are cited, so check them when a decision depends on a detail.
 - **At 48 h:** log views, average watch, watched-full, the 3 s hold, For You share, traffic sources, and where the retention curve drops.
 
 ## Production facts (what is cheap or expensive)
-- **Rendering on the Commander's PC GPU:** about 0.1–0.2 s per frame, so a full video renders in minutes with `pc/render_project.ps1 <slug>`. The building is the slow part, not the rendering.
+- **Rendering on the Commander's PC GPU at max quality:** about 1.3 s per frame with 2 jobs in the new look (earth-stops v3: 1,950 frames in ~45 min). Changing the shared kit re-renders every shot; changing one shot re-renders only that shot.
+- **The stylised kit from earth-stops (`projects/earth-stops/src/`):** golden-light look kit, `plazaLife.js` (a busy, varied crowd with gags), `towersBreak.js` (physical tower destruction), heavy concrete debris. Reuse the code patterns, but give every new video its OWN architecture and place (Commander wants variety).
+- **Known weak spots (earth-stops):** the sea wall reads as a smooth blob (needs foam and spray); close orbit views go fuzzy (use the whole Earth, or stylise); the plaza towers all look alike.
 - **Ready-made sets and effects (reuse them; new sets cost the most):**
   - **Places:** a city plaza with crowds, cars and a fountain; a horseshoe bay with a town, pier, boats and a lighthouse.
   - **Sky and space:** the cloud deck from above, a sky from day to night, Earth from orbit (day, night, clouds, surf, scars), a generic space station and airliners.
@@ -68,6 +74,7 @@ Sources are cited, so check them when a decision depends on a detail.
 - **Typical build:** 9–13 shots. Most of the time goes to new effects.
 
 ## Open questions (update as they resolve)
+- **earth-stops v2** (first video in the new look, 65 s): finished 2026-11-12 ~6:50 PM CST for a 7 PM CST post, the first test of an evening slot. Log 1 h and 48 h numbers.
 - **Gate A (2026-11-13):** is moon-2x's average watch above 13.4 s? Yes → video #4 is a 64 s length test; no → stay at 30–38 s.
 - Does the gravity flip beat 1,029 views (the Sun video, our best clean-lane post), or does it stall near 330 like moon-2x? Next check: 8 h, then 48 h (~2026-11-14 00:30 UTC). Both studio films were posted outside the fixed 2 PM CT slot, so slot is a confound.
 - What is the 3 s hold for the v2 format? We need the retention curve.

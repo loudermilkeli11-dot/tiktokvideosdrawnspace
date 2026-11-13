@@ -3,6 +3,7 @@
 Follow it. Rules are the Commander's own words. "Learned from votes" is distilled from their 👍 / 👎 by the Analyst.
 
 ## Commander's rules
+- 2026-11-12: Premises must be CRAZY and impossible, like "What if the Earth stopped spinning?" or "What if every proton disappeared?": a law of nature or a basic fact of the world breaks, everywhere at once, and it makes people stop scrolling. Real disasters made bigger (avalanche, dust storm, lava, whirlpool, cold snap) are boring.
 - 2026-11-12 (after earth-stops v3, "a good step in the right direction"): Next videos need more creativity and variety in design and animation. Don't reuse the same grid towers and plaza look: give each video (and each place within it) a distinct architecture, layout, palette and props (old town, coastal village, desert city, harbour, suburb, market…). Make people more interesting: varied body shapes, outfits, hats, bags and activities, and characterful motion. Fine as it is, but push it further each time.
 - 2026-11-12 (from the earth-stops v1 critique; general guidance, not a checklist): Make it dramatic, and let the event hit people we have watched.
   - Show plenty of full-colour people, like the reference hits, living ordinary life before the disaster.

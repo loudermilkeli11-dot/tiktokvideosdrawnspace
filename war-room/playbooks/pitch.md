@@ -19,15 +19,21 @@ The goal is the pitches that the DATA and the Commander's TASTE PROFILE say will
 3. **Research, cached per day.**
    - If `channel/research/<today>.md` exists, read it and reuse it, and do at most 2 new searches for this order's theme.
    - Otherwise do 4–8 focused searches: trending what-if, science and disaster shorts in the last ~60 days and their numbers, plus search-suggestion phrasings. Save the findings with URLs to `channel/research/<today>.md` (≤ 400 words) so later orders reuse them.
-4. **Go wide in your head, write little.** Consider 8–12 premises internally and drop the weak ones. Write up ONLY the top N.
+4. **The premise bar (the Commander's rule, 2026-11-12). This matters more than anything else.** The hits are IMPOSSIBLE changes to something everyone takes for granted about the whole world: "What if the Earth stopped spinning?", "What if every proton disappeared?", "What if gravity flipped?", "What if the Sun vanished?". A pitch must pass all of these:
+   - **Impossible, not just extreme.** It breaks a law of nature or a basic fact of the world (spin, gravity, atoms, light, the Moon, the Sun, air, time, size, magnetism, the speed of sound…). A real disaster made bigger (an avalanche, a dust storm, a lava flow, a whirlpool, a cold snap) FAILS.
+   - **Everyone, everywhere.** It changes the whole world at once, not one town.
+   - **The "wait, WHAT?" test.** A scrolling 13-year-old gets it in 5 words and has to see what happens. If it sounds like a weather report, it fails.
+   - **A crazy, specific consequence** you can show in the first 3 s.
+   Places and variety come AFTER the premise: pick the most striking set for the premise, not the other way round.
+5. **Go wide in your head, write little.** Consider 15–20 premises internally and drop everything that fails the premise bar or is weak. Write up ONLY the top N.
    Hard filters:
-   - in the lane (natural or physics catastrophes, ONE true number; no politics, weapons or real people);
+   - in the lane (impossible what-ifs about the laws of nature or the whole world, ONE true number; no politics, weapons or real people);
    - not on the Never list;
    - visible chaos by 0:03;
    - buildable (prefer existing sets).
-5. **Score each survivor 0–80.** Weights:
+6. **Score each survivor 0–80.** Weights:
    - demand ×3;
-   - hook ×3;
+   - hook ×3 (the "wait, WHAT?" factor; a pitch with hook < 4 of 5 is not written up);
    - chaos and escalation ×3;
    - novelty ×2;
    - honest physics ×2;
@@ -35,7 +41,7 @@ The goal is the pitches that the DATA and the Commander's TASTE PROFILE say will
    - loop ×1.
    Add **taste fit**: −20 if it resembles a 👎, +5 if it matches a 👍 pattern.
    Give one short evidence line per pitch, and mark guesses (speculative).
-6. **Save the pitches as JSON** (the War Room shows them as cards). Write `pitches/<today>.json`; if the file exists, use `<today>-2.json`, `-3`… Exact shape:
+7. **Save the pitches as JSON** (the War Room shows them as cards). Write `pitches/<today>.json`; if the file exists, use `<today>-2.json`, `-3`… Exact shape:
 ```json
 { "created": "<ISO time>", "order": "<the Commander's order>", "theme": "<theme or ''>",
   "pitches": [ { "id": "p1", "title": "What if the air *vanished* for 5 seconds?", "cover": "WITHOUT AIR FOR 5 SECONDS YOUR EARDRUMS WOULD BURST",
@@ -46,7 +52,7 @@ The goal is the pitches that the DATA and the Commander's TASTE PROFILE say will
     "build": { "size": "S|M|L", "reuse": [ "city.js plaza", "clouds.js" ], "new": [ "<new effect>" ] } } ] }
 ```
    5–7 beats per pitch, 30–38 s in total. The title uses *one accent word*. The cover is a verifiable fact with a number.
-7. **Answer briefly:** SUMMARY, then one line per pitch (title · score), then the file path. Do NOT delegate a review; the Commander rates the pitches in the War Room.
+8. **Answer briefly:** SUMMARY, then one line per pitch (title · score), then the file path. Do NOT delegate a review; the Commander rates the pitches in the War Room.
 
 Rules:
 - Never promise virality.

@@ -216,6 +216,13 @@ Figures face -Z, feet on y = 0, metres. Slots: 0 skin, 1 hair, 2 top, 3 bottom, 
   `rimCol` is NOT forwarded (lava-sea passes it in vain): set `hero.material.U.rimCol.value.set(...)`. Hide the phone:
   `hero.phone.visible = false`.
   `setPose(name | poseObj)` rebuilds (cached per pose): precompute every pose at load (`RUN.forEach(p => hero.setPose(p))`).
+- **Moving people: ALWAYS use `engine/src/motion.js`** (2026-11-13, the Commander saw jittery people): `posePlayer(hero, [[film t,
+  pose, blend s], ...])` builds one eased in-between per frame (blends >= 0.25 s; 0.3-0.7 s is natural) -> `pp.apply(film)` each
+  frame; `alive(hero, film, { seed, amount, sitting })` adds breathing, weight shift and a slow turn to every person who is not
+  walking. Never switch `setPose` straight between two poses mid-shot, and never use a few-step blend (it snaps).
+- **Pins for the caption layer:** `S.pin('tower', object3D | Vector3 | (t) => Vector3, radiusMetres?)` names a 3D point; after
+  building the pages, `node tools/overlay/pins.js projects/<slug>` records it per frame into `out/pins.json`, and overlay.js
+  follows it with `info.pin('<shot>', 'tower')` (pinned callouts, HUD brackets). See channel/references/LOOK.md "Type menu".
 - `createBirds(S, n = 40, { seed 11, color 0x050608 (night silhouette; day 0x4a505c), flap 9 })` ->
   `{ mesh, U, update(t, pathFn, spread = 12, size = 1) }`; flock heading follows `pathFn(t + 0.1) - pathFn(t)`.
 

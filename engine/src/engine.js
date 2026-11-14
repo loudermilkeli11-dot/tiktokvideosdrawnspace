@@ -55,6 +55,26 @@ export function createStudio(opts = {}) {
     });
     S.pending.push(p); return p;
   };
+  // Pins: named 3D points the caption layer can follow (pinned callouts, HUD brackets). S.pin('tower', target, radius?)
+  // target: an Object3D (its world position), a Vector3, or (t) => Vector3; radius (world units) -> screen radius.
+  // tools/overlay/pins.js records them per frame into out/pins.json; overlay.js reads them with info.pin(shot, name).
+  S.pins = {};
+  S.pin = (name, target, radius = 0) => { S.pins[name] = { target, radius }; return target; };
+  window.pins = (t) => {   // -> { name: [x, y, visible, rPx] } in caption design px (540 x 960)
+    if (!Object.keys(S.pins).length) return null;
+    S.t = t; S.update(t, S); camera.clearViewOffset(); camera.updateProjectionMatrix(); scene.updateMatrixWorld(); camera.updateMatrixWorld();
+    const out = {}, v = new THREE.Vector3(), e = new THREE.Vector3(), up = new THREE.Vector3();
+    for (const [n, { target, radius }] of Object.entries(S.pins)) {
+      if (target && target.isObject3D) target.getWorldPosition(v); else if (typeof target === 'function') v.copy(target(t)); else v.copy(target);
+      e.copy(v).applyMatrix4(camera.matrixWorldInverse); const front = e.z < 0;
+      let r = 0; if (radius) { up.set(0, 1, 0).applyQuaternion(camera.quaternion).multiplyScalar(radius).add(v).project(camera); }
+      v.project(camera);
+      const x = (v.x + 1) / 2 * 540, y = (1 - v.y) / 2 * 960;
+      if (radius) r = Math.hypot((up.x + 1) / 2 * 540 - x, (1 - up.y) / 2 * 960 - y);
+      out[n] = [+x.toFixed(1), +y.toFixed(1), front && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2 ? 1 : 0, +r.toFixed(1)];
+    }
+    return out;
+  };
   S.run = (update) => {
     S.update = update;
     window.frame = (t) => renderFrame(S, t);

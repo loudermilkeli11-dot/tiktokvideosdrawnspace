@@ -35,6 +35,20 @@ References in `channel/references/look/`: Lunar Animation "What if the sun explo
 11. **The cause hidden by its own effect:** a splash or dust cloud so big and soft that the object it came from (a ferry, a tower) is gone before the viewer sees what happened to it (the no-empty-space ferry read as a white geyser). Show the object being crushed first, then a modest, crisp splash.
 12. **Debris in the lens:** big motion-blurred shards flying at or past the camera so the hero subject disappears for a moment (no-empty-space mountain). Keep debris to the sides and behind; the subject must stay readable in every frame.
 13. **A weak last act:** the closing beats (space, scale reveal) shrinking to tiny, still dots. The final comparison must be big and move.
+14. **Jittery people:** limbs or bodies that twitch, snap or vibrate frame to frame (no-empty-space's opening terrace crowd). Poses must come from smooth functions of time (eased keyframes, slow sines), never per-frame random values; check a 1-second run of consecutive frames, not single stills.
+
+## Type menu (Commander's picks 2026-11-13: "apply when applicable")
+The plain serif caption + counter (v2) stays the default. Where a moment fits, use one of these four (tools/overlay/ov.html, spec lists
+`callouts / huds / bigs / words`; test film: projects/no-empty-space/out/type_test.mp4). One special style at a time on screen, never on
+top of the action, and at most one per shot. Same safe area as captions.
+- **C · Pinned callout** (`callouts`): a dot pinned ON an object with a line to its label and number; the number changes as the object
+  does (381 m -> 1.4 mm). For a named hero object at its key moment. Pin it in the shot (`S.pin`, engine/API.md) so it follows the object.
+- **D · Measure HUD** (`huds`): cyan corner brackets locked on a target, rulers, a mono readout ticking. For scale and science beats,
+  space and anything measured.
+- **E · Number takeover** (`bigs`): one giant number filling the top third, slamming to its final value (`slam`). Only for the 1-2
+  biggest "WHAT?" moments of a film.
+- **F · Word by word + mood colour** (`words`, `style.mood`): an act label and a line revealed word by word; the accent colour
+  changes per act (e.g. gold calm -> red chaos -> ice space). For act turns and the emotional lines.
 
 ## What this changes for us
 - These hits are most likely code-generated, as ours are. No bought assets: build ONE coherent stylised low-poly kit in code (flat-shaded buildings, cars, trees, people and props, all in the same proportions and palette) and use it for every set. Never mix cartoon pieces with glossy photoreal ones.

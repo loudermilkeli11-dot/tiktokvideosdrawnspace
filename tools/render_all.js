@@ -48,6 +48,9 @@ function fresh(s) {
 }
 
 // ---- 1. captions first: a text problem fails in seconds, before any picture is rendered
+// pinned captions (S.pin in a shot): record the tracked screen positions first (seconds per shot, no rendering)
+const usesPins = () => { try { return fs.readdirSync(path.join(P, 'src')).some((f) => f.endsWith('.js') && /\bS\.pin\(/.test(fs.readFileSync(path.join(P, 'src', f), 'utf8'))); } catch (e) { return false; } };
+if (assemble && usesPins()) { console.log('STEP pins'); run('node', ['tools/overlay/pins.js', P], 'pins'); }
 if (assemble && !only) {
   console.log('STEP captions'); run('node', ['tools/overlay/render_ov.js', P], 'captions');
   const sc = spawnSync(PY, ['tools/check.py', '--safe', `${P}/out/overlay.mov`], { encoding: 'utf8', env: process.env });

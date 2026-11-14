@@ -464,12 +464,139 @@ function drawV2(f) {
   ctrs.forEach(({ cn }, k) => { if (ctrA[k] > 0) { v2Counter(cn, f, ctrA[k]); n++; } });
   for (const { tt, L, a } of titleL) { if (a <= 0) continue; const box = v2DrawText(L, 'title', tt.y ?? V2.title.top, a); v2Composite(box, V2.title.shadow, a); n++; }
   for (const { c, L, a } of capL) { if (a <= 0) continue; const box = v2DrawText(L, 'cap', c.y ?? capTop(L), a); v2Composite(box, V2.cap.shadow, a); n++; }
+  n += drawFx(f);
   if (SPEC.draw) { ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); if (SPEC.draw(ctx, f / FPS, f) !== false) n++; ctx.restore(); }
   return n;
 }
 
+// ---------------- type menu: C callouts · D HUD · E big numbers · F word-by-word (Commander's picks 2026-11-13) ----------------
+// Optional spec lists, any look; all design px (540x960), times in film seconds. Use them WHERE THEY FIT (channel/references/LOOK.md
+// "Type menu"); a plain caption stays the default. `at` = [x, y] or (t) => [x, y, vis?, r?]; info.pin(shot, name) gives a tracked one.
+//   callouts: [{t0, t1, at, label, value: str|(t)=>str, valueColor?: str|(t)=>str, side?: 'left'|'right', elbow?: [dx, dy], len?, size?, dot?}]
+//   huds:     [{t0, t1, at?, r?, pad?, color?, tag?: str|(t)=>str, rulers?: [{t0?, a, b, text}], readout?: {x?, y?, label, value, fact?}}]
+//   bigs:     [{t0, t1, value: str|(t)=>str, unit?: str|(t)=>str, sub?: '*accent* text', slam?: t, y?, size?}]
+//   words:    [{t0, t1, lines: [[dt, 'text with *accent*'], ...] | text: 'a|b', at?: [x, y], act?, color?, step?, size?}]
+//   style.mood: [{t, color}] -> the accent from time t on (word-by-word, big numbers): gold -> red -> ice per act.
+const FX = { shadow: 'rgba(0,0,0,0.62)', mono: "'Azeret Mono'", big: "'Big Shoulders Display'", serif: "'Instrument Serif'", hud: '#7FE7FF', dot: '#FF5A36' };
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const lin01 = (t, a, b) => clamp01((t - a) / (b - a));
+const backOut = (x) => { x = clamp01(x); const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const fxPos = (at, t) => { const p = typeof at === 'function' ? at(t) : at; return p ? [p[0], p[1], p[2] ?? 1, p[3] ?? 0] : null; };
+const moodAt = (t) => { let c = ST.accent; for (const m of (SPEC.style && SPEC.style.mood) || []) if (t >= m.t) c = m.color; return c; };
+const fxA = (it, f) => { const t = f / FPS, fo = it.fadeOut ?? 0.3; return fo > 0 ? clamp01((it.t1 - t) / fo) : 1; };
+function fxBegin(alpha) { ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); ctx.globalAlpha = alpha; ctx.shadowColor = FX.shadow; ctx.shadowBlur = 10 * S; ctx.shadowOffsetY = 2 * S; ctx.textBaseline = 'alphabetic'; ctx.letterSpacing = '0px'; }
+function fxEnd() { ctx.letterSpacing = '0px'; ctx.filter = 'none'; ctx.restore(); }
+function fxChanged(fn, f, f0, n = 8) {  // frames since the displayed text last changed (pulse)
+  for (let d = 0; d < n && f - d - 1 >= f0; d++) if (String(fn((f - d) / FPS)) !== String(fn((f - d - 1) / FPS))) return d;
+  return Infinity;
+}
+function fxRich(text, x, y, size, color, align = 'left', italicAll = false) { // '*accent*' runs in serif italic + colour
+  const segs = []; let em = false; for (const part of String(text).split('*')) { if (part) segs.push({ t: part, em }); em = !em; }
+  const font = (e) => `${italicAll || e ? 'italic ' : ''}400 ${size}px ${FX.serif}`;
+  let w = 0; for (const g of segs) { ctx.font = font(g.em); w += ctx.measureText(g.t).width; }
+  ctx.textAlign = 'left';
+  let cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  for (const g of segs) { ctx.font = font(g.em); ctx.fillStyle = g.em ? color : '#FFFFFF'; ctx.fillText(g.t, cx, y); cx += ctx.measureText(g.t).width; }
+  return w;
+}
+function drawCallout(c, f) {
+  const t = f / FPS, u = t - c.t0, p = fxPos(c.at, t); if (!p) return;
+  const a = fxA(c, f) * (p[2] ? 1 : 0); if (a <= 0) return;
+  const side = c.side || (p[0] > 270 ? 'left' : 'right'), sg = side === 'left' ? -1 : 1;
+  const [dx, dy] = c.elbow || [sg * 50, -80], len = c.len ?? 190, size = c.size ?? 72;
+  const E = [p[0] + dx, p[1] + dy]; let Z = [E[0] + sg * len, E[1]]; Z[0] = Math.min(492, Math.max(48, Z[0]));
+  fxBegin(a); ctx.shadowBlur = 6 * S;
+  const lk = lin01(u, 0.3, 0.9), L1 = Math.hypot(dx, dy), L2 = Math.abs(Z[0] - E[0]), dl = (L1 + L2) * lk;
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+  if (dl <= L1) ctx.lineTo(p[0] + dx * dl / L1, p[1] + dy * dl / L1); else { ctx.lineTo(E[0], E[1]); ctx.lineTo(E[0] + (Z[0] - E[0]) * (dl - L1) / L2, E[1]); }
+  if (lk > 0) ctx.stroke();
+  const ds = backOut(u / 0.3); if (u > 0) { ctx.beginPath(); ctx.arc(p[0], p[1], 8 * ds, 0, 7); ctx.fillStyle = c.dot || FX.dot; ctx.fill(); ctx.lineWidth = 2.5; ctx.stroke();
+    const pu = ((u % 1.2) / 1.2); ctx.globalAlpha = a * (1 - pu) * 0.9; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p[0], p[1], 8 + pu * 26, 0, 7); ctx.stroke(); ctx.globalAlpha = a; }
+  ctx.shadowBlur = 10 * S; ctx.textAlign = side === 'left' ? 'left' : 'right';
+  const tx = Z[0], lab = String(v2Res(c.label, t) || '').toUpperCase();
+  if (lab) { ctx.font = `700 15px ${FX.mono}`; ctx.letterSpacing = '2.5px'; ctx.fillStyle = '#FFFFFF'; ctx.fillText(lab.slice(0, Math.ceil(lin01(u, 0.7, 1.15) * lab.length)), tx, E[1] - size * 0.82 - 10); ctx.letterSpacing = '0px'; }
+  const val = v2Res(c.value, t), vfn = typeof c.value === 'function' ? c.value : () => val;
+  const since = fxChanged(vfn, f, fr(c.t0)), ps = 1 + 0.1 * (since < 8 ? 1 - since / 8 : 0);
+  ctx.globalAlpha = a * lin01(u, 0.9, 1.15); ctx.font = `900 ${size}px ${FX.big}`; ctx.fillStyle = v2Res(c.valueColor, t) || '#FFFFFF';
+  ctx.translate(tx, E[1] - 8); ctx.scale(ps, ps); ctx.fillText(String(val), 0, 0);
+  fxEnd();
+}
+function drawHud(h, f) {
+  const t = f / FPS, u = t - h.t0, a = fxA(h, f), col = h.color || FX.hud; if (a <= 0) return;
+  fxBegin(a); ctx.shadowBlur = 6 * S; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  const p = h.at ? fxPos(h.at, t) : null;
+  if (p && p[2]) {
+    const k = 1 - Math.pow(1 - lin01(u, 0, 0.6), 3), r0 = (h.r != null ? v2Res(h.r, t) : p[3]) || 14;
+    const R = Math.max(16, r0 * (h.pad ?? 1.25)) + (1 - k) * 130, c = Math.max(9, R * 0.42);
+    ctx.globalAlpha = a * k;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.moveTo(p[0] + sx * R, p[1] + sy * (R - c)); ctx.lineTo(p[0] + sx * R, p[1] + sy * R); ctx.lineTo(p[0] + sx * (R - c), p[1] + sy * R); ctx.stroke(); }
+    const tag = v2Res(h.tag, t); if (tag) { ctx.globalAlpha = a * lin01(u, 0.5, 0.8); ctx.font = `700 22px ${FX.mono}`; ctx.textAlign = p[0] + R + 12 + ctx.measureText(String(tag)).width <= 492 ? 'left' : 'right';
+      ctx.fillText(String(tag), ctx.textAlign === 'right' ? p[0] - R - 12 : p[0] + R + 12, p[1] + 8); ctx.textAlign = 'left'; }
+  }
+  for (const rl of h.rulers || []) {
+    const r0 = (rl.t0 ?? h.t0), k = lin01(t, r0, r0 + 0.5); if (k <= 0) continue;
+    const A = fxPos(rl.a, t), B = fxPos(rl.b, t); if (!A || !B) continue;
+    const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, ek = 1 - Math.pow(1 - k, 3);
+    ctx.globalAlpha = a; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(A[0] + dx * ek, A[1] + dy * ek);
+    ctx.moveTo(A[0] - nx * 7, A[1] - ny * 7); ctx.lineTo(A[0] + nx * 7, A[1] + ny * 7);
+    if (k >= 1) { ctx.moveTo(B[0] - nx * 7, B[1] - ny * 7); ctx.lineTo(B[0] + nx * 7, B[1] + ny * 7); } ctx.stroke();
+    if (rl.text && k >= 1) { ctx.globalAlpha = a * lin01(t, r0 + 0.5, r0 + 0.8); ctx.font = `700 22px ${FX.mono}`; ctx.textAlign = 'center'; const o = rl.offset ?? 22;
+      ctx.fillText(String(v2Res(rl.text, t)), (A[0] + B[0]) / 2 + nx * o * (rl.flip ? -1 : 1), (A[1] + B[1]) / 2 + ny * o * (rl.flip ? -1 : 1) + 8); ctx.textAlign = 'left'; }
+  }
+  const ro = h.readout; if (ro) {
+    const x = ro.x ?? 40, y = ro.y ?? 540; ctx.globalAlpha = a * lin01(u, 0.2, 0.5); ctx.shadowBlur = 10 * S;
+    ctx.font = `500 13px ${FX.mono}`; ctx.letterSpacing = '3px'; ctx.fillStyle = col; ctx.fillText(String(v2Res(ro.label, t)).toUpperCase(), x, y); ctx.letterSpacing = '0px';
+    ctx.font = `700 ${ro.size ?? 58}px ${FX.mono}`; ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(v2Res(ro.value, t)), x, y + (ro.size ?? 58) * 0.95);
+    const fa = v2Res(ro.fact, t); if (fa) { ctx.font = `500 12px ${FX.mono}`; ctx.letterSpacing = '2px'; ctx.fillStyle = col; ctx.globalAlpha *= 0.85; ctx.fillText(String(fa).toUpperCase(), x, y + (ro.size ?? 58) * 0.95 + 24); }
+  }
+  fxEnd();
+}
+function drawBig(b, f) {
+  const t = f / FPS, u = t - b.t0, a = fxA(b, f); if (a <= 0) return;
+  const acc = b.color || moodAt(b.t0), slammed = b.slam != null && t >= b.slam, sl = slammed ? Math.exp(-(t - b.slam) * 7) : 0;
+  const y = b.y ?? 140, val = String(v2Res(b.value, t)); let size = b.size ?? 210;
+  fxBegin(a); ctx.textAlign = 'center';
+  ctx.font = `900 ${size}px ${FX.big}`; while (ctx.measureText(val).width > 500 && size > 60) { size -= 4; ctx.font = `900 ${size}px ${FX.big}`; }
+  const sc = backOut(u / 0.35) * (1 + sl * 0.22);
+  ctx.save(); ctx.translate(270 + Math.sin(t * 60) * sl * 7, y + size * 0.78); ctx.scale(sc, sc);
+  ctx.globalAlpha = a * (b.slam == null || slammed ? 0.95 : 0.6); ctx.fillStyle = slammed ? acc : '#FFFFFF'; ctx.fillText(val, 0, 0); ctx.restore();
+  const unit = v2Res(b.unit, t); if (unit) { ctx.globalAlpha = a * lin01(u, 0.2, 0.45); ctx.font = `900 60px ${FX.big}`; ctx.letterSpacing = '5px'; ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(unit).toUpperCase(), 272, y + size * 0.78 + 70); ctx.letterSpacing = '0px'; }
+  if (b.sub) { const s0 = b.slam ?? b.t0 + 0.4; ctx.globalAlpha = a * lin01(t, s0 + 0.2, s0 + 0.5); fxRich(b.sub, 270, y + size * 0.78 + 125, 42, acc, 'center', true); }
+  fxEnd();
+}
+function drawWords(w, f) {
+  const t = f / FPS, u = t - w.t0, a = fxA(w, f); if (a <= 0) return;
+  const acc = w.color || moodAt(w.t0), size = w.size ?? 58, [x0, y0] = w.at || [40, 560], step = w.step ?? 0.3;
+  const lines = w.lines || String(w.text).split('|').map((s, i) => [null, s.trim()]);
+  fxBegin(a);
+  if (w.act) { const k = 1 - Math.pow(1 - lin01(u, 0, 0.7), 3); ctx.globalAlpha = a * lin01(u, 0, 0.3); ctx.font = `800 16px 'Inter Tight'`; ctx.letterSpacing = (5 + (1 - k) * 10) + 'px'; ctx.fillStyle = acc; ctx.fillText(String(w.act).toUpperCase(), x0, y0 - size * 0.95); ctx.letterSpacing = '0px'; }
+  let n = 0, auto = 0.25;
+  lines.forEach(([dt, text], li) => {
+    const start = dt ?? auto; let x = x0; const y = y0 + li * size * 1.05; let em = false;
+    const words = text.split(/\s+/).filter(Boolean);
+    words.forEach((wd, i) => {
+      const k = 1 - Math.pow(1 - lin01(u, start + i * step, start + i * step + 0.35), 3); n++;
+      const segs = []; for (const part of wd.split('*')) { if (part) segs.push({ t: part, em }); em = !em; } em = !em; // '*' count per word toggles state
+      let ww = 0; for (const g of segs) { ctx.font = `italic 400 ${size}px ${FX.serif}`; ww += ctx.measureText(g.t).width; }
+      if (k > 0) { ctx.globalAlpha = a * k; ctx.filter = k < 1 ? `blur(${((1 - k) * 7).toFixed(1)}px)` : 'none'; let cx = x;
+        for (const g of segs) { ctx.font = `italic 400 ${size}px ${FX.serif}`; ctx.fillStyle = g.em ? acc : '#FFFFFF'; ctx.fillText(g.t, cx, y + (1 - k) * 15); cx += ctx.measureText(g.t).width; } ctx.filter = 'none'; }
+      ctx.font = `italic 400 ${size}px ${FX.serif}`; x += ww + ctx.measureText(' ').width;
+    });
+    auto = start + words.length * step + 0.15;
+  });
+  fxEnd();
+}
+function drawFx(f) {
+  const vis = (it) => f >= fr(it.t0) && f < fr(it.t1); let n = 0;
+  for (const it of SPEC.huds) if (vis(it)) { drawHud(it, f); n++; }
+  for (const it of SPEC.callouts) if (vis(it)) { drawCallout(it, f); n++; }
+  for (const it of SPEC.bigs) if (vis(it)) { drawBig(it, f); n++; }
+  for (const it of SPEC.words) if (vis(it)) { drawWords(it, f); n++; }
+  return n;
+}
+
 function normalizeSpec(raw) {
-  const s = Object.assign({ captions: [], tags: [], counter: null }, raw);
+  const s = Object.assign({ captions: [], tags: [], counter: null, callouts: [], huds: [], bigs: [], words: [] }, raw);
   s.titles = [].concat(s.title || [], s.titles || []);
   if (s.counter && !Array.isArray(s.counter)) s.counter = [s.counter];
   s.counter = s.counter || [];
@@ -487,6 +614,11 @@ window.ov = {
     for (const f of [`900 50px 'Big Shoulders Display'`, `800 50px 'Big Shoulders Display'`, `600 11px 'Inter Tight'`, `800 40px 'Inter Tight'`]) await document.fonts.load(f, '0123456789AZ×');
     for (const f of [`400 47px 'Instrument Serif'`, `italic 400 47px 'Instrument Serif'`, `700 52px 'Space Grotesk'`]) await document.fonts.load(f, '0123456789AZaz×');
     TOTAL = info.total;
+    // tracked pins (tools/overlay/pins.js -> out/pins.json): info.pin('<shot>', '<pin>', dx?, dy?) -> (t) => [x, y, vis, r]
+    let PINS = {}; try { const r = await fetch('/__proj/p/out/pins.json', { cache: 'no-store' }); if (r.ok) PINS = await r.json(); } catch (e) {}
+    info.pin = (shot, name, dx = 0, dy = 0) => { const sh = info.byName[shot], tr = PINS[shot] && PINS[shot][name];
+      if (!sh || !tr) throw new Error(`overlay.js: no pin '${name}' in shot '${shot}' (S.pin it in the shot, then run tools/overlay/pins.js)`);
+      return (t) => { const p = tr[Math.max(0, Math.min(tr.length - 1, Math.round(t * FPS) - sh.start))]; return [p[0] + dx, p[1] + dy, p[2], p[3]]; }; };
     const mod = await import(overlayUrl);
     let raw = mod.default;
     if (typeof raw === 'function') raw = await raw(info);
@@ -510,6 +642,7 @@ window.ov = {
     for (const tg of SPEC.tags) { if (f >= fr(tg.t0) && f < fr(tg.t1)) { drawTag(tg, f); n++; } }
     for (const cn of SPEC.counter) { if (f >= fr(cn.t0) && f < fr(cn.t1)) { drawCounter(cn, f); n++; } }
     for (const c of SPEC.captions) { if (f >= fr(c.t0) && f < fr(c.t1)) { drawCaption(c, f); n++; } }
+    n += drawFx(f);
     if (SPEC.draw) { ctx.save(); ctx.setTransform(S, 0, 0, S, 0, 0); if (SPEC.draw(ctx, t, f) !== false) n++; ctx.restore(); }
     return n;
   },

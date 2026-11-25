@@ -12,6 +12,10 @@ Sources are cited, so check them when a decision depends on a detail.
 ## Evidence (numbers; newest first)
 | video | length | views | avg watch | watched full | notes |
 |---|---|---|---|---|---|
+| gta6-console (GTA 6 trend) | 33 s | **6,590** | 18.3 s | **38.8%** | 2026-11-18; ~55% of search traffic was "gta 6"; 93% male; best completion ever; only 1 follow |
+| mars-city-ep14 | 92 s | 2,271 | 23.8 s | 8.5% | most left at 0:01 |
+| oxygen-vanished | 70 s | 962 | 18.6 s | 0.78% | most left at 0:01; 95.6% For You |
+| humans-fly | 36 s | 882 | 10.8 s | 11.3% | 95.9% For You |
 | gravity-flip (v2 format) | 38 s | 326 at 1 h | ? | ? | posted 2026-11-11 about 6:30 PM CT; 19 likes, 2 comments, 1 save at 1 h |
 | moon-2x (studio film #1) | 66 s | 314, flat from 1 h to 8 h | ? | ? | stalled after TikTok's first test batch |
 | A119 "nuke the moon" | 34 s | 7,013 | 9.0 s | 8.1% | best reach, but #trump/#nuke tags; 0.57 follows per 1,000 views |
@@ -20,6 +24,13 @@ Sources are cited, so check them when a decision depends on a detail.
 | dinosaur killer / rods from God / Halloween meteors | short | 546 / 315 / 270 (7 d) | — | — | pre-studio |
 - Full log: `channel/results.csv`. Snapshot and platform rules: `channel/analytics/2026-11-11-snapshot.md`.
 - **Gaps we still need every time:** the 3 s hold, the retention curve (where people leave), the For You share and the traffic sources.
+
+## Lessons from 2026-11-25 (account week Nov 17–23: 11.2K views −55%, 46 followers net 0, shares 5 −94%, comments +312%)
+- **Our 3 biggest videos all rode something people were already searching** (GTA 6 6,590; A119/news 7,013; Pickaxe/news 4,833). Pure science what-ifs sit at 300–2,300. Trend × impossible what-if is the strongest lever we have; keep politics and real people out (GTA is safe if the picture is our own: no Rockstar logos, characters, map art or footage).
+- **0:01 is where we lose people, on every video.** Frame 1 must already be the payoff (the event mid-swing), with the title over it. No calm establishing shot.
+- **People watch 11–24 s regardless of length.** 33 s → 39% finish; 70–92 s → 1–8%. Hard cap 30–35 s for now (overrides the 64 s length test idea).
+- **Zero follow conversion (0–3 per video).** One-offs give no reason to follow: build a named, recognisable series.
+- **Shares ≈ 0.** Shares need a "wait, WHAT?" fact a viewer sends to a friend; put it in the cover.
 
 ## Lessons (7 rows of real stats, 2 of them studio films: every conclusion is a guess)
 - **Likes per view at 1 h:** gravity-flip 19/326 = 5.8%. The Sun video ended at 6.3%, A119 at 1.9% and Pickaxe at 2.5%. Early engagement on the v2 format looks healthy, but 19 likes is a tiny sample.

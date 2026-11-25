@@ -1,0 +1,73 @@
+{
+ "created": "2026-11-25T11:00:00-06:00",
+ "order": "Pitch some ideas now, learn from analytics and trends (Commander, via Claude Code)",
+ "theme": "trend × impossible what-if; payoff at 0:00; 30–35 s",
+ "pitches": [
+  {
+   "id": "p1",
+   "title": "What if GTA 6 physics were *real* for 5 seconds?",
+   "cover": "A 100 KM/H CRASH HITS LIKE A 13-STOREY FALL",
+   "score": 71,
+   "scores": { "demand": 5, "hook": 5, "chaos": 5, "novelty": 4, "physics": 3, "cost": 4, "loop": 4, "taste": 4 },
+   "frame1": "0:00, mid-air: a city delivery van has bounced off a lamp post like rubber and is spinning 15 m above a sunny boulevard; drivers stare up. Title over it. Counter: GAME PHYSICS · 5.0 s",
+   "beats": [
+    { "t": "0:00", "where": "sunny boulevard", "what": "The van is already airborne; a taxi behind it hits the kerb and pinballs off three parked cars, unscratched", "counter": "GAME PHYSICS · 5.0 s" },
+    { "t": "0:05", "where": "cafe corner", "what": "A scooter rider clips a bin, ragdolls 20 m in a cartoon arc and lands sitting in a cafe chair (comic beat, no injury)", "counter": "BOUNCE · 100% elastic" },
+    { "t": "0:10", "where": "harbour ramp", "what": "A pickup hits a boat ramp at 100 km/h and flies 79 m across the marina, peaking 20 m up, landing on a yacht that bounces it back", "counter": "JUMP · 79 m" },
+    { "t": "0:16", "where": "overpass", "what": "Traffic on a highway overpass chains into a bouncing pile, cars launched over the railings into the sky", "counter": "CARS AIRBORNE · 1,240" },
+    { "t": "0:22", "where": "over the city", "what": "The 5 s end: real physics snaps back while hundreds of cars hang mid-air; they stop bouncing and crumple into roofs and the bay", "counter": "REAL PHYSICS · ON" },
+    { "t": "0:28", "where": "rooftop, aftermath", "what": "Close on one car: a real 100 km/h stop crushes it like a 39 m drop; then hard cut back to the spinning van", "counter": "100 km/h = 39 m FALL" }
+   ],
+   "law": "Kinetic energy: a car at 100 km/h (27.8 m/s) carries the energy of a drop from h = v²/2g = 39 m (~13 storeys). In game physics collisions are elastic: a 45° ramp at 27.8 m/s throws it v²/g = 79 m, peak 20 m.",
+   "source": "https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/kinetic-energy/",
+   "dramatization": "For 5 s collisions are perfectly elastic and falls are harmless (game rules); everything after uses real physics.",
+   "why": [ "GTA 6 video: 6,590 views and 38.8% watched in full, 3–7× our other recent posts; ~55% of its search traffic was 'gta 6'", "GTA 6 launched 2026-11-19, largest entertainment launch ever (Forbes); 39M+ PS5 players in 4 days", "Ladder 5 s → snap-back mirrors the 👍 gravity-flip structure" ],
+   "risk": "IP: the picture must be our own city and cars, with no Rockstar logos, map, characters or HUD; 'GTA 6' only in title/caption. Gore risk on the snap-back: keep cars empty or people out of frame. Could be the first episode of a series ('If games were real', Ep. 1) to win follows.",
+   "build": { "size": "M", "reuse": [ "city.js boulevard, cars, lamps", "bay.js harbour and boats", "gravity-flip lift system for airborne cars" ], "new": [ "elastic bounce solver for cars (simple rigid-body bounces)", "car crumple deformation on snap-back" ] }
+  },
+  {
+   "id": "p2",
+   "title": "What if the air got 10× *thicker* for 5 seconds?",
+   "cover": "IN 10× THICKER AIR A LIGHT BREEZE HITS LIKE A HURRICANE",
+   "score": 66,
+   "scores": { "demand": 3, "hook": 4, "chaos": 5, "novelty": 4, "physics": 5, "cost": 4, "loop": 4, "taste": 5 },
+   "frame1": "0:00, a market street is already being swept: a 40 km/h breeze now hits like 126 km/h, awnings rip loose, a fruit stall tumbles, people lean into it holding hats. Counter: AIR DENSITY · ×10",
+   "beats": [
+    { "t": "0:00", "where": "coastal market", "what": "Awnings tear off, oranges stream sideways, a man's umbrella drags him along like a kite (comic beat)", "counter": "BREEZE 40 km/h FEELS LIKE · 126 km/h" },
+    { "t": "0:06", "where": "airport runway", "what": "A taxiing airliner gets 10× the lift and leaps off the runway at walking pace, nose up", "counter": "LIFT · ×10" },
+    { "t": "0:12", "where": "suburb", "what": "Roofs peel off in a row, trampolines and bins fly, trees bend flat", "counter": "WIND FORCE · 756 Pa" },
+    { "t": "0:18", "where": "sea", "what": "The sea surface whips into huge spray walls; boats are shoved across the harbour", "counter": "WAVES · building" },
+    { "t": "0:24", "where": "sky over the city", "what": "Falling debris and a skydiver drift down slowly like in syrup (terminal speed ÷3.2)", "counter": "TERMINAL SPEED · ÷3.2" },
+    { "t": "0:29", "where": "orbit", "what": "Earth from space: the whole sky haze-thick and white as the 5 s ends; hard cut to the market", "counter": "5.0 s" }
+   ],
+   "law": "Drag and lift scale with air density: F = ½ρv²C·A. At ρ ×10, a wind of v feels like √10·v ≈ 3.16v; 40 km/h → 126 km/h (hurricane is ≥119 km/h). Terminal speed scales 1/√10 ≈ ÷3.2.",
+   "source": "https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/drag-equation/",
+   "dramatization": "The density jumps everywhere at once; we ignore the pressure shock on bodies (eardrums) so no one is hurt.",
+   "why": [ "Mirror of the 👍 'air vanished' and 'X becomes … for 5 seconds' pattern (7 of 7 recent 👍)", "Planes leaping into the sky echoes the gravity-flip 👍 'planes into space'", "Cheap: reuses city, bay, planes and clouds" ],
+   "risk": "No trend hook: expect our usual 1–2K unless the hook lands at 0:00. Fix: open on the most violent frame and put the hurricane number in the cover.",
+   "build": { "size": "M", "reuse": [ "city.js props", "bay.js harbour", "planes.js airliner", "ocean.js surf/spray", "space.js Earth" ], "new": [ "wind field that drags props and awnings", "a coastal market set (new place for variety)" ] }
+  },
+  {
+   "id": "p3",
+   "title": "What if everything got 10× *bigger*, except you?",
+   "cover": "MAKE A BRIDGE 10× BIGGER AND IT'S 10× TOO WEAK",
+   "score": 64,
+   "scores": { "demand": 3, "hook": 5, "chaos": 5, "novelty": 5, "physics": 5, "cost": 2, "loop": 4, "taste": 4 },
+   "frame1": "0:00, a suspension bridge already 10× its size is sagging and snapping cables over a river; tiny people on the bank look up. Counter: SIZE · ×10",
+   "beats": [
+    { "t": "0:00", "where": "river bridge", "what": "Cables snap one by one, the deck buckles under its own weight and folds into the river", "counter": "WEIGHT · ×1,000  STRENGTH · ×100" },
+    { "t": "0:06", "where": "old town square", "what": "A clock tower, now 400 m tall, cracks at the base and topples across the square (people safe at the edges)", "counter": "STRESS · ×10" },
+    { "t": "0:12", "where": "park", "what": "A 10 m pigeon can't fly (wings too weak) and waddles; a giant dog lies down, legs buckling, confused (comic beat)", "counter": "TOO HEAVY TO FLY" },
+    { "t": "0:18", "where": "city skyline", "what": "Towers 3 km tall crumble from the bottom up like sandcastles", "counter": "STEEL LIMIT · exceeded" },
+    { "t": "0:24", "where": "mountains", "what": "Even mountains slump: a peak sags and avalanches flow down", "counter": "MOUNTAINS · collapsing" },
+    { "t": "0:29", "where": "orbit", "what": "Earth itself 10× wider: its gravity ×10 pulls the Moon in; hard cut to the bridge", "counter": "GRAVITY · ×10" }
+   ],
+   "law": "Square-cube law: scale by 10 and weight grows ×1,000 (volume) while strength grows ×100 (cross-section), so stress grows ×10, far past any building's safety margin (typically 1.5–2×).",
+   "source": "https://en.wikipedia.org/wiki/Square%E2%80%93cube_law",
+   "dramatization": "Everything scales instantly except people; the mountain and planet beats simplify the geology.",
+   "why": [ "Novel, impossible, whole-world premise that passes the 'wait, WHAT?' test", "Visible physical destruction in new places every beat (👍 pattern)" ],
+   "risk": "Most expensive build (giant scaled sets, buckling structures). Fix: keep it to 5 shots plus the orbit end, reuse city.js towers with a scale and collapse pass.",
+   "build": { "size": "L", "reuse": [ "city.js towers", "earth-stops towersBreak.js", "space.js Earth/Moon" ], "new": [ "suspension bridge with cable snaps", "giant animal figures", "mountain slump" ] }
+  }
+ ]
+}
